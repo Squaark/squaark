@@ -65,12 +65,17 @@
           </div>
         </div>
 
-        <!-- Empty state -->
-        <div x-show="sections.length === 0"
-          style="border:2px dashed #e5e7eb;border-radius:0.75rem;padding:3rem;text-align:center;font-size:0.875rem;color:#9ca3af;">
-          No sections yet. Add one above to start building this page.
-          {{#if page.content}}<p style="margin-top:0.5rem;font-size:0.75rem;">This page has legacy content that will show until sections are added.</p>{{/if}}
+        <!-- Empty state / legacy content editor -->
+        <div x-show="sections.length === 0">
+          <label class="form-label">Content <span class="form-optional">— shown when no sections are added. Accepts HTML.</span></label>
+          <textarea name="content" rows="16" class="form-textarea font-mono"
+            placeholder="<p>Page content here…</p>">{{page.content}}</textarea>
         </div>
+
+        <!-- When sections exist, preserve any legacy content as hidden so it isn't lost -->
+        <template x-if="sections.length > 0">
+          <input type="hidden" name="content" value="{{page.content}}">
+        </template>
 
         <!-- Section cards -->
         <template x-for="(s, i) in sections" :key="s.id">
@@ -228,8 +233,6 @@
         <input type="hidden" name="sections" :value="JSON.stringify(sections.map(({_open, ...rest}) => rest))">
       </div>
 
-      <!-- Preserve legacy content (WooCommerce imports) as hidden field -->
-      {{#if page.content}}<input type="hidden" name="content" value="{{page.content}}">{{/if}}
 
     </div>
 
