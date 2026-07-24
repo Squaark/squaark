@@ -4,14 +4,18 @@ import { render } from '../../admin/render';
 import { getAdminById } from '../../admin/auth';
 import { getAllSettings } from '../../db/queries/admin';
 import { processUploadedImage } from '../../admin/images';
+import fs from 'fs';
+import path from 'path';
 import { execute, query, queryOne } from '../../db/connection';
 import { findAllBands } from '../../db/queries/tax';
+import { saveProductFile, deleteProductFile, findFileForProduct } from '../../db/queries/downloads';
 import type { MultipartFile } from '@fastify/multipart';
+import config from '../../config';
 
 interface ProductRow {
   id: string; title: string; slug: string; description: string | null;
   vendor: string | null; tags_text: string; published: number;
-  tax_band_id: string | null;
+  tax_band_id: string | null; is_digital: number;
   created_at: string; updated_at: string;
 }
 interface VariantRow {
@@ -32,6 +36,8 @@ export async function productRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post('/products/:id/delete', deleteProduct);
   fastify.post('/products/:id/images', uploadImage);
   fastify.post('/products/:id/images/:imageId/delete', deleteImage);
+  fastify.post('/products/:id/file', uploadDigitalFile);
+  fastify.post('/products/:id/file/delete', deleteDigitalFile);
 }
 
 function adminCtx(req: FastifyRequest) {
@@ -70,8 +76,15 @@ async function editProductPage(req: FastifyRequest<{ Params: { id: string } }>, 
   if (!product) return reply.code(404).type('text/html').send(render('404', { pageTitle: 'Not found' }));
   const variants = query<VariantRow>('SELECT * FROM product_variants WHERE product_id = ? ORDER BY position', [product.id]);
   const images = query<ImageRow>('SELECT * FROM product_images WHERE product_id = ? ORDER BY position', [product.id]);
+  const digitalFile = findFileForProduct(product.id);
+  const query_ = req.query as Record<string, string>;
   return reply.type('text/html').send(
-    render('products/form', { ...adminCtx(req), product, variants, images, taxBands: findAllBands(), pageTitle: product.title }),
+    render('products/form', {
+      ...adminCtx(req), product, variants, images, taxBands: findAllBands(),
+      digitalFile, pageTitle: product.title,
+      saved: query_.saved === '1', created: query_.created === '1',
+      uploaded: query_.uploaded === '1',
+    }),
   );
 }
 
@@ -81,12 +94,12 @@ async function createProduct(
 ) {
   const { title, slug, description, vendor, tags_text, published,
           variant_title, price, compare_at_price, sku, inventory_quantity,
-          seo_title, seo_description, free_shipping } = req.body;
+          seo_title, seo_description, free_shipping, is_digital } = req.body;
 
   if (!title || !slug) {
     return reply.type('text/html').send(
       render('products/form', { ...adminCtx(req), product: req.body, variants: [], images: [],
-        error: 'Title and slug are required', pageTitle: 'New product' }),
+        taxBands: findAllBands(), error: 'Title and slug are required', pageTitle: 'New product' }),
     );
   }
 
@@ -98,10 +111,11 @@ async function createProduct(
 
   const tax_band_id = req.body.tax_band_id?.trim() || null;
   execute(
-    `INSERT INTO products (id, title, slug, description, vendor, tags_text, published, seo_title, seo_description, free_shipping, tax_band_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO products (id, title, slug, description, vendor, tags_text, published, seo_title, seo_description, free_shipping, is_digital, tax_band_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [productId, title.trim(), slug.trim(), description || null, vendor || null, tags_text || '', published === '1' ? 1 : 0,
-     seo_title || null, seo_description || null, free_shipping === '1' ? 1 : 0, tax_band_id],
+     seo_title || null, seo_description || null, free_shipping === '1' ? 1 : 0,
+     is_digital === '1' ? 1 : 0, tax_band_id],
   );
   execute(
     `INSERT INTO product_variants (id, product_id, title, price, compare_at_price, sku, inventory_quantity)
@@ -120,12 +134,13 @@ async function updateProduct(
   const product = queryOne<ProductRow>('SELECT id FROM products WHERE id = ?', [id]);
   if (!product) return reply.code(404).send('Not found');
 
-  const { title, slug, description, vendor, tags_text, published, seo_title, seo_description, free_shipping } = req.body;
+  const { title, slug, description, vendor, tags_text, published, seo_title, seo_description, free_shipping, is_digital: is_digital_update } = req.body;
   const tax_band_id_update = req.body.tax_band_id?.trim() || null;
   execute(
-    `UPDATE products SET title=?, slug=?, description=?, vendor=?, tags_text=?, published=?, seo_title=?, seo_description=?, free_shipping=?, tax_band_id=?, updated_at=datetime('now') WHERE id=?`,
+    `UPDATE products SET title=?, slug=?, description=?, vendor=?, tags_text=?, published=?, seo_title=?, seo_description=?, free_shipping=?, is_digital=?, tax_band_id=?, updated_at=datetime('now') WHERE id=?`,
     [title, slug, description || null, vendor || null, tags_text || '', published === '1' ? 1 : 0,
-     seo_title || null, seo_description || null, free_shipping === '1' ? 1 : 0, tax_band_id_update, id],
+     seo_title || null, seo_description || null, free_shipping === '1' ? 1 : 0,
+     is_digital_update === '1' ? 1 : 0, tax_band_id_update, id],
   );
 
   // Update variants if provided
@@ -176,5 +191,45 @@ async function deleteImage(
   reply: FastifyReply,
 ) {
   execute('DELETE FROM product_images WHERE id = ? AND product_id = ?', [req.params.imageId, req.params.id]);
+  return reply.redirect(`/admin/products/${req.params.id}`);
+}
+
+async function uploadDigitalFile(
+  req: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+) {
+  const product = queryOne<{ id: string }>('SELECT id FROM products WHERE id = ?', [req.params.id]);
+  if (!product) return reply.code(404).send('Not found');
+
+  const data = await req.file();
+  if (!data) return reply.redirect(`/admin/products/${req.params.id}?error=no_file`);
+
+  const buf = await data.toBuffer();
+  const ext = path.extname(data.filename) || '';
+  const filename = `${crypto.randomUUID()}${ext}`;
+  const dir = path.join(config.uploadsDir, 'digital');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, filename), buf);
+
+  // Delete old file from disk if any
+  const existing = findFileForProduct(product.id);
+  if (existing) {
+    try { fs.unlinkSync(path.join(dir, existing.filename)); } catch { /* already gone */ }
+  }
+
+  saveProductFile(product.id, filename, data.filename, data.mimetype || null, buf.length);
+  return reply.redirect(`/admin/products/${req.params.id}?saved=1`);
+}
+
+async function deleteDigitalFile(
+  req: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+) {
+  const existing = findFileForProduct(req.params.id);
+  if (existing) {
+    const dir = path.join(config.uploadsDir, 'digital');
+    try { fs.unlinkSync(path.join(dir, existing.filename)); } catch { /* already gone */ }
+    deleteProductFile(req.params.id);
+  }
   return reply.redirect(`/admin/products/${req.params.id}`);
 }

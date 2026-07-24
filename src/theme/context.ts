@@ -57,6 +57,7 @@ export interface CartItem {
   productSlug: string;
   variantId: string;
   freeShipping: boolean;
+  isDigital: boolean;
   taxRate: string | null;
 }
 

@@ -46,6 +46,29 @@
     {{/if}}
   </div>
 
+  <!-- Downloads -->
+  {{#if downloads}}
+  <div class="success-card">
+    <h2 class="success-card__title">Your downloads</h2>
+    <p style="font-size:0.875rem;color:#6b7280;margin-bottom:1rem;">Your download links are also included in your confirmation email. Links are valid for 30 days.</p>
+    <div class="success-items">
+      {{#each downloads}}
+      <div class="success-item">
+        <div>
+          <p class="success-item__title">{{this.productTitle}}</p>
+          <p class="success-item__variant">{{this.originalName}}</p>
+        </div>
+        {{#unless this.expired}}
+        <a href="{{this.url}}" class="btn btn-primary btn-sm" style="background:var(--color-primary);">Download</a>
+        {{else}}
+        <span style="font-size:0.75rem;color:#9ca3af;">Expired</span>
+        {{/unless}}
+      </div>
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+
   <!-- Shipping address -->
   {{#if order.shippingAddress.line1}}
     <div class="success-card">

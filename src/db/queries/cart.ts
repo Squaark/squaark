@@ -23,6 +23,7 @@ export interface CartItemRow {
   img_original: string | null;
   img_alt: string | null;
   free_shipping: number; // 1 | 0
+  is_digital: number; // 1 | 0
   tax_rate: string | null; // resolved from tax_rates JOIN
 }
 
@@ -48,7 +49,7 @@ export function findCartItems(cartId: string): CartItemRow[] {
       p.id           AS product_id,
       p.title        AS product_title,
       p.slug         AS product_slug,
-      p.free_shipping, tr.rate AS tax_rate,
+      p.free_shipping, p.is_digital, tr.rate AS tax_rate,
       COALESCE(pvi.thumbnail, ppi.thumbnail) AS img_thumbnail,
       COALESCE(pvi.medium,    ppi.medium)    AS img_medium,
       COALESCE(pvi.large,     ppi.large)     AS img_large,

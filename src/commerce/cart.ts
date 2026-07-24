@@ -49,6 +49,7 @@ function rowToCartItem(row: CartItemRow): CartItem {
     productSlug:   row.product_slug,
     variantId:     row.variant_id,
     freeShipping:  row.free_shipping === 1,
+    isDigital:     row.is_digital === 1,
     taxRate:       row.tax_rate ?? null,
   };
 }

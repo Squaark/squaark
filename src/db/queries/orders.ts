@@ -28,6 +28,7 @@ export interface OrderRow {
 export interface OrderItemRow {
   id: string;
   order_id: string;
+  variant_id: string | null;
   product_title: string;
   variant_title: string;
   sku: string | null;

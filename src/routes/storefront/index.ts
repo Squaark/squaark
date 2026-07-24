@@ -8,6 +8,7 @@ import { findAllPages, findPageBySlug } from '../../db/queries/pages';
 import { getAllSettings } from '../../db/queries/admin';
 import { checkoutRoutes } from './checkout';
 import { accountRoutes } from './account';
+import { downloadRoutes } from './downloads';
 import { findCustomerById } from '../../db/queries/customers';
 
 async function base(
@@ -59,6 +60,7 @@ async function cartFragment(
 export async function storefrontRoutes(fastify: FastifyInstance, registry: ThemeRegistry): Promise<void> {
   await checkoutRoutes(fastify, registry);
   await accountRoutes(fastify, registry);
+  await downloadRoutes(fastify);
 
   // Read once at startup — changing cart_slug requires a server restart
   const cartSlug = getAllSettings().cart_slug || 'cart';

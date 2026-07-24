@@ -125,33 +125,63 @@
       </div>
     </form>
 
-    <!-- Images -->
-    {{#if product}}
-    <div class="card--no-overflow card-body">
-      <h2 class="font-semibold mb-4">Images</h2>
-      {{#if uploaded}}
-      <div class="alert alert-success">Image uploaded.</div>
-      {{/if}}
-      <div class="row mb-4" style="flex-wrap:wrap;gap:0.75rem;">
-        {{#each images}}
-        <div style="position:relative;">
-          <img src="{{this.thumbnail}}" alt="{{this.alt}}" style="width:5rem;height:5rem;object-fit:cover;border-radius:0.5rem;border:1px solid #e5e7eb;">
-          <form method="POST" action="/admin/products/{{../product.id}}/images/{{this.id}}/delete"
-            style="position:absolute;top:0.25rem;right:0.25rem;">
-            <button type="submit" title="Remove" class="btn-link btn-link--danger" style="background:#fff;border:1px solid #e5e7eb;border-radius:50%;width:1.25rem;height:1.25rem;display:flex;align-items:center;justify-content:center;font-size:0.75rem;">×</button>
+    <!-- Digital file -->
+    <div id="digital-file-card" class="card--no-overflow card-body" {{#unless (eq product.is_digital 1)}}style="display:none"{{/unless}}>
+      <h2 class="font-semibold mb-4">Digital file</h2>
+      {{#if product}}
+        {{#if digitalFile}}
+        <div class="row mb-3" style="align-items:center;gap:0.75rem;">
+          <div style="flex:1;min-width:0;">
+            <p class="text-sm font-medium" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{digitalFile.original_name}}</p>
+            <p class="text-xs text-muted">{{digitalFile.size}} bytes</p>
+          </div>
+          <form method="POST" action="/admin/products/{{product.id}}/file/delete" onsubmit="return confirm('Remove this file?')">
+            <button type="submit" class="btn-link btn-link--danger btn-link--sm">Remove</button>
           </form>
         </div>
-        {{/each}}
-      </div>
-      <form method="POST" action="/admin/products/{{product.id}}/images" enctype="multipart/form-data">
-        <label class="form-label">Upload image</label>
-        <div class="row mt-1">
-          <input type="file" name="file" accept="image/*" required class="form-file flex-1">
-          <button type="submit" class="btn btn-primary btn-sm">Upload</button>
-        </div>
-      </form>
+        {{else}}
+        <p class="text-sm text-muted mb-3">No file attached. Upload a file to make this product downloadable.</p>
+        {{/if}}
+        <form method="POST" action="/admin/products/{{product.id}}/file" enctype="multipart/form-data">
+          <div class="row mt-1">
+            <input type="file" name="file" required class="form-file flex-1">
+            <button type="submit" class="btn btn-primary btn-sm">{{#if digitalFile}}Replace{{else}}Upload{{/if}}</button>
+          </div>
+        </form>
+      {{else}}
+        <p class="text-sm text-muted">Save the product first, then come back to attach a downloadable file.</p>
+      {{/if}}
     </div>
-    {{/if}}
+
+    <!-- Images -->
+    <div class="card--no-overflow card-body">
+      <h2 class="font-semibold mb-4">Images</h2>
+      {{#if product}}
+        {{#if uploaded}}
+        <div class="alert alert-success">Image uploaded.</div>
+        {{/if}}
+        <div class="row mb-4" style="flex-wrap:wrap;gap:0.75rem;">
+          {{#each images}}
+          <div style="position:relative;">
+            <img src="{{this.thumbnail}}" alt="{{this.alt}}" style="width:5rem;height:5rem;object-fit:cover;border-radius:0.5rem;border:1px solid #e5e7eb;">
+            <form method="POST" action="/admin/products/{{../product.id}}/images/{{this.id}}/delete"
+              style="position:absolute;top:0.25rem;right:0.25rem;">
+              <button type="submit" title="Remove" class="btn-link btn-link--danger" style="background:#fff;border:1px solid #e5e7eb;border-radius:50%;width:1.25rem;height:1.25rem;display:flex;align-items:center;justify-content:center;font-size:0.75rem;">×</button>
+            </form>
+          </div>
+          {{/each}}
+        </div>
+        <form method="POST" action="/admin/products/{{product.id}}/images" enctype="multipart/form-data">
+          <label class="form-label">Upload image</label>
+          <div class="row mt-1">
+            <input type="file" name="file" accept="image/*" required class="form-file flex-1">
+            <button type="submit" class="btn btn-primary btn-sm">Upload</button>
+          </div>
+        </form>
+      {{else}}
+        <p class="text-sm text-muted">Save the product first, then come back to upload images.</p>
+      {{/if}}
+    </div>
   </div>
 
   <!-- Sidebar -->
@@ -165,6 +195,12 @@
     </div>
     <div class="card--no-overflow card-body stack-sm">
       <h2 class="font-semibold text-sm">Shipping &amp; Tax</h2>
+      <label class="form-check">
+        <input type="checkbox" name="is_digital" value="1" {{#if (eq product.is_digital 1)}}checked{{/if}} form="main-form"
+               id="is-digital-toggle" onchange="document.getElementById('digital-file-card').style.display=this.checked?'':'none'">
+        Digital product
+      </label>
+      <p class="text-xs text-muted">Digital products are delivered by download link. No shipping is charged when the entire cart is digital.</p>
       <label class="form-check">
         <input type="checkbox" name="free_shipping" value="1" {{#if (eq product.free_shipping 1)}}checked{{/if}} form="main-form">
         Free shipping

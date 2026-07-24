@@ -6,6 +6,7 @@ import { getCartPage, getCartSummary } from '../../commerce/cart';
 import { clearCart } from '../../db/queries/cart';
 import { getAllSettings } from '../../db/queries/admin';
 import { createOrder, markOrderPaid, findOrderById, findOrderByPaymentReference, findOrderItems, type Address } from '../../db/queries/orders';
+import { createOrderDownloads, findDownloadsForOrder } from '../../db/queries/downloads';
 import { sendTemplatedEmail } from '../../email/send';
 import config from '../../config';
 import { writeLog } from '../../db/queries/system-log';
@@ -107,11 +108,13 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     const symbols: Record<string, string> = { GBP: '£', USD: '$', EUR: '€' };
     const sym = symbols[currencyCode] ?? currencyCode;
 
-    // If every item in the cart has free_shipping, skip zone lookup
-    const allFreeShipping = cart.items.length > 0 && cart.items.every(i => i.freeShipping);
-    const rates = allFreeShipping
-      ? [{ id: 'free_shipping_product', name: 'Free Shipping', amount: 0, isFree: true }]
-      : getRatesForCountry(country, cart.subtotal.amount - (cart.discountAmount?.amount ?? 0));
+    const allDigital = cart.items.length > 0 && cart.items.every(i => i.isDigital);
+    const allFreeShipping = !allDigital && cart.items.length > 0 && cart.items.every(i => i.freeShipping);
+    const rates = allDigital
+      ? [{ id: 'digital_delivery', name: 'Digital delivery', amount: 0, isFree: true }]
+      : allFreeShipping
+        ? [{ id: 'free_shipping_product', name: 'Free Shipping', amount: 0, isFree: true }]
+        : getRatesForCountry(country, cart.subtotal.amount - (cart.discountAmount?.amount ?? 0));
 
     if (!rates.length) {
       reply.type('text/html').send('');
@@ -149,7 +152,9 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     // Resolve shipping
     let shippingAmount = 0;
     let shippingTitle: string | null = null;
-    if (body.shippingRateId === 'free_shipping_product') {
+    if (body.shippingRateId === 'digital_delivery') {
+      shippingTitle = 'Digital delivery';
+    } else if (body.shippingRateId === 'free_shipping_product') {
       shippingTitle = 'Free Shipping';
     } else {
       const shippingRateRow = body.shippingRateId ? findRateById(body.shippingRateId) : null;
@@ -263,9 +268,14 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       });
 
       if (order) {
+        const settings = getAllSettings();
+        const storeUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+        const downloads = createOrderDownloads(orderId);
         sendTemplatedEmail('order_confirmation', order.email, {
           order: { ...order, items: findOrderItems(orderId) },
-          store: { name: getAllSettings().store_name },
+          store: { name: settings.store_name },
+          downloads: downloads.map(d => ({ ...d, url: `${storeUrl}/downloads/${d.token}` })),
+          download_expiry_days: 30,
         }).catch(() => {});
       }
 
@@ -314,9 +324,13 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
               total: order?.total, sessionId: session.id,
             });
             if (order) {
+              const storeUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+              const downloads = createOrderDownloads(orderId);
               sendTemplatedEmail('order_confirmation', order.email, {
                 order: { ...order, items: findOrderItems(orderId) },
                 store: { name: settings.store_name },
+                downloads: downloads.map(d => ({ ...d, url: `${storeUrl}/downloads/${d.token}` })),
+                download_expiry_days: 30,
               }).catch(() => {});
             }
           }
@@ -435,7 +449,9 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       let ppShippingAmount = 0;
       let ppShippingTitle: string | null = null;
       const pendingRateId = req.session.pendingShippingRateId ?? '';
-      if (pendingRateId === 'free_shipping_product') {
+      if (pendingRateId === 'digital_delivery') {
+        ppShippingTitle = 'Digital delivery';
+      } else if (pendingRateId === 'free_shipping_product') {
         ppShippingTitle = 'Free Shipping';
       } else if (pendingRateId) {
         const ppShippingRateRow = findRateById(pendingRateId);
@@ -491,9 +507,13 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
         paypalOrderId: data.id,
       });
 
+      const ppStoreUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+      const ppDownloads = createOrderDownloads(order.id);
       sendTemplatedEmail('order_confirmation', email, {
         order: { ...order, items: findOrderItems(order.id) },
         store: { name: settings.store_name },
+        downloads: ppDownloads.map(d => ({ ...d, url: `${ppStoreUrl}/downloads/${d.token}` })),
+        download_expiry_days: 30,
       }).catch(() => {});
 
       return reply.send({ orderId: order.id });
@@ -523,6 +543,14 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     const canCreateAccount = accountsEnabled && !alreadyLoggedIn && !emailHasAccount;
     const accountStatus = (req.query as Record<string, string>).account ?? null;
 
+    const storeUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+    const orderDownloads = findDownloadsForOrder(orderId).map(d => ({
+      productTitle: d.product_title,
+      originalName: d.original_name,
+      url: `${storeUrl}/downloads/${d.token}`,
+      expired: d.expires_at ? new Date(d.expires_at) < new Date() : false,
+    }));
+
     await render(registry, reply, 'checkout-success', {
       ...ctx,
       pageTitle: `Order #${order.order_number} confirmed`,
@@ -534,6 +562,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       taxEnabled: settings.tax_enabled === '1',
       taxLabel: settings.tax_label || 'VAT',
       taxNumber: settings.tax_number || '',
+      downloads: orderDownloads,
     });
   });
 
