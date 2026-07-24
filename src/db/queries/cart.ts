@@ -23,6 +23,7 @@ export interface CartItemRow {
   img_original: string | null;
   img_alt: string | null;
   free_shipping: number; // 1 | 0
+  tax_rate: string | null; // resolved from tax_rates JOIN
 }
 
 export function createCart(): string {
@@ -47,7 +48,7 @@ export function findCartItems(cartId: string): CartItemRow[] {
       p.id           AS product_id,
       p.title        AS product_title,
       p.slug         AS product_slug,
-      p.free_shipping,
+      p.free_shipping, tr.rate AS tax_rate,
       COALESCE(pvi.thumbnail, ppi.thumbnail) AS img_thumbnail,
       COALESCE(pvi.medium,    ppi.medium)    AS img_medium,
       COALESCE(pvi.large,     ppi.large)     AS img_large,
@@ -56,6 +57,8 @@ export function findCartItems(cartId: string): CartItemRow[] {
     FROM cart_items ci
     JOIN product_variants pv ON pv.id = ci.variant_id
     JOIN products p           ON p.id = pv.product_id
+    LEFT JOIN tax_bands  tb  ON tb.id       = p.tax_band_id
+    LEFT JOIN tax_rates  tr  ON tr.band_id  = tb.id
     LEFT JOIN product_images pvi ON pvi.id = pv.image_id
     LEFT JOIN product_images ppi ON ppi.product_id = p.id AND ppi.position = (
       SELECT MIN(position) FROM product_images WHERE product_id = p.id

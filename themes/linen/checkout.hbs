@@ -1,6 +1,6 @@
 {{> header}}
 
-<div class="container py-12" x-data="checkoutApp({{cart.subtotal.amount}}, {{#if cart.discountAmount}}{{cart.discountAmount.amount}}{{else}}0{{/if}}, '{{store.currency.symbol}}')">
+<div class="container py-12" x-data="checkoutApp({{cart.subtotal.amount}}, {{#if cart.discountAmount}}{{cart.discountAmount.amount}}{{else}}0{{/if}}, '{{store.currency.symbol}}', {{#if tax.enabled}}true{{else}}false{{/if}}, {{itemsTaxAmount}}, '{{tax.label}}')">
   <h1 style="font-size:1.5rem;font-weight:700;color:#111827;margin-bottom:2rem;">Checkout</h1>
 
   <div class="checkout-layout">
@@ -177,22 +177,36 @@
           <span>Total</span>
           <span x-text="totalFormatted">{{money cart.total}}</span>
         </div>
+
+        <div class="summary-tax" x-show="taxEnabled && taxAmountFormatted" x-cloak>
+          <span x-text="taxLabel + ' included'">VAT included</span>
+          <span x-text="taxAmountFormatted"></span>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-function checkoutApp(subtotal, discount, currencySymbol) {
+function checkoutApp(subtotal, discount, currencySymbol, taxEnabled, itemsTaxAmount, taxLabel) {
   return {
     subtotalAmount: subtotal,
     discountAmount: discount,
     shippingAmount: 0,
     shippingLabel: 'Calculated at checkout',
     selectedRateId: '',
+    taxEnabled: taxEnabled || false,
+    itemsTaxAmount: itemsTaxAmount || 0,
+    taxLabel: taxLabel || 'VAT',
+    get orderTotal() {
+      return this.subtotalAmount - this.discountAmount + this.shippingAmount;
+    },
     get totalFormatted() {
-      const total = this.subtotalAmount - this.discountAmount + this.shippingAmount;
-      return currencySymbol + (total / 100).toFixed(2);
+      return currencySymbol + (this.orderTotal / 100).toFixed(2);
+    },
+    get taxAmountFormatted() {
+      if (!this.taxEnabled || this.itemsTaxAmount <= 0) return '';
+      return currencySymbol + (this.itemsTaxAmount / 100).toFixed(2);
     },
     selectRate(id, amount, label) {
       this.selectedRateId = id;

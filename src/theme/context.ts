@@ -32,6 +32,7 @@ export interface ProductSummary {
   image: Image | null;
   available: boolean;
   vendor: string | null;
+  taxRate: string | null;
 }
 
 export interface Variant {
@@ -56,6 +57,7 @@ export interface CartItem {
   productSlug: string;
   variantId: string;
   freeShipping: boolean;
+  taxRate: string | null;
 }
 
 export interface GlobalContext {
@@ -83,6 +85,11 @@ export interface GlobalContext {
   pageTitle?: string;
   metaDescription?: string;
   ogImage?: string | null;
+  tax: {
+    enabled: boolean;
+    displayMode: 'inc' | 'ex' | 'both';
+    label: string;
+  };
 }
 
 export interface ProductPageContext extends GlobalContext {
@@ -202,6 +209,11 @@ export function buildGlobalContext(
       })),
     },
     currentPath,
+    tax: {
+      enabled: settings.tax_enabled === '1',
+      displayMode: (settings.tax_display_mode as 'inc' | 'ex' | 'both') || 'inc',
+      label: settings.tax_label || 'VAT',
+    },
   };
 }
 

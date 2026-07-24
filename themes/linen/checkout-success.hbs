@@ -33,6 +33,17 @@
       <span>Total</span>
       <span>{{money order.total}}</span>
     </div>
+    {{#if taxEnabled}}
+      {{#if order.tax_amount}}
+        <div class="success-tax">
+          <span>{{taxLabel}} included</span>
+          <span>{{money order.tax_amount}}</span>
+        </div>
+        {{#if taxNumber}}
+          <p class="success-tax-number">{{taxLabel}} No. {{taxNumber}}</p>
+        {{/if}}
+      {{/if}}
+    {{/if}}
   </div>
 
   <!-- Shipping address -->

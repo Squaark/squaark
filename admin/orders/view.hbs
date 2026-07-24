@@ -32,10 +32,22 @@
             <td class="right text-success">−£{{money_pence order.discount_amount}}</td>
           </tr>
           {{/if}}
+          {{#if order.shipping}}
+          <tr>
+            <td colspan="2">Shipping{{#if order.shipping_title}} ({{order.shipping_title}}){{/if}}</td>
+            <td class="right">£{{money_pence order.shipping}}</td>
+          </tr>
+          {{/if}}
           <tr>
             <td colspan="2" class="font-semibold">Total</td>
             <td class="right font-semibold">£{{money_pence order.total}}</td>
           </tr>
+          {{#if order.tax_amount}}
+          <tr class="text-muted">
+            <td colspan="2">{{#if settings.tax_label}}{{settings.tax_label}}{{else}}VAT{{/if}} included</td>
+            <td class="right">£{{money_pence order.tax_amount}}</td>
+          </tr>
+          {{/if}}
         </tfoot>
       </table>
     </div>

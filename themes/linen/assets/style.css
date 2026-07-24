@@ -319,6 +319,7 @@ main { display: block; }
 .product-card__price { font-size: 0.875rem; font-weight: 700; color: #111827; }
 .product-card__price--sale { color: var(--color-accent); }
 .product-card__compare { font-size: 0.75rem; color: #9ca3af; text-decoration: line-through; }
+.product-card__tax-note { font-size: 0.6875rem; color: #9ca3af; margin-left: auto; }
 
 /* Sale / sold-out badge */
 .badge-sale {
@@ -507,6 +508,7 @@ main { display: block; }
 .summary-row--muted { color: #9ca3af; }
 .summary-row--muted span:last-child { color: #9ca3af; font-weight: 400; }
 .summary-total { display: flex; justify-content: space-between; font-weight: 700; font-size: 1rem; color: #111827; padding-top: 1.25rem; border-top: 1px solid #e5e7eb; margin-top: 1.25rem; }
+.summary-tax { display: flex; justify-content: space-between; font-size: 0.75rem; color: #9ca3af; margin-top: 0.5rem; }
 .discount-row { display: flex; gap: 0.5rem; margin-top: 1.25rem; }
 .discount-input { flex: 1; border: 1px solid #e5e7eb; background: #fff; border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem; outline: none; font-family: inherit; }
 .discount-input:focus { border-color: #111827; }
@@ -569,6 +571,8 @@ main { display: block; }
 .success-item__qty { font-size: 0.75rem; color: #6b7280; }
 .success-item__price { font-size: 0.875rem; font-weight: 500; color: #111827; flex-shrink: 0; }
 .success-total { display: flex; justify-content: space-between; font-weight: 700; color: #111827; font-size: 0.875rem; }
+.success-tax { display: flex; justify-content: space-between; font-size: 0.75rem; color: #9ca3af; margin-top: 0.375rem; }
+.success-tax-number { font-size: 0.75rem; color: #9ca3af; margin-top: 0.125rem; }
 .success-address { font-style: normal; font-size: 0.875rem; color: #4b5563; line-height: 1.6; }
 .account-prompt-form { display: flex; gap: 0.75rem; }
 .account-created-notice { margin-bottom: 1.5rem; padding: 0.75rem; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 0.75rem; font-size: 0.875rem; color: #166534; }

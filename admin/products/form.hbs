@@ -17,7 +17,7 @@
 <div class="grid-form">
   <!-- Main form -->
   <div class="stack">
-    <form method="POST" action="/admin/products/{{#if product}}{{product.id}}{{else}}new{{/if}}">
+    <form id="main-form" method="POST" action="/admin/products/{{#if product}}{{product.id}}{{else}}new{{/if}}">
       <input type="hidden" name="variant_ids" value="{{#each variants}}{{this.id}}{{#unless @last}},{{/unless}}{{/each}}">
 
       <div class="card--no-overflow card-body stack-sm">
@@ -164,12 +164,26 @@
       </label>
     </div>
     <div class="card--no-overflow card-body stack-sm">
-      <h2 class="font-semibold text-sm">Shipping</h2>
+      <h2 class="font-semibold text-sm">Shipping &amp; Tax</h2>
       <label class="form-check">
         <input type="checkbox" name="free_shipping" value="1" {{#if (eq product.free_shipping 1)}}checked{{/if}} form="main-form">
         Free shipping
       </label>
       <p class="text-xs text-muted">When checked, this product bypasses zone shipping rates. If every item in the cart has free shipping, the customer is charged £0.</p>
+      <div>
+        <label class="form-label-xs">Tax band</label>
+        <select name="tax_band_id" form="main-form" class="form-select">
+          <option value="">No tax (untaxed)</option>
+          {{#each taxBands}}
+            <option value="{{this.id}}" {{#if (eq this.id ../product.tax_band_id)}}selected{{/if}}>
+              {{this.name}}{{#if this.rate}} ({{this.rate}}%){{/if}}
+            </option>
+          {{/each}}
+        </select>
+        {{#unless taxBands.length}}
+          <p class="text-xs text-muted">No tax bands yet. <a href="/admin/tax/new" target="_blank">Create one</a> first.</p>
+        {{/unless}}
+      </div>
     </div>
     {{#if product}}
     <div class="card--no-overflow card-body text-xs text-muted stack-xs">

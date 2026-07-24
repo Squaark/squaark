@@ -35,11 +35,30 @@
       {{/if}}
       <h3 class="product-card__title">{{this.title}}</h3>
       <div class="product-card__prices">
-        <span class="product-card__price {{#if this.onSale}}product-card__price--sale{{/if}}">
-          {{money this.price}}
-        </span>
-        {{#if this.compareAtPrice}}
-          <span class="product-card__compare">{{money this.compareAtPrice}}</span>
+        {{#if (and @root.tax.enabled (eq @root.tax.displayMode 'ex'))}}
+          <span class="product-card__price {{#if this.onSale}}product-card__price--sale{{/if}}">
+            {{ex_tax_price this.price.amount this.taxRate}}
+          </span>
+          {{#if this.compareAtPrice}}
+            <span class="product-card__compare">{{ex_tax_price this.compareAtPrice.amount this.taxRate}}</span>
+          {{/if}}
+          <span class="product-card__tax-note">ex. {{@root.tax.label}}</span>
+        {{else}}
+          <span class="product-card__price {{#if this.onSale}}product-card__price--sale{{/if}}">
+            {{money this.price}}
+          </span>
+          {{#if this.compareAtPrice}}
+            <span class="product-card__compare">{{money this.compareAtPrice}}</span>
+          {{/if}}
+          {{#if (and @root.tax.enabled this.taxRate)}}
+            {{#unless (eq this.taxRate '0')}}
+              {{#if (eq @root.tax.displayMode 'inc')}}
+                <span class="product-card__tax-note">inc. {{@root.tax.label}}</span>
+              {{else if (eq @root.tax.displayMode 'both')}}
+                <span class="product-card__tax-note">inc. {{@root.tax.label}} / {{ex_tax_price this.price.amount this.taxRate}} ex.</span>
+              {{/if}}
+            {{/unless}}
+          {{/if}}
         {{/if}}
       </div>
     </div>

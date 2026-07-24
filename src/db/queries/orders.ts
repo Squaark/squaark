@@ -20,6 +20,7 @@ export interface OrderRow {
   payment_reference: string | null;
   shipping_rate_id: string | null;
   shipping_title: string | null;
+  tax_amount: number;
   created_at: string;
   updated_at: string;
 }
@@ -61,6 +62,7 @@ export interface CreateOrderInput {
   paymentReference: string | null;
   shippingRateId?: string | null;
   shippingTitle?: string | null;
+  taxAmount?: number;
   items: Array<{
     variantId: string | null;
     productTitle: string;
@@ -104,8 +106,8 @@ export function createOrder(input: CreateOrderInput): OrderRow {
       subtotal, discount_amount, shipping, total, currency,
       discount_code, notes, shipping_address, billing_address,
       payment_provider, payment_reference,
-      shipping_rate_id, shipping_title
-    ) VALUES (?, ?, ?, 'pending', 'unfulfilled', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      shipping_rate_id, shipping_title, tax_amount
+    ) VALUES (?, ?, ?, 'pending', 'unfulfilled', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     RETURNING *
   `, [
     id, nextNumber, input.email,
@@ -115,6 +117,7 @@ export function createOrder(input: CreateOrderInput): OrderRow {
     JSON.stringify(input.shippingAddress),
     input.paymentProvider, input.paymentReference,
     input.shippingRateId ?? null, input.shippingTitle ?? null,
+    input.taxAmount ?? 0,
   ]);
 
   for (const item of input.items) {

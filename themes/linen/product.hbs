@@ -51,12 +51,32 @@
 
         <!-- Price -->
         <div class="product-price-row">
-          <span id="product-price" class="product-price {{#if product.onSale}}product-price--sale{{/if}}">
-            {{money product.price}}
-          </span>
-          {{#if product.compareAtPrice}}
-            <span class="product-compare-price">{{money product.compareAtPrice}}</span>
-            <span class="badge-sale">Sale</span>
+          {{#if (and tax.enabled (eq tax.displayMode 'ex'))}}
+            <span id="product-price" class="product-price {{#if product.onSale}}product-price--sale{{/if}}">
+              {{ex_tax_price product.price.amount product.taxRate}}
+            </span>
+            {{#if product.compareAtPrice}}
+              <span class="product-compare-price">{{ex_tax_price product.compareAtPrice.amount product.taxRate}}</span>
+              <span class="badge-sale">Sale</span>
+            {{/if}}
+            <span class="product-tax-note">ex. {{tax.label}}</span>
+          {{else}}
+            <span id="product-price" class="product-price {{#if product.onSale}}product-price--sale{{/if}}">
+              {{money product.price}}
+            </span>
+            {{#if product.compareAtPrice}}
+              <span class="product-compare-price">{{money product.compareAtPrice}}</span>
+              <span class="badge-sale">Sale</span>
+            {{/if}}
+            {{#if (and tax.enabled product.taxRate)}}
+              {{#unless (eq product.taxRate '0')}}
+                {{#if (eq tax.displayMode 'inc')}}
+                  <span class="product-tax-note">inc. {{tax.label}}</span>
+                {{else if (eq tax.displayMode 'both')}}
+                  <span class="product-tax-note">inc. {{tax.label}} ({{ex_tax_price product.price.amount product.taxRate}} ex.)</span>
+                {{/if}}
+              {{/unless}}
+            {{/if}}
           {{/if}}
         </div>
 

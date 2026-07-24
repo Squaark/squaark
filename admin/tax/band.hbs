@@ -1,0 +1,51 @@
+<div class="page-header__left mb-6">
+  <a href="/admin/tax" class="page-back">← Tax bands</a>
+  <h1 class="page-title">{{#if band}}{{band.name}}{{else}}New tax band{{/if}}</h1>
+</div>
+
+{{#if error}}<div class="alert alert-error mb-4">{{error}}</div>{{/if}}
+
+<form method="POST" action="{{#if band}}/admin/tax/{{band.id}}{{else}}/admin/tax{{/if}}">
+  <div class="grid-form">
+    <div class="stack">
+      <div class="card--no-overflow card-body stack-sm">
+        <div>
+          <label class="form-label">Band name</label>
+          <input type="text" name="name" value="{{band.name}}" placeholder="e.g. Standard rate, Reduced rate, Zero rated"
+            class="form-input" required autofocus>
+          <p class="form-hint">A descriptive label for this tax category.</p>
+        </div>
+        <div>
+          <label class="form-label">Rate (%)</label>
+          <input type="number" name="rate" value="{{band.rate}}" min="0" max="100" step="0.01"
+            placeholder="0" class="form-input" style="max-width:10rem;">
+          <p class="form-hint">The tax percentage for this band. Set to 0 for zero-rated goods.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="stack-sm">
+      <div class="card--no-overflow card-body">
+        <button type="submit" class="btn btn-primary w-full">
+          {{#if band}}Save band{{else}}Create band{{/if}}
+        </button>
+      </div>
+
+      {{#if band}}
+        {{#if productCount}}
+          <div class="card--no-overflow card-body text-xs text-muted">
+            <p>{{productCount}} product{{#if (gt productCount 1)}}s{{/if}} use this band.</p>
+            <p class="mt-1">Reassign products before deleting.</p>
+          </div>
+        {{else}}
+          <div class="card--no-overflow card-body">
+            <form method="POST" action="/admin/tax/{{band.id}}/delete"
+              onsubmit="return confirm('Delete this tax band?')">
+              <button type="submit" class="btn-link btn-link--danger btn-link--sm">Delete band</button>
+            </form>
+          </div>
+        {{/if}}
+      {{/if}}
+    </div>
+  </div>
+</form>

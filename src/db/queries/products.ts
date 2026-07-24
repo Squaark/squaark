@@ -21,6 +21,8 @@ export interface ProductRow {
   seo_title: string | null;
   seo_description: string | null;
   free_shipping: number; // 1 | 0
+  tax_band_id: string | null;
+  tax_rate: string | null; // resolved from tax_rates JOIN
 }
 
 export interface ProductImageRow {
@@ -77,6 +79,7 @@ const PRODUCT_SUMMARY_SQL = `
   SELECT
     p.id, p.title, p.slug, p.description, p.vendor, p.tags_text, p.published, p.created_at,
     p.seo_title, p.seo_description, p.free_shipping,
+    p.tax_band_id, tr.rate AS tax_rate,
     fv.price,
     fv.compare_at_price,
     CASE WHEN fv.compare_at_price IS NOT NULL AND fv.price < fv.compare_at_price THEN 1 ELSE 0 END AS on_sale,
@@ -87,9 +90,11 @@ const PRODUCT_SUMMARY_SQL = `
     fi.large      AS img_large,
     fi.alt        AS img_alt
   FROM products p
-  LEFT JOIN fv    ON fv.product_id    = p.id
-  LEFT JOIN fi    ON fi.product_id    = p.id
-  LEFT JOIN avail ON avail.product_id = p.id
+  LEFT JOIN fv         ON fv.product_id    = p.id
+  LEFT JOIN fi         ON fi.product_id    = p.id
+  LEFT JOIN avail      ON avail.product_id = p.id
+  LEFT JOIN tax_bands  tb ON tb.id         = p.tax_band_id
+  LEFT JOIN tax_rates  tr ON tr.band_id    = tb.id
 `;
 
 export function findAllProducts(limit?: number): ProductRow[] {

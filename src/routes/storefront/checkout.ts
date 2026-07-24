@@ -82,9 +82,19 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     const paypalClientId = settings.paypal_client_id || config.paypalClientId;
     const paypalMode = settings.paypal_mode || config.paypalMode;
 
+    // Compute items tax from per-band rates; passes to Alpine for display
+    const taxEnabled = settings.tax_enabled === '1';
+    const itemsTaxAmount = taxEnabled
+      ? cart.items.reduce((sum, item) => {
+          const rate = item.taxRate ? parseFloat(item.taxRate) : 0;
+          return sum + (rate > 0 ? Math.round(item.lineTotal.amount * rate / (100 + rate)) : 0);
+        }, 0)
+      : 0;
+
     await render(registry, reply, 'checkout', {
       ...ctx, cart, pageTitle: 'Checkout',
       stripeEnabled, paypalEnabled, stripePk, paypalClientId, paypalMode,
+      itemsTaxAmount,
     });
   });
 
@@ -152,6 +162,12 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       }
     }
     const orderTotal = cart.total.amount + shippingAmount;
+    const taxAmount = settings.tax_enabled === '1'
+      ? cart.items.reduce((sum, item) => {
+          const rate = item.taxRate ? parseFloat(item.taxRate) : 0;
+          return sum + (rate > 0 ? Math.round(item.lineTotal.amount * rate / (100 + rate)) : 0);
+        }, 0)
+      : 0;
 
     // Create a pending order first so we have an ID for metadata
     const order = createOrder({
@@ -168,6 +184,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       paymentReference: null,
       shippingRateId: body.shippingRateId || null,
       shippingTitle,
+      taxAmount,
       items: cart.items.map(i => ({
         variantId: i.variantId,
         productTitle: i.productTitle,
@@ -431,6 +448,12 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
         }
       }
       const ppOrderTotal = cart.total.amount + ppShippingAmount;
+      const ppTaxAmount = settings.tax_enabled === '1'
+        ? cart.items.reduce((sum, item) => {
+            const rate = item.taxRate ? parseFloat(item.taxRate) : 0;
+            return sum + (rate > 0 ? Math.round(item.lineTotal.amount * rate / (100 + rate)) : 0);
+          }, 0)
+        : 0;
 
       const order = createOrder({
         email,
@@ -446,6 +469,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
         paymentReference: data.id,
         shippingRateId: pendingRateId || null,
         shippingTitle: ppShippingTitle,
+        taxAmount: ppTaxAmount,
         items: cart.items.map(i => ({
           variantId: i.variantId,
           productTitle: i.productTitle,
@@ -507,6 +531,9 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       canCreateAccount,
       accountCreated: accountStatus === 'created',
       orderId,
+      taxEnabled: settings.tax_enabled === '1',
+      taxLabel: settings.tax_label || 'VAT',
+      taxNumber: settings.tax_number || '',
     });
   });
 

@@ -42,6 +42,17 @@ export function registerHelpers(
     return variant.available ? 'In Stock' : 'Sold Out';
   });
 
+  // Returns formatted ex-tax price given the resolved band rate.
+  // If rate is null/empty/0, returns the inclusive price unchanged (zero-rated or unclassified).
+  hbs.registerHelper('ex_tax_price', function (this: unknown, incAmountPence: number, resolvedRate: string | null, options: Handlebars.HelperOptions) {
+    const root = (options?.data?.root ?? {}) as { store?: { currency?: { symbol?: string } } };
+    const symbol = root.store?.currency?.symbol ?? '';
+    const rate = resolvedRate ? parseFloat(resolvedRate) : 0;
+    if (!rate || rate <= 0) return new Handlebars.SafeString(`${symbol}${(incAmountPence / 100).toFixed(2)}`);
+    const exAmount = Math.round(incAmountPence * 100 / (100 + rate));
+    return new Handlebars.SafeString(`${symbol}${(exAmount / 100).toFixed(2)}`);
+  });
+
   hbs.registerHelper('eq', (a: unknown, b: unknown) => a === b);
   hbs.registerHelper('ne', (a: unknown, b: unknown) => a !== b);
   hbs.registerHelper('gt', (a: number, b: number) => a > b);

@@ -14,6 +14,7 @@ import { importRoutes } from './import';
 import { navigationRoutes } from './navigation';
 import { usersRoutes } from './users';
 import { shippingRoutes } from './shipping';
+import { taxRoutes } from './tax';
 import { countOrders } from '../../db/queries/orders';
 import { getAllSettings } from '../../db/queries/admin';
 import { queryOne } from '../../db/connection';
@@ -53,6 +54,7 @@ export async function adminRoutes(fastify: FastifyInstance): Promise<void> {
       await app.register(navigationRoutes);
       await app.register(usersRoutes);
       await app.register(shippingRoutes);
+      await app.register(taxRoutes);
     },
     { prefix: '/admin' },
   );

@@ -13,6 +13,7 @@
       <li><button @click="tab = 'store'" :class="tab === 'store' ? 'settings-tab settings-tab--active' : 'settings-tab'" class="settings-tab">Store</button></li>
       <li><button @click="tab = 'email'" :class="tab === 'email' ? 'settings-tab settings-tab--active' : 'settings-tab'" class="settings-tab">Email</button></li>
       <li><button @click="tab = 'payments'" :class="tab === 'payments' ? 'settings-tab settings-tab--active' : 'settings-tab'" class="settings-tab">Payments</button></li>
+      <li><button @click="tab = 'tax'" :class="tab === 'tax' ? 'settings-tab settings-tab--active' : 'settings-tab'" class="settings-tab">Tax</button></li>
       <li><button @click="tab = 'media'" :class="tab === 'media' ? 'settings-tab settings-tab--active' : 'settings-tab'" class="settings-tab">Media</button></li>
       <li><button @click="tab = 'server'" :class="tab === 'server' ? 'settings-tab settings-tab--active' : 'settings-tab'" class="settings-tab">Server</button></li>
       <li><button @click="tab = 'logs'" :class="tab === 'logs' ? 'settings-tab settings-tab--active' : 'settings-tab'" class="settings-tab">Logs</button></li>
@@ -201,6 +202,58 @@
       </div>
     </div>
 
+    <!-- Tax -->
+    <div x-show="tab === 'tax'" x-cloak>
+      <form method="POST" action="/admin/settings/tax">
+        <div class="card--no-overflow card-body stack-sm">
+          <h2 class="font-semibold">Tax</h2>
+          <p class="form-hint -mt-1">Prices are treated as tax-inclusive (VAT/GST already in the price). The tax amount shown on orders is calculated from the rate you set here.</p>
+
+          <div class="row-between" style="padding:0.25rem 0;">
+            <div>
+              <p class="text-sm font-medium">Enable tax display</p>
+              <p class="form-hint mt-0">Show a tax breakdown line on orders and receipts</p>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" name="tax_enabled" value="1"
+                {{#if (eq settings.tax_enabled '1')}}checked{{/if}}>
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+
+          <div style="padding-top:0.75rem;border-top:1px solid #f3f4f6;" class="stack-sm">
+            <div>
+              <label class="form-label">Price display</label>
+              <select name="tax_display_mode" class="form-select">
+                <option value="inc" {{#if (eq settings.tax_display_mode 'inc')}}selected{{/if}}>Show prices inclusive of tax</option>
+                <option value="ex" {{#if (eq settings.tax_display_mode 'ex')}}selected{{/if}}>Show prices exclusive of tax</option>
+                <option value="both" {{#if (eq settings.tax_display_mode 'both')}}selected{{/if}}>Show both inclusive and exclusive prices</option>
+              </select>
+              <p class="form-hint">Controls how prices appear on product pages and listings. The checkout always charges the entered price.</p>
+            </div>
+            <div>
+              <label class="form-label">Tax label</label>
+              <input type="text" name="tax_label" value="{{#if settings.tax_label}}{{settings.tax_label}}{{else}}VAT{{/if}}" placeholder="VAT" class="form-input" style="max-width:12rem;">
+              <p class="form-hint">Shown to customers, e.g. "VAT", "GST", "Sales Tax"</p>
+            </div>
+            <div>
+              <label class="form-label">Tax / VAT number <span class="form-optional">(optional)</span></label>
+              <input type="text" name="tax_number" value="{{settings.tax_number}}" placeholder="GB123456789" class="form-input" style="max-width:16rem;">
+              <p class="form-hint">Displayed on receipts and invoices if set</p>
+            </div>
+            <div style="padding-top:0.5rem;border-top:1px solid #f3f4f6;">
+              <p class="text-sm font-medium mb-1">Tax bands</p>
+              <p class="form-hint">Tax rates are set per band (e.g. Standard rate, Reduced rate) and assigned to each product.</p>
+              <a href="/admin/tax" class="btn btn-secondary btn-sm mt-2" style="display:inline-block;">Manage tax bands →</a>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4">
+          <button type="submit" class="btn btn-primary">Save tax settings</button>
+        </div>
+      </form>
+    </div>
+
     <!-- Media -->
     <div x-show="tab === 'media'" x-cloak>
       <div class="card--no-overflow card-body stack-sm">
@@ -378,7 +431,7 @@
 <script>
 function settingsTabs() {
   const hash = window.location.hash.replace('#', '');
-  const valid = ['store', 'email', 'payments', 'media', 'server', 'logs'];
+  const valid = ['store', 'email', 'payments', 'tax', 'media', 'server', 'logs'];
   return {
     tab: valid.includes(hash) ? hash : 'store',
   };

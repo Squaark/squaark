@@ -37,7 +37,7 @@ function variantRowToVariant(row: VariantRow): Variant {
     id:             row.id,
     title:          row.title,
     price:          money(row.price),
-    compareAtPrice: row.compare_at_price != null ? money(row.compare_at_price) : null,
+    compareAtPrice: row.compare_at_price != null && row.compare_at_price > 0 ? money(row.compare_at_price) : null,
     sku:            row.sku,
     available:      row.inventory_quantity > 0,
     options:        row.options ? JSON.parse(row.options) : {},
@@ -51,11 +51,12 @@ export function rowToProductSummary(row: ProductRow): ProductSummary {
     title:          row.title,
     slug:           row.slug,
     price:          money(row.price ?? 0),
-    compareAtPrice: row.compare_at_price != null ? money(row.compare_at_price) : null,
+    compareAtPrice: row.compare_at_price != null && row.compare_at_price > 0 ? money(row.compare_at_price) : null,
     onSale:         row.on_sale === 1,
     available:      row.available === 1,
     vendor:         row.vendor,
     image:          rowToImage(row, row.title),
+    taxRate:        row.tax_rate ?? null,
   };
 }
 
@@ -88,6 +89,7 @@ export interface FullProduct {
   relatedProducts: ProductSummary[];
   seoTitle: string | null;
   seoDescription: string | null;
+  taxRate: string | null;
 }
 
 export async function getProduct(slug: string): Promise<FullProduct | null> {
@@ -108,7 +110,7 @@ export async function getProduct(slug: string): Promise<FullProduct | null> {
     slug:           row.slug,
     description:    row.description ?? '',
     price:          money(row.price ?? 0),
-    compareAtPrice: row.compare_at_price != null ? money(row.compare_at_price) : null,
+    compareAtPrice: row.compare_at_price != null && row.compare_at_price > 0 ? money(row.compare_at_price) : null,
     onSale:         row.on_sale === 1,
     images,
     variants:       variantRows.map(variantRowToVariant),
@@ -119,5 +121,6 @@ export async function getProduct(slug: string): Promise<FullProduct | null> {
     relatedProducts: relatedRows.map(rowToProductSummary),
     seoTitle:       row.seo_title ?? null,
     seoDescription: row.seo_description ?? null,
+    taxRate:        row.tax_rate ?? null,
   };
 }

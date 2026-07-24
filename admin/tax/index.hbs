@@ -1,0 +1,46 @@
+<div class="page-header">
+  <h1 class="page-title">Tax bands</h1>
+  <a href="/admin/tax/new" class="btn btn-primary">Add band</a>
+</div>
+
+{{#if saved}}<div class="alert alert-success">Saved.</div>{{/if}}
+
+<div class="card">
+  {{#if bands.length}}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Band name</th>
+          <th class="right">Rate</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each bands}}
+        <tr>
+          <td>
+            <a href="/admin/tax/{{this.id}}" class="cell-title">{{this.name}}</a>
+          </td>
+          <td class="right text-sm">
+            {{#if this.rate}}{{this.rate}}%{{else}}<span class="text-muted">—</span>{{/if}}
+          </td>
+          <td class="right">
+            <a href="/admin/tax/{{this.id}}" class="btn-link btn-link--xs">Edit</a>
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  {{else}}
+    <div class="empty-state">
+      <p>No tax bands yet.</p>
+      <p class="text-sm text-muted">Create bands for each tax category your products fall into — e.g. Standard rate, Reduced rate, Zero rated.</p>
+      <a href="/admin/tax/new" class="btn btn-primary mt-4">Add first band</a>
+    </div>
+  {{/if}}
+</div>
+
+<div class="card--no-overflow card-body mt-4 text-sm text-muted" style="max-width:36rem;">
+  <p class="font-medium text-sm mb-1" style="color:#374151;">How tax bands work</p>
+  <p>Each band has a name (e.g. "Standard rate") and a tax rate percentage. Assign a band to each product — at checkout, the correct rate is applied per line item. Products with no band assigned are treated as untaxed.</p>
+</div>

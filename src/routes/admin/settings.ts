@@ -18,6 +18,7 @@ export async function settingsRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post('/settings/payments', paymentSettingsSave);
   fastify.post('/settings/restart', restartServer);
   fastify.post('/settings/media/:slot/remove', removeMedia);
+  fastify.post('/settings/tax', taxSettingsSave);
 }
 
 async function settingsPage(req: FastifyRequest, reply: FastifyReply) {
@@ -141,6 +142,17 @@ async function paymentSettingsSave(
   }
   return reply.redirect('/admin/settings?saved=1#payments');
 
+}
+
+async function taxSettingsSave(
+  req: FastifyRequest<{ Body: Record<string, string> }>,
+  reply: FastifyReply,
+) {
+  setSetting('tax_enabled', req.body.tax_enabled === '1' ? '1' : '0');
+  setSetting('tax_display_mode', ['inc', 'ex', 'both'].includes(req.body.tax_display_mode) ? req.body.tax_display_mode : 'inc');
+  setSetting('tax_label', req.body.tax_label?.trim() || 'VAT');
+  setSetting('tax_number', req.body.tax_number?.trim() || '');
+  return reply.redirect('/admin/settings?saved=1#tax');
 }
 
 async function restartServer(_req: FastifyRequest, reply: FastifyReply) {
