@@ -22,6 +22,7 @@ export interface CartItemRow {
   img_large: string | null;
   img_original: string | null;
   img_alt: string | null;
+  free_shipping: number; // 1 | 0
 }
 
 export function createCart(): string {
@@ -43,9 +44,10 @@ export function findCartItems(cartId: string): CartItemRow[] {
       ci.id, ci.cart_id, ci.variant_id, ci.quantity,
       pv.title     AS variant_title,
       pv.price,
-      p.id         AS product_id,
-      p.title      AS product_title,
-      p.slug       AS product_slug,
+      p.id           AS product_id,
+      p.title        AS product_title,
+      p.slug         AS product_slug,
+      p.free_shipping,
       COALESCE(pvi.thumbnail, ppi.thumbnail) AS img_thumbnail,
       COALESCE(pvi.medium,    ppi.medium)    AS img_medium,
       COALESCE(pvi.large,     ppi.large)     AS img_large,

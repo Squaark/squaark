@@ -33,6 +33,14 @@
           <label class="form-label">Description</label>
           <textarea name="description" rows="3" class="form-textarea">{{collection.description}}</textarea>
         </div>
+        <div>
+          <label class="form-label">Meta title <span class="form-optional">— defaults to collection title. 50–60 chars recommended.</span></label>
+          <input type="text" name="seo_title" value="{{collection.seo_title}}" class="form-input" maxlength="120" placeholder="{{collection.title}}">
+        </div>
+        <div>
+          <label class="form-label">Meta description <span class="form-optional">— 150–160 chars recommended.</span></label>
+          <textarea name="seo_description" rows="3" class="form-textarea" maxlength="320" placeholder="Describe this collection for search engines…">{{collection.seo_description}}</textarea>
+        </div>
       </div>
       <div class="mt-4 row">
         <button type="submit" class="btn btn-primary">

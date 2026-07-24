@@ -120,6 +120,27 @@ export function registerHelpers(
     return new Handlebars.SafeString(`<link rel="canonical" href="${url}">`);
   });
 
+  hbs.registerHelper('og_tags', function (this: {
+    pageTitle?: string;
+    metaDescription?: string;
+    store?: { url: string; name: string };
+    currentPath?: string;
+    ogImage?: string | null;
+  }) {
+    const title = Handlebars.escapeExpression(this.pageTitle ?? this.store?.name ?? '');
+    const desc  = Handlebars.escapeExpression(this.metaDescription ?? '');
+    const url   = Handlebars.escapeExpression((this.store?.url ?? '') + (this.currentPath ?? ''));
+    const img   = this.ogImage
+      ? `\n<meta property="og:image" content="${Handlebars.escapeExpression(this.ogImage)}">`
+      : '';
+    return new Handlebars.SafeString(
+      `<meta property="og:title" content="${title}">\n` +
+      (desc ? `<meta property="og:description" content="${desc}">\n` : '') +
+      `<meta property="og:url" content="${url}">\n` +
+      `<meta property="og:type" content="website">${img}`,
+    );
+  });
+
   hbs.registerHelper('structured_data', () => new Handlebars.SafeString(''));
 
   hbs.registerHelper('renderSection', function(section: Record<string, unknown>) {

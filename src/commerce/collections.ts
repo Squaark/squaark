@@ -12,6 +12,8 @@ export interface Collection {
   slug: string;
   description: string | null;
   productCount: number;
+  seoTitle: string | null;
+  seoDescription: string | null;
 }
 
 export interface CollectionPage extends Collection {
@@ -25,7 +27,12 @@ export interface CollectionPage extends Collection {
 }
 
 function rowToCollection(row: CollectionRow): Collection {
-  return { id: row.id, title: row.title, slug: row.slug, description: row.description, productCount: row.product_count };
+  return {
+    id: row.id, title: row.title, slug: row.slug, description: row.description,
+    productCount: row.product_count,
+    seoTitle: row.seo_title ?? null,
+    seoDescription: row.seo_description ?? null,
+  };
 }
 
 const SORT_OPTIONS = [
@@ -37,11 +44,11 @@ const SORT_OPTIONS = [
 
 export async function getCollectionPage(slug: string, sortBy = 'featured'): Promise<CollectionPage | null> {
   let products: ProductSummary[];
-  let meta: { id: string; title: string; slug: string; description: string | null; productCount: number };
+  let meta: Collection;
 
   if (slug === 'all') {
     products = await listProducts();
-    meta = { id: '', title: 'All Products', slug: 'all', description: null, productCount: products.length };
+    meta = { id: '', title: 'All Products', slug: 'all', description: null, productCount: products.length, seoTitle: null, seoDescription: null };
   } else {
     const row = findCollectionBySlug(slug);
     if (!row) return null;

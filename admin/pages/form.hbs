@@ -239,6 +239,17 @@
     <!-- Sidebar -->
     <div class="stack-sm">
       <div class="card--no-overflow card-body stack-sm">
+        <h2 class="font-semibold text-sm">SEO</h2>
+        <div>
+          <label class="form-label">Meta title <span class="form-optional">50–60 chars</span></label>
+          <input type="text" name="seo_title" value="{{page.seo_title}}" class="form-input" maxlength="120" placeholder="{{page.title}}">
+        </div>
+        <div>
+          <label class="form-label">Meta description <span class="form-optional">150–160 chars</span></label>
+          <textarea name="seo_description" rows="3" class="form-textarea" maxlength="320" placeholder="Describe this page for search engines…">{{page.seo_description}}</textarea>
+        </div>
+      </div>
+      <div class="card--no-overflow card-body stack-sm">
         <h2 class="font-semibold text-sm">Publish</h2>
         <label class="form-check">
           <input type="checkbox" name="status" value="published" {{#if (eq page.status 'published')}}checked{{/if}}>

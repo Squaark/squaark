@@ -1,6 +1,6 @@
 {{> header}}
 
-<div class="container py-12">
+<div class="container py-12" x-data="checkoutApp({{cart.subtotal.amount}}, {{#if cart.discountAmount}}{{cart.discountAmount.amount}}{{else}}0{{/if}}, '{{store.currency.symbol}}')">
   <h1 style="font-size:1.5rem;font-weight:700;color:#111827;margin-bottom:2rem;">Checkout</h1>
 
   <div class="checkout-layout">
@@ -56,7 +56,12 @@
             </div>
             <div>
               <label class="store-label">Country</label>
-              <select id="country" name="country" required autocomplete="country" class="store-select">
+              <select id="country" name="country" required autocomplete="country" class="store-select"
+                hx-get="/checkout/shipping-rates"
+                hx-trigger="change, load"
+                hx-target="#shipping-rate-options"
+                hx-include="[name='country']"
+                @htmx:after-settle="$dispatch('shipping-rates-loaded')">
                 <option value="GB" selected>United Kingdom</option>
                 <option value="US">United States</option>
                 <option value="AU">Australia</option>
@@ -79,6 +84,14 @@
         </div>
       </div>
 
+      <!-- Shipping method -->
+      <div id="shipping-section">
+        <div id="shipping-rate-options"
+             @shipping-rate-changed.document="selectRate($event.detail.id, $event.detail.amount, $event.detail.label)"
+             @htmx:after-settle.document="autoSelectFirst()">
+        </div>
+      </div>
+
       <!-- Payment -->
       <div>
         <h2 class="checkout-section-title">Payment</h2>
@@ -97,6 +110,7 @@
             <input type="hidden" name="postcode" id="stripe-postcode">
             <input type="hidden" name="country" id="stripe-country">
             <input type="hidden" name="phone" id="stripe-phone">
+            <input type="hidden" name="shippingRateId" id="stripe-shippingRateId">
             <button type="button" onclick="submitStripe()"
               class="btn btn-block"
               style="background:var(--color-accent);color:#fff;margin-bottom:0.75rem;justify-content:center;">
@@ -153,15 +167,15 @@
               <span>-{{money cart.discountAmount}}</span>
             </div>
           {{/if}}
-          <div class="summary-row summary-row--muted">
+          <div class="summary-row summary-row--muted" x-show="shippingLabel !== null">
             <span>Shipping</span>
-            <span>Calculated at checkout</span>
+            <span x-text="shippingLabel || 'Calculated at checkout'">Calculated at checkout</span>
           </div>
         </div>
 
         <div class="summary-total">
           <span>Total</span>
-          <span>{{money cart.total}}</span>
+          <span x-text="totalFormatted">{{money cart.total}}</span>
         </div>
       </div>
     </div>
@@ -169,18 +183,51 @@
 </div>
 
 <script>
-function getFormData() {
+function checkoutApp(subtotal, discount, currencySymbol) {
   return {
-    email:     document.getElementById('email').value.trim(),
-    firstName: document.getElementById('firstName').value.trim(),
-    lastName:  document.getElementById('lastName').value.trim(),
-    line1:     document.getElementById('line1').value.trim(),
-    line2:     document.getElementById('line2').value.trim(),
-    city:      document.getElementById('city').value.trim(),
-    county:    document.getElementById('county').value.trim(),
-    postcode:  document.getElementById('postcode').value.trim(),
-    country:   document.getElementById('country').value,
-    phone:     document.getElementById('phone').value.trim(),
+    subtotalAmount: subtotal,
+    discountAmount: discount,
+    shippingAmount: 0,
+    shippingLabel: 'Calculated at checkout',
+    selectedRateId: '',
+    get totalFormatted() {
+      const total = this.subtotalAmount - this.discountAmount + this.shippingAmount;
+      return currencySymbol + (total / 100).toFixed(2);
+    },
+    selectRate(id, amount, label) {
+      this.selectedRateId = id;
+      this.shippingAmount = amount;
+      this.shippingLabel = label;
+      const el = document.getElementById('stripe-shippingRateId');
+      if (el) el.value = id;
+    },
+    autoSelectFirst() {
+      const first = document.querySelector('#shipping-rate-options input[type="radio"]');
+      if (first) {
+        first.checked = true;
+        first.dispatchEvent(new Event('change'));
+      } else {
+        this.shippingLabel = 'Free';
+        this.shippingAmount = 0;
+      }
+    },
+  };
+}
+
+function getFormData() {
+  const rateInput = document.querySelector('#shipping-rate-options input[type="radio"]:checked');
+  return {
+    email:          document.getElementById('email').value.trim(),
+    firstName:      document.getElementById('firstName').value.trim(),
+    lastName:       document.getElementById('lastName').value.trim(),
+    line1:          document.getElementById('line1').value.trim(),
+    line2:          document.getElementById('line2').value.trim(),
+    city:           document.getElementById('city').value.trim(),
+    county:         document.getElementById('county').value.trim(),
+    postcode:       document.getElementById('postcode').value.trim(),
+    country:        document.getElementById('country').value,
+    phone:          document.getElementById('phone').value.trim(),
+    shippingRateId: rateInput ? rateInput.value : '',
   };
 }
 

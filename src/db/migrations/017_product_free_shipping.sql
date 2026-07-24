@@ -1,0 +1,1 @@
+ALTER TABLE products ADD COLUMN free_shipping INTEGER NOT NULL DEFAULT 0;

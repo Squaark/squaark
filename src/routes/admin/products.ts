@@ -78,7 +78,8 @@ async function createProduct(
   reply: FastifyReply,
 ) {
   const { title, slug, description, vendor, tags_text, published,
-          variant_title, price, compare_at_price, sku, inventory_quantity } = req.body;
+          variant_title, price, compare_at_price, sku, inventory_quantity,
+          seo_title, seo_description, free_shipping } = req.body;
 
   if (!title || !slug) {
     return reply.type('text/html').send(
@@ -94,9 +95,10 @@ async function createProduct(
   const qty = parseInt(inventory_quantity || '0', 10);
 
   execute(
-    `INSERT INTO products (id, title, slug, description, vendor, tags_text, published)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [productId, title.trim(), slug.trim(), description || null, vendor || null, tags_text || '', published === '1' ? 1 : 0],
+    `INSERT INTO products (id, title, slug, description, vendor, tags_text, published, seo_title, seo_description, free_shipping)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [productId, title.trim(), slug.trim(), description || null, vendor || null, tags_text || '', published === '1' ? 1 : 0,
+     seo_title || null, seo_description || null, free_shipping === '1' ? 1 : 0],
   );
   execute(
     `INSERT INTO product_variants (id, product_id, title, price, compare_at_price, sku, inventory_quantity)
@@ -115,10 +117,11 @@ async function updateProduct(
   const product = queryOne<ProductRow>('SELECT id FROM products WHERE id = ?', [id]);
   if (!product) return reply.code(404).send('Not found');
 
-  const { title, slug, description, vendor, tags_text, published } = req.body;
+  const { title, slug, description, vendor, tags_text, published, seo_title, seo_description, free_shipping } = req.body;
   execute(
-    `UPDATE products SET title=?, slug=?, description=?, vendor=?, tags_text=?, published=?, updated_at=datetime('now') WHERE id=?`,
-    [title, slug, description || null, vendor || null, tags_text || '', published === '1' ? 1 : 0, id],
+    `UPDATE products SET title=?, slug=?, description=?, vendor=?, tags_text=?, published=?, seo_title=?, seo_description=?, free_shipping=?, updated_at=datetime('now') WHERE id=?`,
+    [title, slug, description || null, vendor || null, tags_text || '', published === '1' ? 1 : 0,
+     seo_title || null, seo_description || null, free_shipping === '1' ? 1 : 0, id],
   );
 
   // Update variants if provided

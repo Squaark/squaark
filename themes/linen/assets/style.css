@@ -543,6 +543,13 @@ main { display: block; }
 .checkout-total-row--muted { color: #9ca3af; }
 .checkout-grand-total { display: flex; justify-content: space-between; font-weight: 700; color: #111827; }
 
+/* ── Shipping rates ──────────────────────────────────────────────────────── */
+.shipping-rate-option { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border: 1px solid #e5e7eb; border-radius: 0.625rem; cursor: pointer; margin-bottom: 0.5rem; transition: border-color 0.15s; }
+.shipping-rate-option:has(input:checked) { border-color: var(--color-primary); background: #f9fafb; }
+.shipping-rate-option input[type="radio"] { accent-color: var(--color-primary); flex-shrink: 0; }
+.shipping-rate-name { flex: 1; font-size: 0.875rem; color: #111827; }
+.shipping-rate-price { font-size: 0.875rem; font-weight: 500; color: #111827; }
+
 /* ── Checkout success ────────────────────────────────────────────────────── */
 .success-page { padding: 4rem 0; text-align: center; }
 .success-icon { width: 3.5rem; height: 3.5rem; border-radius: 50%; background: var(--color-accent); display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }

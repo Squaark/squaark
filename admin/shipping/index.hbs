@@ -1,0 +1,62 @@
+<div class="page-header">
+  <div class="page-header__left">
+    <h1 class="page-title">Shipping</h1>
+  </div>
+  <a href="/admin/shipping/new" class="btn btn-primary btn-sm">+ Add zone</a>
+</div>
+
+{{#if saved}}<div class="alert alert-success">Saved.</div>{{/if}}
+{{#if deleted}}<div class="alert alert-success">Zone deleted.</div>{{/if}}
+
+{{#if zones.length}}
+<div class="stack">
+  {{#each zones}}
+  <div class="card--no-overflow card-body">
+    <div class="row-between mb-3">
+      <div>
+        <h2 class="font-semibold">{{this.name}}</h2>
+        <p class="text-xs text-muted" style="margin-top:0.25rem;">
+          {{#if this.countriesParsed.length}}
+            {{#each this.countriesParsed}}{{#unless @first}}, {{/unless}}{{#if (eq this '*')}}Rest of world{{else}}{{this}}{{/if}}{{/each}}
+          {{else}}
+            No countries assigned
+          {{/if}}
+        </p>
+      </div>
+      <a href="/admin/shipping/{{this.id}}" class="btn btn-secondary btn-sm">Edit</a>
+    </div>
+    {{#if this.rates.length}}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Rate name</th>
+          <th>Type</th>
+          <th>Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each this.rates}}
+        <tr>
+          <td>{{this.name}}</td>
+          <td class="text-sm text-muted">{{this.rate_type}}</td>
+          <td class="text-sm">
+            {{#if (eq this.rate_type 'free')}}Free{{/if}}
+            {{#if (eq this.rate_type 'flat')}}{{pence this.amount}}{{/if}}
+            {{#if (eq this.rate_type 'free_over')}}Free over {{pence this.min_order_amount}}, otherwise {{pence this.amount}}{{/if}}
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{else}}
+    <p class="text-sm text-muted">No rates yet — <a href="/admin/shipping/{{this.id}}">add one</a>.</p>
+    {{/if}}
+  </div>
+  {{/each}}
+</div>
+{{else}}
+<div class="card--no-overflow card-body" style="text-align:center;padding:3rem 1rem;">
+  <p style="color:#6b7280;margin-bottom:1rem;">No shipping zones yet.</p>
+  <a href="/admin/shipping/new" class="btn btn-primary">Create your first zone</a>
+</div>
+{{/if}}

@@ -47,6 +47,19 @@
         </div>
       </div>
 
+      <!-- SEO -->
+      <div class="card--no-overflow card-body stack-sm mt-4">
+        <h2 class="font-semibold">SEO</h2>
+        <div>
+          <label class="form-label">Meta title <span class="form-optional">— defaults to product title. 50–60 chars recommended.</span></label>
+          <input type="text" name="seo_title" value="{{product.seo_title}}" class="form-input" maxlength="120" placeholder="{{product.title}}">
+        </div>
+        <div>
+          <label class="form-label">Meta description <span class="form-optional">— 150–160 chars recommended.</span></label>
+          <textarea name="seo_description" rows="3" class="form-textarea" maxlength="320" placeholder="Describe this product for search engines…">{{product.seo_description}}</textarea>
+        </div>
+      </div>
+
       <!-- Variants -->
       <div class="card--no-overflow card-body stack-sm mt-4">
         <h2 class="font-semibold">{{#if variants.length}}Variants{{else}}Pricing & Inventory{{/if}}</h2>
@@ -149,6 +162,14 @@
         <input type="checkbox" name="published" value="1" {{#if (eq product.published 1)}}checked{{/if}} form="main-form">
         Published
       </label>
+    </div>
+    <div class="card--no-overflow card-body stack-sm">
+      <h2 class="font-semibold text-sm">Shipping</h2>
+      <label class="form-check">
+        <input type="checkbox" name="free_shipping" value="1" {{#if (eq product.free_shipping 1)}}checked{{/if}} form="main-form">
+        Free shipping
+      </label>
+      <p class="text-xs text-muted">When checked, this product bypasses zone shipping rates. If every item in the cart has free shipping, the customer is charged £0.</p>
     </div>
     {{#if product}}
     <div class="card--no-overflow card-body text-xs text-muted stack-xs">

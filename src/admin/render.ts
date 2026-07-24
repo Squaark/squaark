@@ -30,6 +30,17 @@ hbs.registerHelper('subtract', (a: number, b: number) => a - b);
 hbs.registerHelper('concat', (...args: unknown[]) => args.slice(0, -1).join(''));
 hbs.registerHelper('lookup', (obj: Record<string, unknown>, key: string) => obj?.[key]);
 hbs.registerHelper('money_pence', (pence: number) => (pence / 100).toFixed(2));
+hbs.registerHelper('pence', (amount: number | null | undefined, options: Handlebars.HelperOptions) => {
+  if (amount == null) return '—';
+  const settings = (options?.data?.root as Record<string, unknown>)?.settings as Record<string, string> | undefined;
+  const currencyCode = settings?.store_currency ?? 'GBP';
+  const symbols: Record<string, string> = { GBP: '£', USD: '$', EUR: '€' };
+  const sym = symbols[currencyCode] ?? currencyCode;
+  return `${sym}${(amount / 100).toFixed(2)}`;
+});
+hbs.registerHelper('isSelected', (code: string, selected: string[]) =>
+  Array.isArray(selected) && selected.includes(code),
+);
 hbs.registerHelper('date_short', (d: string) =>
   new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
 );

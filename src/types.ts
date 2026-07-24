@@ -8,6 +8,7 @@ declare module 'fastify' {
     pendingOrderId?: string;
     pendingCheckoutAddress?: string;
     pendingCheckoutEmail?: string;
+    pendingShippingRateId?: string;
   }
 }
 

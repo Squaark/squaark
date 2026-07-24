@@ -9,6 +9,8 @@ export interface PageRow {
   status: string;
   created_at: string;
   updated_at: string;
+  seo_title: string | null;
+  seo_description: string | null;
 }
 
 export function findPageBySlug(slug: string): PageRow | null {

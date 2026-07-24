@@ -55,6 +55,7 @@ export interface CartItem {
   image: Image;
   productSlug: string;
   variantId: string;
+  freeShipping: boolean;
 }
 
 export interface GlobalContext {
@@ -81,6 +82,7 @@ export interface GlobalContext {
   currentPath: string;
   pageTitle?: string;
   metaDescription?: string;
+  ogImage?: string | null;
 }
 
 export interface ProductPageContext extends GlobalContext {

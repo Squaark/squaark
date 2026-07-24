@@ -80,7 +80,7 @@ async function createPage(
   req: FastifyRequest<{ Body: Record<string, string> }>,
   reply: FastifyReply,
 ) {
-  const { title, slug, content, excerpt, status, sections } = req.body;
+  const { title, slug, content, excerpt, status, sections, seo_title, seo_description } = req.body;
   const slugTrimmed = slug?.trim();
   const validationError = !title || !slugTrimmed
     ? 'Title and slug are required'
@@ -98,8 +98,9 @@ async function createPage(
   const sectionsJson = (() => { try { JSON.parse(sections); return sections; } catch { return '[]'; } })();
   const id = crypto.randomUUID();
   execute(
-    'INSERT INTO pages (id, title, slug, content, sections, excerpt, status) VALUES (?,?,?,?,?,?,?)',
-    [id, title.trim(), slugTrimmed, content || '', sectionsJson || '[]', excerpt || '', status === 'published' ? 'published' : 'draft'],
+    'INSERT INTO pages (id, title, slug, content, sections, excerpt, status, seo_title, seo_description) VALUES (?,?,?,?,?,?,?,?,?)',
+    [id, title.trim(), slugTrimmed, content || '', sectionsJson || '[]', excerpt || '', status === 'published' ? 'published' : 'draft',
+     seo_title || null, seo_description || null],
   );
   return reply.redirect(`/admin/pages/${id}?created=1`);
 }
@@ -108,7 +109,7 @@ async function updatePage(
   req: FastifyRequest<{ Params: { id: string }; Body: Record<string, string> }>,
   reply: FastifyReply,
 ) {
-  const { title, slug, content, excerpt, status, sections } = req.body;
+  const { title, slug, content, excerpt, status, sections, seo_title, seo_description } = req.body;
   const slugTrimmed = slug?.trim();
   if (isReservedSlug(slugTrimmed)) {
     const page = queryOne<PageRow>('SELECT * FROM pages WHERE id = ?', [req.params.id]);
@@ -123,8 +124,9 @@ async function updatePage(
   }
   const sectionsJson = (() => { try { JSON.parse(sections); return sections; } catch { return '[]'; } })();
   execute(
-    `UPDATE pages SET title=?, slug=?, content=?, sections=?, excerpt=?, status=?, updated_at=datetime('now') WHERE id=?`,
-    [title, slugTrimmed, content || '', sectionsJson || '[]', excerpt || '', status === 'published' ? 'published' : 'draft', req.params.id],
+    `UPDATE pages SET title=?, slug=?, content=?, sections=?, excerpt=?, status=?, seo_title=?, seo_description=?, updated_at=datetime('now') WHERE id=?`,
+    [title, slugTrimmed, content || '', sectionsJson || '[]', excerpt || '', status === 'published' ? 'published' : 'draft',
+     seo_title || null, seo_description || null, req.params.id],
   );
   return reply.redirect(`/admin/pages/${req.params.id}?saved=1`);
 }

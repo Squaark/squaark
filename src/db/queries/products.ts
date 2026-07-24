@@ -18,6 +18,9 @@ export interface ProductRow {
   img_large: string | null;
   img_alt: string | null;
   created_at: string;
+  seo_title: string | null;
+  seo_description: string | null;
+  free_shipping: number; // 1 | 0
 }
 
 export interface ProductImageRow {
@@ -73,6 +76,7 @@ const PRODUCT_SUMMARY_SQL = `
   )
   SELECT
     p.id, p.title, p.slug, p.description, p.vendor, p.tags_text, p.published, p.created_at,
+    p.seo_title, p.seo_description, p.free_shipping,
     fv.price,
     fv.compare_at_price,
     CASE WHEN fv.compare_at_price IS NOT NULL AND fv.price < fv.compare_at_price THEN 1 ELSE 0 END AS on_sale,

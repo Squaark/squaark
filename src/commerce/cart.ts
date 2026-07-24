@@ -46,8 +46,9 @@ function rowToCartItem(row: CartItemRow): CartItem {
     price:        money(row.price),
     lineTotal:    money(row.price * row.quantity),
     image:        rowToImage(row),
-    productSlug:  row.product_slug,
-    variantId:    row.variant_id,
+    productSlug:   row.product_slug,
+    variantId:     row.variant_id,
+    freeShipping:  row.free_shipping === 1,
   };
 }
 

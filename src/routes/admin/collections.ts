@@ -63,7 +63,7 @@ async function createCollection(
   req: FastifyRequest<{ Body: Record<string, string> }>,
   reply: FastifyReply,
 ) {
-  const { title, slug, description, published } = req.body;
+  const { title, slug, description, published, seo_title, seo_description } = req.body;
   if (!title || !slug) {
     return reply.type('text/html').send(
       render('collections/form', { ...adminCtx(req), collection: req.body, products: [], allProducts: [],
@@ -72,8 +72,9 @@ async function createCollection(
   }
   const id = crypto.randomUUID();
   execute(
-    'INSERT INTO collections (id, title, slug, description, published) VALUES (?,?,?,?,?)',
-    [id, title.trim(), slug.trim(), description || null, published === '1' ? 1 : 0],
+    'INSERT INTO collections (id, title, slug, description, published, seo_title, seo_description) VALUES (?,?,?,?,?,?,?)',
+    [id, title.trim(), slug.trim(), description || null, published === '1' ? 1 : 0,
+     seo_title || null, seo_description || null],
   );
   return reply.redirect(`/admin/collections/${id}?created=1`);
 }
@@ -82,10 +83,11 @@ async function updateCollection(
   req: FastifyRequest<{ Params: { id: string }; Body: Record<string, string> }>,
   reply: FastifyReply,
 ) {
-  const { title, slug, description, published } = req.body;
+  const { title, slug, description, published, seo_title, seo_description } = req.body;
   execute(
-    `UPDATE collections SET title=?, slug=?, description=?, published=?, updated_at=datetime('now') WHERE id=?`,
-    [title, slug, description || null, published === '1' ? 1 : 0, req.params.id],
+    `UPDATE collections SET title=?, slug=?, description=?, published=?, seo_title=?, seo_description=?, updated_at=datetime('now') WHERE id=?`,
+    [title, slug, description || null, published === '1' ? 1 : 0,
+     seo_title || null, seo_description || null, req.params.id],
   );
   return reply.redirect(`/admin/collections/${req.params.id}?saved=1`);
 }

@@ -86,6 +86,8 @@ export interface FullProduct {
   vendor: string | null;
   tags: string[];
   relatedProducts: ProductSummary[];
+  seoTitle: string | null;
+  seoDescription: string | null;
 }
 
 export async function getProduct(slug: string): Promise<FullProduct | null> {
@@ -115,5 +117,7 @@ export async function getProduct(slug: string): Promise<FullProduct | null> {
     vendor:         row.vendor,
     tags:           row.tags_text ? row.tags_text.split(' ').filter(Boolean) : [],
     relatedProducts: relatedRows.map(rowToProductSummary),
+    seoTitle:       row.seo_title ?? null,
+    seoDescription: row.seo_description ?? null,
   };
 }

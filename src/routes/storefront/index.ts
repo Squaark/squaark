@@ -1,10 +1,10 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { ThemeRegistry } from '../../theme/registry';
 import { buildGlobalContext } from '../../theme/context';
-import { getProduct, searchProducts } from '../../commerce/products';
-import { getCollectionPage, listFeaturedProducts } from '../../commerce/collections';
+import { getProduct, listProducts, searchProducts } from '../../commerce/products';
+import { getCollectionPage, listCollections, listFeaturedProducts } from '../../commerce/collections';
 import { getCartSummary, getCartPage, addToCart, updateCartItem, removeFromCart } from '../../commerce/cart';
-import { findPageBySlug } from '../../db/queries/pages';
+import { findAllPages, findPageBySlug } from '../../db/queries/pages';
 import { getAllSettings } from '../../db/queries/admin';
 import { checkoutRoutes } from './checkout';
 import { accountRoutes } from './account';
@@ -101,7 +101,13 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
         await registry.currentEngine.render('404', { ...ctx, pageTitle: 'Page Not Found' }),
       );
     }
-    await render(registry, reply, 'product', { ...ctx, pageTitle: product.title, product });
+    await render(registry, reply, 'product', {
+      ...ctx,
+      pageTitle: product.seoTitle || product.title,
+      metaDescription: product.seoDescription || product.description || '',
+      ogImage: product.images[0]?.large ?? null,
+      product,
+    });
   });
 
   fastify.get('/collections/:slug', async (req, reply) => {
@@ -116,7 +122,12 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
         await registry.currentEngine.render('404', { ...ctx, pageTitle: 'Page Not Found' }),
       );
     }
-    await render(registry, reply, 'collection', { ...ctx, pageTitle: collection.title, collection });
+    await render(registry, reply, 'collection', {
+      ...ctx,
+      pageTitle: collection.seoTitle || collection.title,
+      metaDescription: collection.seoDescription || collection.description || '',
+      collection,
+    });
   });
 
   fastify.get(`/${cartSlug}`, async (req, reply) => {
@@ -149,7 +160,9 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
     let sections: unknown[] = [];
     try { sections = JSON.parse((page as unknown as { sections: string }).sections || '[]'); } catch { /* fallback */ }
     await render(registry, reply, 'page', {
-      ...ctx, pageTitle: page.title,
+      ...ctx,
+      pageTitle: page.seo_title || page.title,
+      metaDescription: page.seo_description || page.excerpt || '',
       page: { ...page, sections },
     });
   });
@@ -186,6 +199,34 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
     await removeFromCart(req.cartId, itemId);
     if (req.headers['hx-request']) return cartFragment(registry, req, reply);
     return reply.redirect(`/${cartSlug}`);
+  });
+
+  fastify.get('/robots.txt', async (_req, reply) => {
+    const storeUrl = (getAllSettings().store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+    reply.type('text/plain').send(`User-agent: *\nAllow: /\nSitemap: ${storeUrl}/sitemap.xml\n`);
+  });
+
+  fastify.get('/sitemap.xml', async (_req, reply) => {
+    const storeUrl = (getAllSettings().store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+    const [products, collections, pages] = await Promise.all([
+      listProducts(),
+      listCollections(),
+      Promise.resolve(findAllPages().filter(p => p.status === 'published')),
+    ]);
+
+    const urls: string[] = [
+      `<url><loc>${esc(storeUrl)}/</loc></url>`,
+      `<url><loc>${esc(storeUrl)}/collections/all</loc></url>`,
+      ...products.map(p => `<url><loc>${esc(storeUrl)}/products/${esc(p.slug)}</loc></url>`),
+      ...collections.map(c => `<url><loc>${esc(storeUrl)}/collections/${esc(c.slug)}</loc></url>`),
+      ...pages.map(p => `<url><loc>${esc(storeUrl)}/${esc(p.slug)}</loc></url>`),
+    ];
+
+    reply.type('application/xml').send(
+      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  ${urls.join('\n  ')}\n</urlset>`,
+    );
   });
 
   fastify.setNotFoundHandler(async (req, reply) => {
