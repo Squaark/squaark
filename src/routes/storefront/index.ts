@@ -180,8 +180,8 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
     if (req.headers['hx-request']) {
       const { itemCount } = await getCartSummary(req.cartId);
       const badge = itemCount > 0
-        ? `<span id="cart-count" class="cart-count absolute -top-2 -right-2 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold leading-none" style="background:var(--color-accent)">${itemCount}</span>`
-        : `<span id="cart-count" class="cart-count" style="display:none"></span>`;
+        ? `<span id="cart-count" class="cart-badge">${itemCount}</span>`
+        : `<span id="cart-count" class="cart-badge" style="display:none"></span>`;
       return reply.type('text/html').send(badge);
     }
     return reply.redirect(`/${cartSlug}`);
