@@ -4,10 +4,10 @@ Self-hosted ecommerce platform. Keeping it simple with Node.js + SQLite.
 
 ## Requirements
 
-- Node.js 20 or 22 (LTS). Newer versions like 26 may not have prebuilt binaries for `better-sqlite3` and `sharp`, which means a from-source compile that can fail on compiler mismatches.
+- Node.js 22+ (`better-sqlite3` requires it as of v13). 22 (LTS) is the tested baseline — CI, Docker, and `.nvmrc` all pin it — but `better-sqlite3`, `argon2`, and `sharp` all ship N-API prebuilt binaries now, so newer versions (e.g. 26) work fine too.
 - npm
 
-On Linux you'll need a C++ toolchain if no prebuilt binary matches your platform (`build-essential` on Debian/Ubuntu, `apk add python3 make g++` on Alpine). The `Dockerfile` sidesteps this.
+If you're ever on a platform/Node combination with no prebuilt binary available, these fall back to a from-source compile, which needs a C++ toolchain (`build-essential` on Debian/Ubuntu, `apk add python3 make g++` on Alpine). The `Dockerfile` sidesteps this by installing the toolchain in the build stage regardless.
 
 ## Quick start
 

@@ -24,7 +24,7 @@ This document describes the system as it actually exists today, for engineers ex
 
 | Component | Technology |
 | --- | --- |
-| Runtime | Node.js 20 or 22 (LTS) — see [README.md](README.md#requirements) for why newer/unstable Node versions are risky (`better-sqlite3`/`sharp` prebuilt binaries) |
+| Runtime | Node.js 22+ (`better-sqlite3` requires it as of v13). 22 (LTS) is the tested baseline — CI, Docker, `.nvmrc` all pin it. Native deps ship N-API prebuilt binaries, so newer versions work too — see [README.md](README.md#requirements) |
 | Web framework | Fastify 4 |
 | Language | TypeScript, compiled with `tsc` (no bundler) |
 | Database | better-sqlite3 (synchronous SQLite driver) — the only required external dependency |

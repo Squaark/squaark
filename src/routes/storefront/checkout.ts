@@ -12,6 +12,7 @@ import config from '../../config';
 import { writeLog } from '../../db/queries/system-log';
 import { findCustomerByEmail, createCustomer } from '../../db/queries/customers';
 import { getRatesForCountry, findRateById } from '../../db/queries/shipping';
+import { calculateItemsTax } from '../../commerce/tax';
 import argon2 from 'argon2';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -85,12 +86,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
 
     // Compute items tax from per-band rates; passes to Alpine for display
     const taxEnabled = settings.tax_enabled === '1';
-    const itemsTaxAmount = taxEnabled
-      ? cart.items.reduce((sum, item) => {
-          const rate = item.taxRate ? parseFloat(item.taxRate) : 0;
-          return sum + (rate > 0 ? Math.round(item.lineTotal.amount * rate / (100 + rate)) : 0);
-        }, 0)
-      : 0;
+    const itemsTaxAmount = calculateItemsTax(cart.items, taxEnabled);
 
     await render(registry, reply, 'checkout', {
       ...ctx, cart, pageTitle: 'Checkout',
@@ -167,12 +163,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       }
     }
     const orderTotal = cart.total.amount + shippingAmount;
-    const taxAmount = settings.tax_enabled === '1'
-      ? cart.items.reduce((sum, item) => {
-          const rate = item.taxRate ? parseFloat(item.taxRate) : 0;
-          return sum + (rate > 0 ? Math.round(item.lineTotal.amount * rate / (100 + rate)) : 0);
-        }, 0)
-      : 0;
+    const taxAmount = calculateItemsTax(cart.items, settings.tax_enabled === '1');
 
     // Create a pending order first so we have an ID for metadata
     const order = createOrder({
@@ -464,12 +455,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
         }
       }
       const ppOrderTotal = cart.total.amount + ppShippingAmount;
-      const ppTaxAmount = settings.tax_enabled === '1'
-        ? cart.items.reduce((sum, item) => {
-            const rate = item.taxRate ? parseFloat(item.taxRate) : 0;
-            return sum + (rate > 0 ? Math.round(item.lineTotal.amount * rate / (100 + rate)) : 0);
-          }, 0)
-        : 0;
+      const ppTaxAmount = calculateItemsTax(cart.items, settings.tax_enabled === '1');
 
       const order = createOrder({
         email,

@@ -1,7 +1,8 @@
 # ── Build stage: full deps (needs tsc + node-gyp toolchain) ─────────────────
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 
-# better-sqlite3 requires native compilation
+# better-sqlite3/argon2/sharp ship N-API prebuilt binaries for musl (Alpine) now,
+# but keep the toolchain as a fallback in case a future dep version doesn't.
 RUN apk add --no-cache python3 make g++
 
 WORKDIR /app
@@ -10,6 +11,9 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+
+# Fail the image build if tests or types don't pass — nothing broken ships.
+RUN npm run typecheck && npm test
 RUN npm run build
 
 # Drop devDependencies now that dist/ exists and better-sqlite3 is already
@@ -17,7 +21,7 @@ RUN npm run build
 RUN npm prune --omit=dev
 
 # ── Runtime stage: no compiler toolchain, just the app ───────────────────────
-FROM node:20-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
