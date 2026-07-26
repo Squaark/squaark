@@ -5,6 +5,7 @@
   </div>
   {{#if page}}
   <form method="POST" action="/admin/pages/{{page.id}}/delete" onsubmit="return confirm('Delete this page?')">
+    {{csrf_field}}
     <button type="submit" class="btn-link btn-link--danger btn-link--sm">Delete</button>
   </form>
   {{/if}}
@@ -15,6 +16,7 @@
 {{#if created}}<div class="alert alert-success">Page created.</div>{{/if}}
 
 <form method="POST" action="/admin/pages/{{#if page}}{{page.id}}{{else}}new{{/if}}">
+  {{csrf_field}}
 
   <div class="grid-form">
     <div class="stack">

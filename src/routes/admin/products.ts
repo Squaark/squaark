@@ -57,34 +57,34 @@ async function listProducts(req: FastifyRequest<{ Querystring: { page?: string }
   );
   const total = queryOne<{ n: number }>('SELECT COUNT(*) AS n FROM products')?.n ?? 0;
   return reply.type('text/html').send(
-    render('products/list', {
+    await render('products/list', {
       ...adminCtx(req), products, total,
       page, totalPages: Math.ceil(total / limit),
       pageTitle: 'Products',
-    }),
+    }, reply),
   );
 }
 
 async function newProductPage(req: FastifyRequest, reply: FastifyReply) {
   return reply.type('text/html').send(
-    render('products/form', { ...adminCtx(req), product: null, variants: [], images: [], taxBands: findAllBands(), pageTitle: 'New product' }),
+    await render('products/form', { ...adminCtx(req), product: null, variants: [], images: [], taxBands: findAllBands(), pageTitle: 'New product' }, reply),
   );
 }
 
 async function editProductPage(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
   const product = queryOne<ProductRow>('SELECT * FROM products WHERE id = ?', [req.params.id]);
-  if (!product) return reply.code(404).type('text/html').send(render('404', { pageTitle: 'Not found' }));
+  if (!product) return reply.code(404).type('text/html').send(await render('404', { pageTitle: 'Not found' }, reply));
   const variants = query<VariantRow>('SELECT * FROM product_variants WHERE product_id = ? ORDER BY position', [product.id]);
   const images = query<ImageRow>('SELECT * FROM product_images WHERE product_id = ? ORDER BY position', [product.id]);
   const digitalFile = findFileForProduct(product.id);
   const query_ = req.query as Record<string, string>;
   return reply.type('text/html').send(
-    render('products/form', {
+    await render('products/form', {
       ...adminCtx(req), product, variants, images, taxBands: findAllBands(),
       digitalFile, pageTitle: product.title,
       saved: query_.saved === '1', created: query_.created === '1',
       uploaded: query_.uploaded === '1',
-    }),
+    }, reply),
   );
 }
 
@@ -98,8 +98,8 @@ async function createProduct(
 
   if (!title || !slug) {
     return reply.type('text/html').send(
-      render('products/form', { ...adminCtx(req), product: req.body, variants: [], images: [],
-        taxBands: findAllBands(), error: 'Title and slug are required', pageTitle: 'New product' }),
+      await render('products/form', { ...adminCtx(req), product: req.body, variants: [], images: [],
+        taxBands: findAllBands(), error: 'Title and slug are required', pageTitle: 'New product' }, reply),
     );
   }
 
@@ -207,7 +207,7 @@ async function uploadDigitalFile(
   const buf = await data.toBuffer();
   const ext = path.extname(data.filename) || '';
   const filename = `${crypto.randomUUID()}${ext}`;
-  const dir = path.join(config.uploadsDir, 'digital');
+  const dir = config.digitalFilesDir;
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, filename), buf);
 
@@ -227,8 +227,7 @@ async function deleteDigitalFile(
 ) {
   const existing = findFileForProduct(req.params.id);
   if (existing) {
-    const dir = path.join(config.uploadsDir, 'digital');
-    try { fs.unlinkSync(path.join(dir, existing.filename)); } catch { /* already gone */ }
+    try { fs.unlinkSync(path.join(config.digitalFilesDir, existing.filename)); } catch { /* already gone */ }
     deleteProductFile(req.params.id);
   }
   return reply.redirect(`/admin/products/${req.params.id}`);

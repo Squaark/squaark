@@ -66,16 +66,16 @@ async function listZones(req: FastifyRequest, reply: FastifyReply) {
     rates: findRatesForZone(z.id),
   }));
   return reply.type('text/html').send(
-    render('shipping/index', { ...adminCtx(req), zones, pageTitle: 'Shipping', pageSection: 'shipping' }),
+    await render('shipping/index', { ...adminCtx(req), zones, pageTitle: 'Shipping', pageSection: 'shipping' }, reply),
   );
 }
 
 async function newZonePage(req: FastifyRequest, reply: FastifyReply) {
   return reply.type('text/html').send(
-    render('shipping/zone', {
+    await render('shipping/zone', {
       ...adminCtx(req), zone: null, rates: [], countries: COUNTRIES, selected: [],
       pageTitle: 'New shipping zone', pageSection: 'shipping',
-    }),
+    }, reply),
   );
 }
 
@@ -95,16 +95,16 @@ async function editZonePage(
   reply: FastifyReply,
 ) {
   const zone = findZoneById(req.params.id);
-  if (!zone) return reply.code(404).type('text/html').send(render('404', { pageTitle: 'Not found' }));
+  if (!zone) return reply.code(404).type('text/html').send(await render('404', { pageTitle: 'Not found' }, reply));
   const rates = findRatesForZone(zone.id);
   const selected: string[] = (() => { try { return JSON.parse(zone.countries) as string[]; } catch { return []; } })();
   return reply.type('text/html').send(
-    render('shipping/zone', {
+    await render('shipping/zone', {
       ...adminCtx(req), zone, rates, countries: COUNTRIES, selected,
       saved: 'saved' in (req.query as Record<string, string>),
       created: 'created' in (req.query as Record<string, string>),
       pageTitle: zone.name, pageSection: 'shipping',
-    }),
+    }, reply),
   );
 }
 

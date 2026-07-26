@@ -27,6 +27,7 @@
       </p>
     </div>
     <form method="POST" action="/admin/import/wxr" enctype="multipart/form-data" class="stack-sm">
+      {{csrf_field}}
       <input type="file" name="file" accept=".xml" required class="form-file">
       <div>
         <button type="submit" class="btn btn-primary">Upload &amp; import</button>
@@ -44,6 +45,7 @@
       </p>
     </div>
     <form method="POST" action="/admin/import/woocommerce" class="stack-sm">
+      {{csrf_field}}
       <div>
         <label class="form-label-xs">Store URL</label>
         <input type="url" name="store_url" placeholder="https://oldstore.com" required class="form-input">

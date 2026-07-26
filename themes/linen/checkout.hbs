@@ -100,6 +100,7 @@
 
         {{#if stripeEnabled}}
           <form method="POST" action="/checkout" id="stripe-form">
+            {{csrf_field}}
             <input type="hidden" name="email" id="stripe-email">
             <input type="hidden" name="firstName" id="stripe-firstName">
             <input type="hidden" name="lastName" id="stripe-lastName">
@@ -188,6 +189,8 @@
 </div>
 
 <script>
+var CSRF_TOKEN = '{{csrfToken}}';
+
 function checkoutApp(subtotal, discount, currencySymbol, taxEnabled, itemsTaxAmount, taxLabel) {
   return {
     subtotalAmount: subtotal,
@@ -275,7 +278,7 @@ function initPayPal() {
       const d = getFormData();
       const res = await fetch('/checkout/paypal/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
         body: JSON.stringify(d),
       });
       const data = await res.json();
@@ -285,7 +288,7 @@ function initPayPal() {
     onApprove: async (data) => {
       const res = await fetch('/checkout/paypal/capture', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
         body: JSON.stringify({ paypalOrderId: data.orderID }),
       });
       const result = await res.json();

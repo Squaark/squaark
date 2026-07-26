@@ -6,6 +6,7 @@
 {{#if error}}<div class="alert alert-error mb-4">{{error}}</div>{{/if}}
 
 <form method="POST" action="{{#if band}}/admin/tax/{{band.id}}{{else}}/admin/tax{{/if}}">
+  {{csrf_field}}
   <div class="grid-form">
     <div class="stack">
       <div class="card--no-overflow card-body stack-sm">
@@ -41,6 +42,7 @@
           <div class="card--no-overflow card-body">
             <form method="POST" action="/admin/tax/{{band.id}}/delete"
               onsubmit="return confirm('Delete this tax band?')">
+              {{csrf_field}}
               <button type="submit" class="btn-link btn-link--danger btn-link--sm">Delete band</button>
             </form>
           </div>

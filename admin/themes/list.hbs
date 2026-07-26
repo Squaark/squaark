@@ -3,6 +3,7 @@
   <label class="btn btn-primary btn-sm" style="cursor:pointer;">
     Upload theme
     <form id="upload-form" method="POST" action="/admin/themes/upload" enctype="multipart/form-data" style="display:none;">
+      {{csrf_field}}
       <input type="file" name="file" accept=".zip" onchange="document.getElementById('upload-form').submit()">
     </form>
   </label>
@@ -29,6 +30,7 @@
       <a href="/admin/themes/{{this.id}}/config" class="btn btn-secondary btn-sm">Customise</a>
       {{#unless (eq this.active 1)}}
       <form method="POST" action="/admin/themes/{{this.id}}/activate">
+        {{csrf_field}}
         <button type="submit" class="btn btn-primary btn-sm">Activate</button>
       </form>
       {{/unless}}

@@ -41,6 +41,7 @@
               <span class="badge badge-dark">{{this.role}}</span>
               {{else}}
               <form method="POST" action="/admin/users/{{this.id}}/role" style="display:inline-flex;align-items:center;gap:0.25rem;">
+                {{csrf_field}}
                 <select name="role" onchange="this.form.submit()" class="form-select" style="font-size:0.75rem;padding:0.125rem 0.375rem;">
                   <option value="admin" {{#if (eq this.role 'admin')}}selected{{/if}}>Admin</option>
                   <option value="staff" {{#if (eq this.role 'staff')}}selected{{/if}}>Staff</option>
@@ -53,6 +54,7 @@
               {{#if (ne this.id ../admin.id)}}
               <form method="POST" action="/admin/users/{{this.id}}/delete"
                 onsubmit="return confirm('Delete {{this.name}}? This cannot be undone.')">
+                {{csrf_field}}
                 <button type="submit" class="btn-link btn-link--danger btn-link--xs">Delete</button>
               </form>
               {{/if}}
@@ -69,6 +71,7 @@
     <div class="card--no-overflow card-body stack-sm">
       <h2 class="font-semibold">Add user</h2>
       <form method="POST" action="/admin/users" class="stack-sm">
+        {{csrf_field}}
         <div>
           <label class="form-label-xs">Name</label>
           <input type="text" name="name" required class="form-input">

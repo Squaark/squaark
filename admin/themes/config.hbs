@@ -25,7 +25,7 @@
     </div>
 
     {{!-- Ghost form element — non-image inputs associate with it via form="config-form" --}}
-    <form id="config-form" method="POST" action="/admin/themes/{{theme.id}}/config" style="display:none;"></form>
+    <form id="config-form" method="POST" action="/admin/themes/{{theme.id}}/config" style="display:none;">{{csrf_field}}</form>
 
     {{!-- All fields rendered in manifest order --}}
     <div id="config-fields" style="padding:1rem 1.25rem;">
@@ -45,12 +45,14 @@
               <img src="{{this.value}}" alt="" style="max-height:100%;max-width:100%;object-fit:contain;">
             </div>
             <form method="POST" action="/admin/themes/{{../../theme.id}}/config/image/{{this.flatKey}}/remove" style="display:inline;">
+              {{csrf_field}}
               <button type="submit" style="font-size:0.7rem;color:#ef4444;background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;">Remove</button>
             </form>
           </div>
           {{/if}}
           <form method="POST" action="/admin/themes/{{../../theme.id}}/config/image/{{this.flatKey}}" enctype="multipart/form-data"
                 style="display:flex;gap:0.5rem;align-items:center;">
+            {{csrf_field}}
             <input type="file" name="file" accept="image/*" required
               style="flex:1;font-size:0.72rem;color:#6b7280;min-width:0;">
             <button type="submit"

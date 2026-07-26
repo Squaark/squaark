@@ -1,4 +1,4 @@
-import { query, queryOne, execute } from '../connection';
+import { query, queryOne, execute, db } from '../connection';
 
 export interface AdminUserRow {
   id: string;
@@ -34,6 +34,22 @@ export function createAdminUser(id: string, email: string, passwordHash: string,
     'INSERT INTO admin_users (id, email, password_hash, name, role) VALUES (?, ?, ?, ?, ?)',
     [id, email, passwordHash, name, role],
   );
+}
+
+/**
+ * Inserts the first admin only if the table is still empty, atomically — the
+ * check and the insert happen as one indivisible SQLite statement, so
+ * concurrent callers can't all pass a separate "does an admin exist" check
+ * before any of them commits. Returns whether this call was the one that
+ * actually created the row.
+ */
+export function createFirstAdminUser(id: string, email: string, passwordHash: string, name: string): boolean {
+  const result = db.prepare(`
+    INSERT INTO admin_users (id, email, password_hash, name, role)
+    SELECT ?, ?, ?, ?, 'admin'
+    WHERE NOT EXISTS (SELECT 1 FROM admin_users)
+  `).run(id, email, passwordHash, name);
+  return result.changes > 0;
 }
 
 export function updateAdminUserRole(id: string, role: 'admin' | 'staff'): void {

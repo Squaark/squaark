@@ -27,6 +27,16 @@ import './types';
 async function build() {
   const fastify = Fastify({ logger: true });
 
+  // ── Security headers ───────────────────────────────────────────────────────
+  // SAMEORIGIN (not DENY) because the theme customiser embeds the storefront
+  // preview in an iframe from the same origin — DENY would break that.
+  // onSend hooks must return the payload unchanged or the response body is lost.
+  fastify.addHook('onSend', async (req: FastifyRequest, reply: FastifyReply, payload: unknown) => {
+    reply.header('X-Frame-Options', 'SAMEORIGIN');
+    reply.header('X-Content-Type-Options', 'nosniff');
+    return payload;
+  });
+
   // ── Plugins ────────────────────────────────────────────────────────────────
   await fastify.register(fastifyFormbody);
   await fastify.register(fastifyMultipart, { limits: { fileSize: 10 * 1024 * 1024 } });
@@ -61,8 +71,14 @@ async function build() {
 
   // ── Cart cookie hook ───────────────────────────────────────────────────────
   // Runs before every storefront handler; ensures req.cartId is always set.
+  // Skips admin/static/webhook paths — those never need a cart, and without
+  // this a cookie-less caller (bots, Stripe/PayPal webhook deliveries, plain
+  // asset requests) would create a fresh, unbounded `carts` row on every hit.
   fastify.decorateRequest('cartId', '');
   fastify.addHook('preHandler', async (req: FastifyRequest, reply: FastifyReply) => {
+    const url = req.url.split('?')[0];
+    if (SKIP_PREFIX.some((p) => url.startsWith(p))) return;
+
     const existing = req.cookies.squaark_cart;
     const cartId = await ensureCart(existing);
     if (cartId !== existing) {
@@ -70,6 +86,7 @@ async function build() {
         path: '/',
         httpOnly: true,
         sameSite: 'lax',
+        secure: config.nodeEnv === 'production',
         maxAge: 30 * 24 * 60 * 60,
       });
     }
@@ -85,7 +102,15 @@ async function build() {
       statusCode: err.statusCode,
     });
     fastify.log.error(err);
-    reply.code(err.statusCode ?? 500).send({ error: err.message });
+    const statusCode = err.statusCode ?? 500;
+    // Full message logged above either way (visible to the operator under
+    // Settings > Logs). Only what's sent to the CLIENT is redacted — an
+    // unexpected 5xx in production may otherwise leak file paths, SQL
+    // fragments, or other internal detail via err.message.
+    const message = statusCode >= 500 && config.nodeEnv === 'production'
+      ? 'Internal Server Error'
+      : err.message;
+    reply.code(statusCode).send({ error: message });
   });
 
   // ── Analytics page-view tracking ───────────────────────────────────────────

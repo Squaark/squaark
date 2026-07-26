@@ -25,21 +25,22 @@ export async function emailRoutes(fastify: FastifyInstance): Promise<void> {
 async function listPage(req: FastifyRequest, reply: FastifyReply) {
   const admin = getAdminById(req.session.adminId!)!;
   return reply.type('text/html').send(
-    render('emails/list', {
+    await render('emails/list', {
       admin,
       settings: getAllSettings(),
       templates: listEmailTemplates(),
       log: listRecentEmailLog(10),
       pageTitle: 'Emails',
       pageSection: 'emails',
-    }),
+    }, reply),
   );
 }
 
 async function editPage(req: FastifyRequest<{ Params: { key: string } }>, reply: FastifyReply) {
   const admin = getAdminById(req.session.adminId!)!;
   const template = findEmailTemplate(req.params.key);
-  if (!template) return reply.code(404).type('text/html').send(render('404', { pageTitle: 'Not found' }));
+  if (!template)
+    return reply.code(404).type('text/html').send(await render('404', { pageTitle: 'Not found' }, reply));
 
   const { html: previewHtml } = renderEmailPreview(
     template.subject,
@@ -48,7 +49,7 @@ async function editPage(req: FastifyRequest<{ Params: { key: string } }>, reply:
   );
 
   return reply.type('text/html').send(
-    render('emails/form', {
+    await render('emails/form', {
       admin,
       settings: getAllSettings(),
       template,
@@ -56,7 +57,7 @@ async function editPage(req: FastifyRequest<{ Params: { key: string } }>, reply:
       pageTitle: template.name,
       pageSection: 'emails',
       saved: 'saved' in (req.query as Record<string, string>),
-    }),
+    }, reply),
   );
 }
 

@@ -31,19 +31,19 @@ function adminCtx(req: FastifyRequest) {
 async function listCollections(req: FastifyRequest, reply: FastifyReply) {
   const collections = query<CollectionRow>('SELECT * FROM collections ORDER BY created_at DESC');
   return reply.type('text/html').send(
-    render('collections/list', { ...adminCtx(req), collections, pageTitle: 'Collections' }),
+    await render('collections/list', { ...adminCtx(req), collections, pageTitle: 'Collections' }, reply),
   );
 }
 
 async function newCollectionPage(req: FastifyRequest, reply: FastifyReply) {
   return reply.type('text/html').send(
-    render('collections/form', { ...adminCtx(req), collection: null, products: [], allProducts: [], pageTitle: 'New collection' }),
+    await render('collections/form', { ...adminCtx(req), collection: null, products: [], allProducts: [], pageTitle: 'New collection' }, reply),
   );
 }
 
 async function editCollectionPage(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
   const collection = queryOne<CollectionRow>('SELECT * FROM collections WHERE id = ?', [req.params.id]);
-  if (!collection) return reply.code(404).type('text/html').send(render('404', { pageTitle: 'Not found' }));
+  if (!collection) return reply.code(404).type('text/html').send(await render('404', { pageTitle: 'Not found' }, reply));
 
   const products = query<{ id: string; title: string; slug: string }>(
     `SELECT p.id, p.title, p.slug FROM products p
@@ -55,7 +55,7 @@ async function editCollectionPage(req: FastifyRequest<{ Params: { id: string } }
     'SELECT id, title, slug FROM products WHERE published = 1 ORDER BY title',
   );
   return reply.type('text/html').send(
-    render('collections/form', { ...adminCtx(req), collection, products, allProducts, pageTitle: collection.title }),
+    await render('collections/form', { ...adminCtx(req), collection, products, allProducts, pageTitle: collection.title }, reply),
   );
 }
 
@@ -66,8 +66,8 @@ async function createCollection(
   const { title, slug, description, published, seo_title, seo_description } = req.body;
   if (!title || !slug) {
     return reply.type('text/html').send(
-      render('collections/form', { ...adminCtx(req), collection: req.body, products: [], allProducts: [],
-        error: 'Title and slug are required', pageTitle: 'New collection' }),
+      await render('collections/form', { ...adminCtx(req), collection: req.body, products: [], allProducts: [],
+        error: 'Title and slug are required', pageTitle: 'New collection' }, reply),
     );
   }
   const id = crypto.randomUUID();

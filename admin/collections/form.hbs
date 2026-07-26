@@ -5,6 +5,7 @@
   </div>
   {{#if collection}}
   <form method="POST" action="/admin/collections/{{collection.id}}/delete" onsubmit="return confirm('Delete this collection?')">
+    {{csrf_field}}
     <button type="submit" class="btn-link btn-link--danger btn-link--sm">Delete</button>
   </form>
   {{/if}}
@@ -16,6 +17,7 @@
 <div class="grid-form">
   <div class="stack">
     <form method="POST" action="/admin/collections/{{#if collection}}{{collection.id}}{{else}}new{{/if}}">
+      {{csrf_field}}
       <div class="card--no-overflow card-body stack-sm">
         <h2 class="font-semibold">Details</h2>
         <div>
@@ -62,6 +64,7 @@
         <li style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid #f3f4f6;">
           <span class="text-sm">{{this.title}}</span>
           <form method="POST" action="/admin/collections/{{../collection.id}}/products/{{this.id}}/remove">
+            {{csrf_field}}
             <button type="submit" class="btn-link btn-link--danger btn-link--xs">Remove</button>
           </form>
         </li>
@@ -72,6 +75,7 @@
       {{/if}}
       {{#if allProducts.length}}
       <form method="POST" action="/admin/collections/{{collection.id}}/products/add" class="row">
+        {{csrf_field}}
         <select name="product_id" class="form-select flex-1">
           <option value="">— Select a product —</option>
           {{#each allProducts}}

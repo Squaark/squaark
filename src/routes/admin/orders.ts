@@ -19,26 +19,26 @@ async function listOrders(req: FastifyRequest<{ Querystring: { page?: string } }
   const admin = getAdminById(req.session.adminId!)!;
 
   return reply.type('text/html').send(
-    render('orders/list', {
+    await render('orders/list', {
       admin, orders, total,
       page, totalPages: Math.ceil(total / limit),
       settings: getAllSettings(),
       pageTitle: 'Orders',
-    }),
+    }, reply),
   );
 }
 
 async function viewOrder(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
   const order = findOrderById(req.params.id);
-  if (!order) return reply.code(404).type('text/html').send(render('404', { pageTitle: 'Not found' }));
+  if (!order) return reply.code(404).type('text/html').send(await render('404', { pageTitle: 'Not found' }, reply));
   const items = findOrderItems(order.id);
   const admin = getAdminById(req.session.adminId!)!;
 
   return reply.type('text/html').send(
-    render('orders/view', {
+    await render('orders/view', {
       admin, order, items,
       settings: getAllSettings(),
       pageTitle: `Order #${order.order_number}`,
-    }),
+    }, reply),
   );
 }

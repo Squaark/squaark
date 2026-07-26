@@ -24,7 +24,7 @@ export async function settingsRoutes(fastify: FastifyInstance): Promise<void> {
 async function settingsPage(req: FastifyRequest, reply: FastifyReply) {
   const admin = getAdminById(req.session.adminId!)!;
   return reply.type('text/html').send(
-    render('settings', {
+    await render('settings', {
       admin,
       settings: getAllSettings(),
       emailLog: listRecentEmailLog(50),
@@ -33,7 +33,7 @@ async function settingsPage(req: FastifyRequest, reply: FastifyReply) {
       pageTitle: 'Settings',
       pageSection: 'settings',
       saved: 'saved' in (req.query as Record<string, string>),
-    }),
+    }, reply),
   );
 }
 

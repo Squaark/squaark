@@ -24,37 +24,51 @@ export async function adminRoutes(fastify: FastifyInstance): Promise<void> {
   // Auth routes don't need the guard
   await fastify.register(authRoutes, { prefix: '/admin' });
 
-  const ADMIN_ONLY_PATHS = ['/admin/settings', '/admin/import', '/admin/themes', '/admin/emails', '/admin/navigation', '/admin/users'];
-
-  // Guard: every /admin/* route below requires a session
-  fastify.addHook('preHandler', async (req: FastifyRequest, reply: FastifyReply) => {
-    if (!req.url.startsWith('/admin')) return;
-    if (req.url.startsWith('/admin/login') || req.url.startsWith('/admin/setup')) return;
-
-    const adminId = req.session.adminId;
-    const admin = adminId ? getAdminById(adminId) : null;
-    if (!admin) return reply.redirect('/admin/login');
-
-    if (admin.role === 'staff' && ADMIN_ONLY_PATHS.some(p => req.url.startsWith(p))) {
-      return reply.redirect('/admin');
-    }
-  });
-
   await fastify.register(
     async (app) => {
+      // Guard: every route registered in this scope requires a session.
+      // Scoped via Fastify's own plugin encapsulation (not a manual req.url
+      // string-prefix check) so it can't be bypassed by percent-encoding or
+      // other path-normalization tricks the router itself already accounts
+      // for when matching a request to a route.
+      app.addHook('preHandler', async (req: FastifyRequest, reply: FastifyReply) => {
+        const adminId = req.session.adminId;
+        const admin = adminId ? getAdminById(adminId) : null;
+        if (!admin) return reply.redirect('/admin/login');
+      });
+
+      // Enforce the CSRF token on every state-changing request. Uses the
+      // plugin's own callback-style signature directly (it isn't
+      // promise-based) — GET/HEAD/OPTIONS never carry a body/mutate state,
+      // so they're exempt.
+      app.addHook('preHandler', (req: FastifyRequest, reply: FastifyReply, done: (err?: Error) => void) => {
+        if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return done();
+        app.csrfProtection(req, reply, done);
+      });
+
       app.get('/', dashboardHandler);
       await app.register(productRoutes);
       await app.register(collectionRoutes);
       await app.register(pageRoutes);
       await app.register(orderRoutes);
-      await app.register(settingsRoutes);
-      await app.register(themeRoutes);
-      await app.register(emailRoutes);
-      await app.register(importRoutes);
-      await app.register(navigationRoutes);
-      await app.register(usersRoutes);
       await app.register(shippingRoutes);
       await app.register(taxRoutes);
+
+      // Admin-only areas: staff accounts are blocked here, again via plugin
+      // encapsulation rather than string-matching the request path.
+      await app.register(async (adminOnly) => {
+        adminOnly.addHook('preHandler', async (req: FastifyRequest, reply: FastifyReply) => {
+          const admin = getAdminById(req.session.adminId!)!;
+          if (admin.role === 'staff') return reply.redirect('/admin');
+        });
+
+        await adminOnly.register(settingsRoutes);
+        await adminOnly.register(themeRoutes);
+        await adminOnly.register(emailRoutes);
+        await adminOnly.register(importRoutes);
+        await adminOnly.register(navigationRoutes);
+        await adminOnly.register(usersRoutes);
+      });
     },
     { prefix: '/admin' },
   );
@@ -69,13 +83,17 @@ async function dashboardHandler(req: FastifyRequest, reply: FastifyReply) {
   const analytics = getAnalyticsSummary();
 
   return reply.type('text/html').send(
-    render('dashboard', {
-      admin,
-      settings,
-      stats: { orderCount, productCount },
-      isEmpty: productCount === 0,
-      analytics,
-      pageTitle: 'Dashboard',
-    }),
+    await render(
+      'dashboard',
+      {
+        admin,
+        settings,
+        stats: { orderCount, productCount },
+        isEmpty: productCount === 0,
+        analytics,
+        pageTitle: 'Dashboard',
+      },
+      reply,
+    ),
   );
 }

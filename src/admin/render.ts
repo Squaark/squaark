@@ -1,6 +1,7 @@
 import Handlebars from 'handlebars';
 import fs from 'fs';
 import path from 'path';
+import type { FastifyReply } from 'fastify';
 
 const ADMIN_VIEWS = path.resolve(process.cwd(), 'admin');
 
@@ -17,6 +18,11 @@ function loadPartials() {
 }
 
 loadPartials();
+
+hbs.registerHelper('csrf_field', function (this: { csrfToken?: string }) {
+  const token = Handlebars.escapeExpression(this.csrfToken ?? '');
+  return new Handlebars.SafeString(`<input type="hidden" name="_csrf" value="${token}">`);
+});
 
 hbs.registerHelper('eq', (a: unknown, b: unknown) => a === b);
 hbs.registerHelper('ne', (a: unknown, b: unknown) => a !== b);
@@ -103,17 +109,33 @@ hbs.registerHelper('status_badge', (status: string) => {
   );
 });
 
-const AUTH_TEMPLATES = new Set(['login', 'setup']);
+/**
+ * Renders an admin page inside the shared layout.
+ *
+ * `reply` is required (not optional) so a CSRF token is generated and merged
+ * into every context automatically — forgetting it is a compile error rather
+ * than a template silently missing {{csrf_field}}. The one exception is the
+ * pre-login auth templates (login/setup), which render standalone and have
+ * their own session-less forms; call renderAuth() for those instead.
+ */
+export async function render(template: string, context: Record<string, unknown>, reply: FastifyReply): Promise<string> {
+  const csrfToken = await reply.generateCsrf();
+  const fullContext = { ...context, csrfToken };
 
-export function render(template: string, context: Record<string, unknown>): string {
   const file = path.join(ADMIN_VIEWS, `${template}.hbs`);
   const src = fs.readFileSync(file, 'utf-8');
-  const body = hbs.compile(src)(context);
-
-  if (AUTH_TEMPLATES.has(template)) return body;
+  const body = hbs.compile(src)(fullContext);
 
   const layoutSrc = fs.readFileSync(path.join(ADMIN_VIEWS, 'partials', 'layout.hbs'), 'utf-8');
-  return hbs.compile(layoutSrc)({ ...context, body: new Handlebars.SafeString(body) });
+  return hbs.compile(layoutSrc)({ ...fullContext, body: new Handlebars.SafeString(body) });
+}
+
+/** Renders a template with no session yet (login/setup) — still gets a CSRF token, just no layout. */
+export async function renderAuth(template: string, context: Record<string, unknown>, reply: FastifyReply): Promise<string> {
+  const csrfToken = await reply.generateCsrf();
+  const file = path.join(ADMIN_VIEWS, `${template}.hbs`);
+  const src = fs.readFileSync(file, 'utf-8');
+  return hbs.compile(src)({ ...context, csrfToken });
 }
 
 /** Renders a template without the admin layout — for htmx fragment responses (polling, inline swaps). */

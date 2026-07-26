@@ -20,13 +20,13 @@ function ctx(req: FastifyRequest) {
 
 async function listBands(req: FastifyRequest, reply: FastifyReply) {
   return reply.type('text/html').send(
-    render('tax/index', { ...ctx(req), bands: findAllBands(), pageTitle: 'Tax bands', pageSection: 'tax' }),
+    await render('tax/index', { ...ctx(req), bands: findAllBands(), pageTitle: 'Tax bands', pageSection: 'tax' }, reply),
   );
 }
 
 async function newBandPage(req: FastifyRequest, reply: FastifyReply) {
   return reply.type('text/html').send(
-    render('tax/band', { ...ctx(req), band: null, pageTitle: 'New tax band', pageSection: 'tax' }),
+    await render('tax/band', { ...ctx(req), band: null, pageTitle: 'New tax band', pageSection: 'tax' }, reply),
   );
 }
 
@@ -37,7 +37,7 @@ async function createBandHandler(
   const { name, rate } = req.body;
   if (!name?.trim()) {
     return reply.type('text/html').send(
-      render('tax/band', { ...ctx(req), band: req.body, error: 'Name is required', pageTitle: 'New tax band', pageSection: 'tax' }),
+      await render('tax/band', { ...ctx(req), band: req.body, error: 'Name is required', pageTitle: 'New tax band', pageSection: 'tax' }, reply),
     );
   }
   createBand(name, rate ?? '0');
@@ -46,10 +46,10 @@ async function createBandHandler(
 
 async function editBandPage(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
   const band = findBandById(req.params.id);
-  if (!band) return reply.code(404).type('text/html').send(render('404', { pageTitle: 'Not found' }));
+  if (!band) return reply.code(404).type('text/html').send(await render('404', { pageTitle: 'Not found' }, reply));
   const productCount = countProductsInBand(band.id);
   return reply.type('text/html').send(
-    render('tax/band', { ...ctx(req), band, productCount, pageTitle: band.name, pageSection: 'tax' }),
+    await render('tax/band', { ...ctx(req), band, productCount, pageTitle: band.name, pageSection: 'tax' }, reply),
   );
 }
 
@@ -62,7 +62,7 @@ async function updateBandHandler(
   const { name, rate } = req.body;
   if (!name?.trim()) {
     return reply.type('text/html').send(
-      render('tax/band', { ...ctx(req), band: { ...band, ...req.body }, error: 'Name is required', pageTitle: band.name, pageSection: 'tax' }),
+      await render('tax/band', { ...ctx(req), band: { ...band, ...req.body }, error: 'Name is required', pageTitle: band.name, pageSection: 'tax' }, reply),
     );
   }
   updateBand(req.params.id, name, rate ?? '0');

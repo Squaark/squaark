@@ -14,7 +14,7 @@ export async function usersRoutes(fastify: FastifyInstance): Promise<void> {
 async function listUsers(req: FastifyRequest<{ Querystring: { saved?: string; error?: string } }>, reply: FastifyReply) {
   const admin = getAdminById(req.session.adminId!)!;
   return reply.type('text/html').send(
-    render('users/list', {
+    await render('users/list', {
       admin,
       settings: getAllSettings(),
       users: listAdminUsers(),
@@ -22,7 +22,7 @@ async function listUsers(req: FastifyRequest<{ Querystring: { saved?: string; er
       error: req.query.error,
       pageTitle: 'Users',
       pageSection: 'users',
-    }),
+    }, reply),
   );
 }
 

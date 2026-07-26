@@ -58,6 +58,17 @@ async function cartFragment(
 }
 
 export async function storefrontRoutes(fastify: FastifyInstance, registry: ThemeRegistry): Promise<void> {
+  // Enforce the CSRF token on every state-changing storefront request (cart,
+  // checkout, account). Excludes /webhooks/* — Stripe/PayPal call those
+  // server-to-server with no session cookie at all, verified instead by
+  // signature inside checkout.ts; applying session-based CSRF there would
+  // reject every legitimate webhook delivery.
+  fastify.addHook('preHandler', (req: FastifyRequest, reply: FastifyReply, done: (err?: Error) => void) => {
+    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return done();
+    if (req.url.split('?')[0].startsWith('/webhooks/')) return done();
+    fastify.csrfProtection(req, reply, done);
+  });
+
   await checkoutRoutes(fastify, registry);
   await accountRoutes(fastify, registry);
   await downloadRoutes(fastify);

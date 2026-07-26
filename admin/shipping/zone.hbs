@@ -5,6 +5,7 @@
   </div>
   {{#if zone}}
   <form method="POST" action="/admin/shipping/{{zone.id}}/delete" onsubmit="return confirm('Delete this zone and all its rates?')">
+    {{csrf_field}}
     <button type="submit" class="btn-link btn-link--danger btn-link--sm">Delete zone</button>
   </form>
   {{/if}}
@@ -18,6 +19,7 @@
 
     <!-- Zone details -->
     <form method="POST" action="/admin/shipping/{{#if zone}}{{zone.id}}{{else}}new{{/if}}">
+      {{csrf_field}}
       <div class="card--no-overflow card-body stack-sm">
         <h2 class="font-semibold">Zone details</h2>
         <div>
@@ -82,6 +84,7 @@
             <td style="text-align:right;">
               <form method="POST" action="/admin/shipping/{{../zone.id}}/rates/{{this.id}}/delete"
                     onsubmit="return confirm('Delete this rate?')" style="display:inline;">
+                {{csrf_field}}
                 <button type="submit" class="btn-link btn-link--danger btn-link--xs">Remove</button>
               </form>
             </td>
@@ -94,6 +97,7 @@
       <!-- Add rate form -->
       <form method="POST" action="/admin/shipping/{{zone.id}}/rates"
             x-data="{ rateType: 'flat' }" style="border-top:1px solid #f3f4f6;padding-top:1rem;margin-top:0.5rem;">
+        {{csrf_field}}
         <p class="text-sm font-medium" style="margin-bottom:0.75rem;">Add a rate</p>
         <div class="form-row form-row--3">
           <div>

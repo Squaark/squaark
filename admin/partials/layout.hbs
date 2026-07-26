@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{pageTitle}} — Squaark Admin</title>
   <link rel="stylesheet" href="/public/admin.css">
-  <script src="https://unpkg.com/htmx.org@2.0.3/dist/htmx.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <script src="https://unpkg.com/htmx.org@2.0.3/dist/htmx.min.js"
+    integrity="sha384-0895/pl2MU10Hqc6jd4RvrthNlDiE9U1tWmX7WRESftEDRosgxNsQG/Ze9YMRzHq" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.12/dist/cdn.min.js" defer
+    integrity="sha384-pb6hrQvo4s23cEUFtj0CZkzGE3jyK3pj26RIupXXxhSrrcUA/Cn0lZgcCrGH0t6L" crossorigin="anonymous"></script>
 </head>
 <body>
   <div class="admin-layout">
@@ -74,6 +76,7 @@
       </nav>
       <div class="admin-sidebar__footer">
         <form method="POST" action="/admin/logout">
+          {{csrf_field}}
           <button type="submit" class="sidebar-link btn-link--danger" style="width:100%;text-align:left;color:#ef4444">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
             Sign out

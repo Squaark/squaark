@@ -34,7 +34,7 @@ function adminCtx(req: FastifyRequest) {
 async function listThemes(req: FastifyRequest, reply: FastifyReply) {
   const themes = findAllThemes();
   return reply.type('text/html').send(
-    render('themes/list', { ...adminCtx(req), themes, pageTitle: 'Themes', pageSection: 'themes' }),
+    await render('themes/list', { ...adminCtx(req), themes, pageTitle: 'Themes', pageSection: 'themes' }, reply),
   );
 }
 
@@ -148,7 +148,7 @@ async function configPage(
   reply: FastifyReply,
 ) {
   const theme = findThemeById(req.params.id);
-  if (!theme) return reply.code(404).type('text/html').send(render('404', { pageTitle: 'Not found' }));
+  if (!theme) return reply.code(404).type('text/html').send(await render('404', { pageTitle: 'Not found' }, reply));
 
   const themeDir = path.resolve(process.cwd(), theme.directory);
   const manifest = loadManifest(themeDir);
@@ -178,16 +178,21 @@ async function configPage(
   }));
 
   return reply.type('text/html').send(
-    render('themes/config', {
+    await render('themes/config', {
       ...adminCtx(req),
       theme, manifest, resolved, sections,
-      collectionsJson: JSON.stringify(allCollections),
+      // Escape '<' so a collection title containing "</script>" (writable by
+      // the lower-privileged staff role) can't prematurely close this inline
+      // <script> block and inject arbitrary markup — the HTML parser sees
+      // this before the JS engine ever does, so JSON.stringify alone isn't
+      // enough to make this safe to embed via {{{ }}}.
+      collectionsJson: JSON.stringify(allCollections).replace(/</g, '\\u003c'),
       saved: 'saved' in (req.query as Record<string, string>),
       error: (req.query as Record<string, string>).error ?? null,
       pageTitle: `${theme.name} — Customise`,
       pageSection: 'themes',
       fullWidth: true,
-    }),
+    }, reply),
   );
 }
 

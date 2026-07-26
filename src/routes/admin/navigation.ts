@@ -46,14 +46,14 @@ async function navPage(req: FastifyRequest, reply: FastifyReply) {
   const mainNav = getNav(settings, 'main');
   const footerNav = getNav(settings, 'footer');
   return reply.type('text/html').send(
-    render('navigation', {
+    await render('navigation', {
       ...adminCtx(req),
       mainNavSafe: JSON.stringify(mainNav).replace(/'/g, '&#39;'),
       footerNavSafe: JSON.stringify(footerNav).replace(/'/g, '&#39;'),
       saved: 'saved' in (req.query as Record<string, string>),
       pageTitle: 'Navigation',
       pageSection: 'navigation',
-    }),
+    }, reply),
   );
 }
 

@@ -47,32 +47,32 @@ function safeSectionsAttr(sections: unknown[]): string {
 async function listPages(req: FastifyRequest, reply: FastifyReply) {
   const pages = query<PageRow>('SELECT * FROM pages ORDER BY title');
   return reply.type('text/html').send(
-    render('pages/list', { ...adminCtx(req), pages, pageTitle: 'Pages', pageSection: 'pages' }),
+    await render('pages/list', { ...adminCtx(req), pages, pageTitle: 'Pages', pageSection: 'pages' }, reply),
   );
 }
 
 async function newPagePage(req: FastifyRequest, reply: FastifyReply) {
   return reply.type('text/html').send(
-    render('pages/form', {
+    await render('pages/form', {
       ...adminCtx(req), page: null,
       sectionsSafe: '[]',
       pageTitle: 'New page', pageSection: 'pages',
-    }),
+    }, reply),
   );
 }
 
 async function editPagePage(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
   const page = queryOne<PageRow>('SELECT * FROM pages WHERE id = ?', [req.params.id]);
-  if (!page) return reply.code(404).type('text/html').send(render('404', { pageTitle: 'Not found' }));
+  if (!page) return reply.code(404).type('text/html').send(await render('404', { pageTitle: 'Not found' }, reply));
   const sections = parseSections(page.sections);
   return reply.type('text/html').send(
-    render('pages/form', {
+    await render('pages/form', {
       ...adminCtx(req), page,
       sectionsSafe: safeSectionsAttr(sections),
       saved: 'saved' in (req.query as Record<string, string>),
       created: 'created' in (req.query as Record<string, string>),
       pageTitle: page.title, pageSection: 'pages',
-    }),
+    }, reply),
   );
 }
 
@@ -89,10 +89,10 @@ async function createPage(
       : null;
   if (validationError) {
     return reply.type('text/html').send(
-      render('pages/form', {
+      await render('pages/form', {
         ...adminCtx(req), page: req.body, sectionsSafe: safeSectionsAttr(parseSections(sections)),
         error: validationError, pageTitle: 'New page', pageSection: 'pages',
-      }),
+      }, reply),
     );
   }
   const sectionsJson = (() => { try { JSON.parse(sections); return sections; } catch { return '[]'; } })();
@@ -114,12 +114,12 @@ async function updatePage(
   if (isReservedSlug(slugTrimmed)) {
     const page = queryOne<PageRow>('SELECT * FROM pages WHERE id = ?', [req.params.id]);
     return reply.type('text/html').send(
-      render('pages/form', {
+      await render('pages/form', {
         ...adminCtx(req), page: { ...page, ...req.body },
         sectionsSafe: safeSectionsAttr(parseSections(sections)),
         error: `"${slugTrimmed.split('/')[0]}" is a reserved path and cannot be used as a slug`,
         pageTitle: title, pageSection: 'pages',
-      }),
+      }, reply),
     );
   }
   const sectionsJson = (() => { try { JSON.parse(sections); return sections; } catch { return '[]'; } })();

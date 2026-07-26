@@ -5,6 +5,7 @@
 {{#if saved}}<div class="alert alert-success">Saved.</div>{{/if}}
 
 <form method="POST" action="/admin/navigation">
+  {{csrf_field}}
 
   <div class="grid-2 mb-6">
 

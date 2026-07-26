@@ -29,6 +29,7 @@
                        hx-target="#cart-contents"
                        hx-swap="outerHTML"
                        hx-vals='{"itemId": "{{this.id}}"}'
+                       hx-headers='{"X-CSRF-Token": "{{../csrfToken}}"}'
                        hx-trigger="change"
                        name="quantity"
                        class="qty-num">
@@ -38,6 +39,7 @@
               <button hx-delete="/{{../store.cartSlug}}/remove/{{this.id}}"
                       hx-target="#cart-contents"
                       hx-swap="outerHTML"
+                      hx-headers='{"X-CSRF-Token": "{{../csrfToken}}"}'
                       class="remove-btn">
                 Remove
               </button>

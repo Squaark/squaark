@@ -12,6 +12,11 @@ function accountsEnabled(): boolean {
   return getSetting('customer_accounts_enabled') !== '0';
 }
 
+// Verified against on an unknown-email login so the response takes roughly
+// the same time as a real account's argon2id verify — see the identical
+// pattern (and reasoning) in src/admin/auth.ts.
+const DUMMY_HASH_FOR_TIMING = '$argon2id$v=19$m=65536,t=3,p=4$b4sHhkexu0HRu/yVtAa5Lg$uxd90xMEYSv/xe8lObsOZboFpJWiAV2eHV0ShGlABZM';
+
 async function render(
   registry: ThemeRegistry,
   reply: FastifyReply,
@@ -74,7 +79,10 @@ export async function accountRoutes(fastify: FastifyInstance, registry: ThemeReg
     if (!email || !password) return reply.redirect('/account/login?error=missing_fields');
 
     const customer = findCustomerByEmail(email);
-    if (!customer) return reply.redirect('/account/login?error=invalid');
+    if (!customer) {
+      await argon2.verify(DUMMY_HASH_FOR_TIMING, password);
+      return reply.redirect('/account/login?error=invalid');
+    }
     const ok = await argon2.verify(customer.password_hash, password);
     if (!ok) return reply.redirect('/account/login?error=invalid');
 

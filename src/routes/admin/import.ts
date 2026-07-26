@@ -18,14 +18,18 @@ async function importPage(req: FastifyRequest<{ Querystring: { job?: string } }>
   const activeJob = req.query.job ? findImportJob(req.query.job) : null;
 
   return reply.type('text/html').send(
-    render('import', {
-      admin,
-      settings: getAllSettings(),
-      activeJob,
-      jobs: listRecentImportJobs(10),
-      pageTitle: 'Import',
-      pageSection: 'import',
-    }),
+    await render(
+      'import',
+      {
+        admin,
+        settings: getAllSettings(),
+        activeJob,
+        jobs: listRecentImportJobs(10),
+        pageTitle: 'Import',
+        pageSection: 'import',
+      },
+      reply,
+    ),
   );
 }
 

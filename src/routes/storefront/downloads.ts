@@ -19,7 +19,7 @@ export async function downloadRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.code(410).type('text/html').send('<h1>Download limit reached</h1>');
     }
 
-    const filePath = path.join(config.uploadsDir, 'digital', download.filename);
+    const filePath = path.join(config.digitalFilesDir, download.filename);
     if (!fs.existsSync(filePath)) {
       return reply.code(404).type('text/html').send('<h1>File not found</h1>');
     }

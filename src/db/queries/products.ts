@@ -103,9 +103,13 @@ export function findAllProducts(limit?: number): ProductRow[] {
 }
 
 export function searchProducts(q: string, limit = 40): ProductRow[] {
-  const like = `%${q}%`;
+  // Escape LIKE metacharacters in the user-supplied query so e.g. "%" or "_"
+  // can't turn a specific search into an unintentional match-everything (or
+  // an expensive multi-wildcard) pattern.
+  const escaped = q.replace(/[\\%_]/g, (c) => `\\${c}`);
+  const like = `%${escaped}%`;
   return query<ProductRow>(
-    `${PRODUCT_SUMMARY_SQL} WHERE p.published = 1 AND (p.title LIKE ? OR p.description LIKE ? OR p.vendor LIKE ? OR p.tags_text LIKE ?) ORDER BY p.created_at DESC LIMIT ?`,
+    `${PRODUCT_SUMMARY_SQL} WHERE p.published = 1 AND (p.title LIKE ? ESCAPE '\\' OR p.description LIKE ? ESCAPE '\\' OR p.vendor LIKE ? ESCAPE '\\' OR p.tags_text LIKE ? ESCAPE '\\') ORDER BY p.created_at DESC LIMIT ?`,
     [like, like, like, like, limit]
   );
 }

@@ -6,6 +6,8 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_PATH: /data/store.db
+      # Required — no default. Generate one with: openssl rand -hex 32
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in your environment or a .env file next to docker-compose.yml — generate one with: openssl rand -hex 32}
     volumes:
       - storedata:/data
 

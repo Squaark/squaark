@@ -21,6 +21,7 @@
         <div class="alert alert-success">Account created. Sign in below.</div>
         {{/if}}
         <form method="POST" action="/admin/login" class="auth-form">
+          {{csrf_field}}
           <div>
             <label class="form-label">Email</label>
             <input type="email" name="email" required autofocus class="form-input">
