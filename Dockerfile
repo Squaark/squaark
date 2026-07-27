@@ -30,6 +30,7 @@ COPY --from=build /app/dist ./dist
 COPY package.json ./
 COPY admin ./admin
 COPY themes ./themes
+COPY public ./public
 
 EXPOSE 3000
 CMD ["node", "dist/server.js"]
