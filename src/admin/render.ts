@@ -97,15 +97,15 @@ hbs.registerHelper('sparkline_bars', (daily: Array<{ date: string; views: number
 });
 
 hbs.registerHelper('status_badge', (status: string) => {
-  const map: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-800',
-    paid: 'bg-green-100 text-green-800',
-    refunded: 'bg-red-100 text-red-800',
-    cancelled: 'bg-gray-100 text-gray-800',
+  const colour: Record<string, string> = {
+    pending: 'badge-yellow',
+    paid: 'badge-green',
+    refunded: 'badge-red',
+    cancelled: 'badge-gray',
   };
-  const cls = map[status] ?? 'bg-gray-100 text-gray-700';
+  const cls = colour[status] ?? 'badge-gray';
   return new Handlebars.SafeString(
-    `<span class="px-2 py-0.5 rounded text-xs font-medium ${cls}">${status}</span>`,
+    `<span class="badge ${cls}">${Handlebars.Utils.escapeExpression(status)}</span>`,
   );
 });
 
