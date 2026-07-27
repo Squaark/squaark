@@ -29,6 +29,8 @@ export function buildSampleContext(templateKey: string): Record<string, unknown>
       return { store, order: sampleOrder };
     case 'password_reset':
       return { store, customer_name: 'Alex', reset_url: `${store.url}/account/reset?token=sample` };
+    case 'email_verification':
+      return { store, customer_name: 'Alex', verify_url: `${store.url}/account/verify?token=sample` };
     default:
       return { store };
   }

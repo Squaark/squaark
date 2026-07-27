@@ -1,5 +1,6 @@
 import Handlebars from 'handlebars';
 import type { Money } from './context';
+import { sanitizeContentHtml } from './content-sanitizer';
 
 export type AssetResolver = (filename: string) => string;
 export type UrlResolver = (type: string, slugs: string[]) => string;
@@ -41,6 +42,12 @@ export function registerHelpers(
     if (!variant) return '';
     return variant.available ? 'In Stock' : 'Sold Out';
   });
+
+  // For rich-text HTML written by admin/staff (product descriptions, page
+  // content, page-builder sections) — use this instead of {{{ }}} directly.
+  hbs.registerHelper('sanitized_html', (html: string | null | undefined) =>
+    new Handlebars.SafeString(sanitizeContentHtml(html ?? '')),
+  );
 
   // Returns formatted ex-tax price given the resolved band rate.
   // If rate is null/empty/0, returns the inclusive price unchanged (zero-rated or unclassified).

@@ -32,7 +32,7 @@ export function renderEmailTemplate(key: string, data: Record<string, unknown>):
   if (!row.enabled) throw new TemplateDisabledError(`Email template "${key}" is disabled`);
 
   const subject = hbs.compile(row.subject)(data);
-  const body = hbs.compile(row.body, { noEscape: true })(data);
+  const body = hbs.compile(row.body)(data);
   const html = wrapperTemplate({ ...data, body: new Handlebars.SafeString(body) });
 
   return { subject, html };
@@ -46,6 +46,6 @@ export function renderEmailPreview(
 ): RenderedEmail {
   return {
     subject: hbs.compile(subject)(data),
-    html: wrapperTemplate({ ...data, body: new Handlebars.SafeString(hbs.compile(body, { noEscape: true })(data)) }),
+    html: wrapperTemplate({ ...data, body: new Handlebars.SafeString(hbs.compile(body)(data)) }),
   };
 }

@@ -9,11 +9,13 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
     fastify.csrfProtection(req, reply, done);
   });
 
+  const loginRateLimit = { config: { rateLimit: { max: 10, timeWindow: '5 minutes' } } };
+
   fastify.get('/login', loginPage);
-  fastify.post('/login', loginSubmit);
+  fastify.post('/login', loginRateLimit, loginSubmit);
   fastify.post('/logout', logout);
   fastify.get('/setup', setupPage);
-  fastify.post('/setup', setupSubmit);
+  fastify.post('/setup', loginRateLimit, setupSubmit);
 }
 
 async function loginPage(req: FastifyRequest, reply: FastifyReply) {

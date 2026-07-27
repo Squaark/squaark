@@ -9,6 +9,16 @@ import { listRecentEmailLog } from '../../db/queries/email';
 import { listLogs } from '../../db/queries/system-log';
 import Handlebars from 'handlebars';
 
+// Settings keys holding secrets: the form always renders these blank (see
+// settings.hbs), so an empty submitted value means "left untouched" and must
+// not overwrite the stored secret — only a non-empty value replaces it.
+const SECRET_KEYS = new Set(['smtp_pass', 'resend_api_key', 'stripe_sk', 'stripe_webhook_secret', 'paypal_client_secret']);
+
+function setSettingPreservingSecret(key: string, value: string): void {
+  if (SECRET_KEYS.has(key) && value === '') return;
+  setSetting(key, value);
+}
+
 export async function settingsRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get('/settings', settingsPage);
   fastify.post('/settings', settingsSave);
@@ -66,7 +76,7 @@ async function emailSettingsSave(
     'resend_api_key',
   ];
   for (const key of allowed) {
-    if (req.body[key] !== undefined) setSetting(key, req.body[key]);
+    if (req.body[key] !== undefined) setSettingPreservingSecret(key, req.body[key]);
   }
   // Checkbox fields are omitted from the body entirely when unchecked.
   setSetting('smtp_secure', req.body.smtp_secure === 'on' || req.body.smtp_secure === '1' ? '1' : '0');
@@ -138,7 +148,7 @@ async function paymentSettingsSave(
 ) {
   const allowed = ['stripe_pk', 'stripe_sk', 'stripe_webhook_secret', 'paypal_client_id', 'paypal_client_secret', 'paypal_mode'];
   for (const key of allowed) {
-    if (req.body[key] !== undefined) setSetting(key, req.body[key]);
+    if (req.body[key] !== undefined) setSettingPreservingSecret(key, req.body[key]);
   }
   return reply.redirect('/admin/settings?saved=1#payments');
 

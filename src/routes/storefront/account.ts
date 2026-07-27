@@ -3,9 +3,23 @@ import argon2 from 'argon2';
 import type { ThemeRegistry } from '../../theme/registry';
 import { buildGlobalContext } from '../../theme/context';
 import { getCartSummary } from '../../commerce/cart';
-import { findCustomerByEmail, findCustomerById, createCustomer } from '../../db/queries/customers';
+import {
+  findCustomerByEmail,
+  findCustomerById,
+  createCustomer,
+  deleteCustomer,
+  findCustomerByVerificationToken,
+  markCustomerEmailVerified,
+  setCustomerVerificationToken,
+} from '../../db/queries/customers';
 import { findOrdersByEmail, findOrderByIdAndEmail, findOrderItems } from '../../db/queries/orders';
 import { getSetting } from '../../db/queries/admin';
+import {
+  generateVerificationToken,
+  isVerificationTokenExpired,
+  isAccountClaimed,
+  sendVerificationEmail,
+} from '../../commerce/customer-verification';
 import '../../types';
 
 function accountsEnabled(): boolean {
@@ -33,7 +47,7 @@ async function base(req: FastifyRequest, reply: FastifyReply, path: string, regi
   let customer = null;
   if (req.session.customerId) {
     const c = findCustomerById(req.session.customerId);
-    if (c) customer = { loggedIn: true, firstName: c.first_name || null };
+    if (c) customer = { loggedIn: true, firstName: c.first_name || null, emailVerified: !!c.email_verified };
   }
   return {
     ...global,
@@ -74,7 +88,7 @@ export async function accountRoutes(fastify: FastifyInstance, registry: ThemeReg
     });
   });
 
-  fastify.post('/account/login', async (req, reply) => {
+  fastify.post('/account/login', { config: { rateLimit: { max: 10, timeWindow: '5 minutes' } } }, async (req, reply) => {
     const { email, password } = req.body as { email?: string; password?: string };
     if (!email || !password) return reply.redirect('/account/login?error=missing_fields');
 
@@ -100,35 +114,75 @@ export async function accountRoutes(fastify: FastifyInstance, registry: ThemeReg
     });
   });
 
-  fastify.post('/account/register', async (req, reply) => {
+  fastify.post('/account/register', { config: { rateLimit: { max: 10, timeWindow: '5 minutes' } } }, async (req, reply) => {
     const { first_name, last_name, email, password } = req.body as Record<string, string>;
     if (!first_name || !email || !password) return reply.redirect('/account/register?error=missing_fields');
     if (password.length < 8) return reply.redirect('/account/register?error=password_too_short');
-    if (findCustomerByEmail(email)) return reply.redirect('/account/register?error=email_taken');
+
+    const existing = findCustomerByEmail(email);
+    if (existing) {
+      if (isAccountClaimed(existing)) return reply.redirect('/account/register?error=email_taken');
+      // Stale, never-verified registration (e.g. someone else squatting the
+      // address) — safe to evict and let this attempt claim the email.
+      deleteCustomer(existing.id);
+    }
 
     const hash = await argon2.hash(password, { type: argon2.argon2id });
     const id = crypto.randomUUID();
-    createCustomer(id, email, hash, first_name, last_name ?? '');
+    const { token, expiresAt } = generateVerificationToken();
+    createCustomer(id, email, hash, first_name, last_name ?? '', token, expiresAt);
+    sendVerificationEmail({ email, first_name }, token).catch(() => {});
     req.session.customerId = id;
     return reply.redirect('/account/orders');
+  });
+
+  fastify.get('/account/verify', async (req, reply) => {
+    const { token } = req.query as { token?: string };
+    const customer = token ? findCustomerByVerificationToken(token) : null;
+    if (!customer || isVerificationTokenExpired(customer.verification_token_expires)) {
+      return reply.redirect('/account/orders?verify_error=invalid_token');
+    }
+    markCustomerEmailVerified(customer.id);
+    req.session.customerId = customer.id;
+    return reply.redirect('/account/orders?verified=1');
+  });
+
+  fastify.post('/account/verify/resend', { config: { rateLimit: { max: 3, timeWindow: '15 minutes' } } }, async (req, reply) => {
+    if (!requireCustomer(req, reply)) return;
+    const customer = findCustomerById(req.session.customerId!)!;
+    if (customer.email_verified) return reply.redirect('/account/orders');
+
+    const { token, expiresAt } = generateVerificationToken();
+    setCustomerVerificationToken(customer.id, token, expiresAt);
+    sendVerificationEmail(customer, token).catch(() => {});
+    return reply.redirect('/account/orders?resent=1');
   });
 
   fastify.get('/account/orders', async (req, reply) => {
     if (!requireCustomer(req, reply)) return;
     const customer = findCustomerById(req.session.customerId!)!;
-    const orders = findOrdersByEmail(customer.email);
+    // Order history is only released once the customer has proven they
+    // control this email address — otherwise anyone could register a
+    // victim's email and read back their entire guest-checkout history.
+    const orders = customer.email_verified ? findOrdersByEmail(customer.email) : [];
     const ctx = await base(req, reply, '/account/orders', registry);
+    const q = req.query as Record<string, string>;
     return render(registry, reply, 'account-orders', {
       ...ctx,
       pageTitle: 'My orders',
       customer,
       orders,
+      emailVerified: !!customer.email_verified,
+      verified: q.verified === '1',
+      resent: q.resent === '1',
+      verifyError: q.verify_error,
     });
   });
 
   fastify.get('/account/orders/:id', async (req, reply) => {
     if (!requireCustomer(req, reply)) return;
     const customer = findCustomerById(req.session.customerId!)!;
+    if (!customer.email_verified) return reply.redirect('/account/orders');
     const { id } = req.params as { id: string };
     const order = findOrderByIdAndEmail(id, customer.email);
     if (!order) return reply.redirect('/account/orders');

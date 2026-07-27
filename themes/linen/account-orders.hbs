@@ -13,6 +13,25 @@
     </form>
   </div>
 
+  {{#if verified}}
+  <div class="auth-success">Your email has been verified.</div>
+  {{/if}}
+  {{#if resent}}
+  <div class="auth-success">Verification email resent — check your inbox.</div>
+  {{/if}}
+  {{#if verifyError}}
+  <div class="auth-error">That verification link is invalid or has expired. Request a new one below.</div>
+  {{/if}}
+
+  {{#unless emailVerified}}
+  <div class="order-table-empty">
+    <p style="margin-bottom:1rem;">Please verify your email address to view your order history. Check your inbox for a verification link.</p>
+    <form method="POST" action="/account/verify/resend">
+      {{csrf_field}}
+      <button type="submit" class="btn">Resend verification email</button>
+    </form>
+  </div>
+  {{else}}
   {{#if orders.length}}
   <div class="order-table-wrap">
     <table>
@@ -48,6 +67,7 @@
     <a href="/collections/all">Browse products</a>
   </div>
   {{/if}}
+  {{/unless}}
 
 </div>
 

@@ -115,7 +115,9 @@
           <div x-show="provider === 'resend'" x-cloak class="stack-sm" style="padding-top:0.5rem;border-top:1px solid #f3f4f6;">
             <div>
               <label class="form-label">Resend API key</label>
-              <input type="password" name="resend_api_key" value="{{settings.resend_api_key}}" placeholder="re_xxxxxxxx" class="form-input font-mono">
+              <input type="password" name="resend_api_key" value=""
+                placeholder="{{#if settings.resend_api_key}}Already set — leave blank to keep, or paste a new key to replace{{else}}re_xxxxxxxx{{/if}}"
+                class="form-input font-mono" autocomplete="off">
               <p class="form-hint">From <a href="https://resend.com/api-keys" target="_blank">resend.com/api-keys</a>. The from address must be on a verified domain.</p>
             </div>
           </div>
@@ -136,7 +138,9 @@
             </div>
             <div>
               <label class="form-label">Password</label>
-              <input type="password" name="smtp_pass" value="{{settings.smtp_pass}}" class="form-input">
+              <input type="password" name="smtp_pass" value=""
+                placeholder="{{#if settings.smtp_pass}}Already set — leave blank to keep{{else}}••••••••{{/if}}"
+                class="form-input" autocomplete="off">
             </div>
             <label class="form-check">
               <input type="checkbox" name="smtp_secure" value="1" {{#if (eq settings.smtp_secure '1')}}checked{{/if}}>
@@ -169,11 +173,15 @@
           </div>
           <div>
             <label class="form-label-xs">Secret key</label>
-            <input type="password" id="stripe_sk" name="stripe_sk" value="{{settings.stripe_sk}}" placeholder="sk_live_…" class="form-input font-mono">
+            <input type="password" id="stripe_sk" name="stripe_sk" value=""
+              placeholder="{{#if settings.stripe_sk}}Already set — leave blank to keep{{else}}sk_live_…{{/if}}"
+              class="form-input font-mono" autocomplete="off">
           </div>
           <div>
             <label class="form-label-xs">Webhook secret <span class="form-optional">(optional)</span></label>
-            <input type="password" id="stripe_webhook_secret" name="stripe_webhook_secret" value="{{settings.stripe_webhook_secret}}" placeholder="whsec_…" class="form-input font-mono">
+            <input type="password" id="stripe_webhook_secret" name="stripe_webhook_secret" value=""
+              placeholder="{{#if settings.stripe_webhook_secret}}Already set — leave blank to keep{{else}}whsec_…{{/if}}"
+              class="form-input font-mono" autocomplete="off">
             <p class="form-hint">Point your Stripe webhook at <code>{{settings.store_url}}/webhooks/stripe</code>, event: <code>checkout.session.completed</code>.</p>
           </div>
         </div>
@@ -194,7 +202,9 @@
           </div>
           <div>
             <label class="form-label-xs">Client secret</label>
-            <input type="password" id="paypal_client_secret" name="paypal_client_secret" value="{{settings.paypal_client_secret}}" placeholder="EXxx…" class="form-input font-mono">
+            <input type="password" id="paypal_client_secret" name="paypal_client_secret" value=""
+              placeholder="{{#if settings.paypal_client_secret}}Already set — leave blank to keep{{else}}EXxx…{{/if}}"
+              class="form-input font-mono" autocomplete="off">
           </div>
         </div>
 

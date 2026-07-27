@@ -11,7 +11,7 @@
 {{else}}
   <div class="container--md" style="padding-bottom:4rem;">
     <div class="cms-prose">
-      {{{page.content}}}
+      {{sanitized_html page.content}}
     </div>
   </div>
 {{/if}}

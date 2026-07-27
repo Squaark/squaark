@@ -10,9 +10,11 @@ import { createOrderDownloads, findDownloadsForOrder } from '../../db/queries/do
 import { sendTemplatedEmail } from '../../email/send';
 import config from '../../config';
 import { writeLog } from '../../db/queries/system-log';
-import { findCustomerByEmail, createCustomer } from '../../db/queries/customers';
-import { getRatesForCountry, findRateById } from '../../db/queries/shipping';
+import { findCustomerByEmail, createCustomer, deleteCustomer } from '../../db/queries/customers';
+import { getRatesForCountry } from '../../db/queries/shipping';
 import { calculateItemsTax } from '../../commerce/tax';
+import { resolveShipping } from '../../commerce/shipping';
+import { generateVerificationToken, isAccountClaimed, sendVerificationEmail } from '../../commerce/customer-verification';
 import argon2 from 'argon2';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -40,6 +42,22 @@ async function getPaypalToken(clientId: string, secret: string, mode: string): P
   });
   const data = await res.json() as { access_token: string };
   return data.access_token;
+}
+
+/** Snapshot of everything needed to fulfil a PayPal order, frozen at /checkout/paypal/create time. */
+interface PendingPaypalOrder {
+  email: string;
+  address: Address;
+  items: Array<{ variantId: string; productTitle: string; variantTitle: string; price: number; quantity: number }>;
+  subtotal: number;
+  discountAmount: number;
+  discountCode: string | null;
+  shippingAmount: number;
+  shippingTitle: string | null;
+  shippingRateId: string | null;
+  taxAmount: number;
+  total: number;
+  currency: string;
 }
 
 function parseAddress(body: Record<string, string>): Address {
@@ -145,23 +163,11 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     const storeUrl = settings.store_url?.replace(/\/$/, '') || 'http://localhost:3000';
     const currency = (settings.store_currency || 'GBP').toLowerCase();
 
-    // Resolve shipping
-    let shippingAmount = 0;
-    let shippingTitle: string | null = null;
-    if (body.shippingRateId === 'digital_delivery') {
-      shippingTitle = 'Digital delivery';
-    } else if (body.shippingRateId === 'free_shipping_product') {
-      shippingTitle = 'Free Shipping';
-    } else {
-      const shippingRateRow = body.shippingRateId ? findRateById(body.shippingRateId) : null;
-      const subtotalAfterDiscount = cart.subtotal.amount - (cart.discountAmount?.amount ?? 0);
-      if (shippingRateRow) {
-        const resolved = getRatesForCountry(address.country, subtotalAfterDiscount)
-          .find(r => r.id === shippingRateRow.id);
-        shippingAmount = resolved?.amount ?? 0;
-        shippingTitle = shippingRateRow.name;
-      }
-    }
+    // Resolve shipping server-side — never trust the client's claim that a
+    // cart qualifies for digital/free shipping (see resolveShipping()).
+    const shipping = resolveShipping(cart, address.country, body.shippingRateId ?? '');
+    const shippingAmount = shipping.amount;
+    const shippingTitle = shipping.title;
     const orderTotal = cart.total.amount + shippingAmount;
     const taxAmount = calculateItemsTax(cart.items, settings.tax_enabled === '1');
 
@@ -178,7 +184,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       shippingAddress: address,
       paymentProvider: 'stripe',
       paymentReference: null,
-      shippingRateId: body.shippingRateId || null,
+      shippingRateId: shipping.rateId,
       shippingTitle,
       taxAmount,
       items: cart.items.map(i => ({
@@ -346,20 +352,10 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     if (cart.empty) return reply.code(400).send({ error: 'Cart is empty' });
 
     const currency = (settings.store_currency || 'GBP').toUpperCase();
-
-    // Resolve shipping for PayPal create
-    const ppCreateAddress = parseAddress(body);
-    let ppCreateShippingAmount = 0;
-    if (body.shippingRateId && body.shippingRateId !== 'free_shipping_product') {
-      const ppCreateShippingRow = findRateById(body.shippingRateId);
-      if (ppCreateShippingRow) {
-        const ppCreateSubtotalAfterDiscount = cart.subtotal.amount - (cart.discountAmount?.amount ?? 0);
-        const resolved = getRatesForCountry(ppCreateAddress.country, ppCreateSubtotalAfterDiscount)
-          .find(r => r.id === ppCreateShippingRow.id);
-        ppCreateShippingAmount = resolved?.amount ?? 0;
-      }
-    }
-    const ppCreateTotal = cart.total.amount + ppCreateShippingAmount;
+    const address = parseAddress(body);
+    const shipping = resolveShipping(cart, address.country, body.shippingRateId ?? '');
+    const taxAmount = calculateItemsTax(cart.items, settings.tax_enabled === '1');
+    const total = cart.total.amount + shipping.amount;
 
     try {
       const token = await getPaypalToken(clientId, clientSecret, mode);
@@ -371,11 +367,11 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
           purchase_units: [{
             amount: {
               currency_code: currency,
-              value: (ppCreateTotal / 100).toFixed(2),
+              value: (total / 100).toFixed(2),
               breakdown: {
                 item_total: { currency_code: currency, value: (cart.subtotal.amount / 100).toFixed(2) },
                 discount: { currency_code: currency, value: ((cart.discountAmount?.amount ?? 0) / 100).toFixed(2) },
-                shipping: { currency_code: currency, value: (ppCreateShippingAmount / 100).toFixed(2) },
+                shipping: { currency_code: currency, value: (shipping.amount / 100).toFixed(2) },
               },
             },
             items: cart.items.map(item => ({
@@ -390,10 +386,27 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       });
       const data = await res.json() as { id: string };
 
-      // Stash address + shipping in session for capture step
-      req.session.pendingCheckoutAddress = JSON.stringify(parseAddress(body));
-      req.session.pendingCheckoutEmail = body.email?.trim() ?? '';
-      req.session.pendingShippingRateId = body.shippingRateId?.trim() ?? '';
+      // Snapshot exactly what was quoted to PayPal — capture reuses this
+      // verbatim rather than re-fetching a live (possibly since-changed)
+      // cart, and verifies PayPal's captured amount against `total` here.
+      const snapshot: PendingPaypalOrder = {
+        email: body.email?.trim() ?? '',
+        address,
+        items: cart.items.map(i => ({
+          variantId: i.variantId, productTitle: i.productTitle, variantTitle: i.variantTitle,
+          price: i.price.amount, quantity: i.quantity,
+        })),
+        subtotal: cart.subtotal.amount,
+        discountAmount: cart.discountAmount?.amount ?? 0,
+        discountCode: cart.discountCode,
+        shippingAmount: shipping.amount,
+        shippingTitle: shipping.title,
+        shippingRateId: shipping.rateId,
+        taxAmount,
+        total,
+        currency,
+      };
+      req.session.pendingPaypalOrder = JSON.stringify(snapshot);
 
       return reply.send({ id: data.id });
     } catch (err) {
@@ -413,7 +426,9 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
 
     if (!clientId || !clientSecret) return reply.code(400).send({ error: 'PayPal not configured' });
 
-    const cart = await getCartPage(req.cartId);
+    const snapshotRaw = req.session.pendingPaypalOrder;
+    if (!snapshotRaw) return reply.code(400).send({ error: 'No pending checkout found for this session' });
+    const snapshot: PendingPaypalOrder = JSON.parse(snapshotRaw);
 
     try {
       const token = await getPaypalToken(clientId, clientSecret, mode);
@@ -421,7 +436,11 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       });
-      const data = await res.json() as { status: string; id: string };
+      const data = await res.json() as {
+        status: string;
+        id: string;
+        purchase_units?: Array<{ payments?: { captures?: Array<{ amount?: { currency_code: string; value: string } }> } }>;
+      };
 
       if (data.status !== 'COMPLETED') {
         writeLog('payment', 'error', 'PayPal capture not completed', {
@@ -430,72 +449,68 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
         return reply.code(400).send({ error: `PayPal capture status: ${data.status}` });
       }
 
-      const addressRaw = req.session.pendingCheckoutAddress;
-      const email = req.session.pendingCheckoutEmail ?? '';
-      const address: Address = addressRaw ? JSON.parse(addressRaw) : {
-        firstName: '', lastName: '', line1: '', city: '', postcode: '', country: '',
-      };
-
-      // Resolve shipping for PayPal capture
-      let ppShippingAmount = 0;
-      let ppShippingTitle: string | null = null;
-      const pendingRateId = req.session.pendingShippingRateId ?? '';
-      if (pendingRateId === 'digital_delivery') {
-        ppShippingTitle = 'Digital delivery';
-      } else if (pendingRateId === 'free_shipping_product') {
-        ppShippingTitle = 'Free Shipping';
-      } else if (pendingRateId) {
-        const ppShippingRateRow = findRateById(pendingRateId);
-        if (ppShippingRateRow) {
-          const ppSubtotalAfterDiscount = cart.subtotal.amount - (cart.discountAmount?.amount ?? 0);
-          const resolved = getRatesForCountry(address.country, ppSubtotalAfterDiscount)
-            .find(r => r.id === ppShippingRateRow.id);
-          ppShippingAmount = resolved?.amount ?? 0;
-          ppShippingTitle = ppShippingRateRow.name;
-        }
+      // Idempotency: if a webhook/retry/double-click already fulfilled this
+      // exact PayPal capture, don't create a second local order for it.
+      const existing = findOrderByPaymentReference(data.id);
+      if (existing) {
+        clearCart(req.cartId);
+        delete req.session.pendingPaypalOrder;
+        return reply.send({ orderId: existing.id });
       }
-      const ppOrderTotal = cart.total.amount + ppShippingAmount;
-      const ppTaxAmount = calculateItemsTax(cart.items, settings.tax_enabled === '1');
+
+      // Verify PayPal actually captured what we quoted — never trust
+      // "status: COMPLETED" alone. If PayPal's own charged amount/currency
+      // doesn't match our snapshot, refuse to fulfil and flag loudly rather
+      // than shipping goods for less than the intended price (or trusting
+      // a captured currency we didn't expect).
+      const captured = data.purchase_units?.[0]?.payments?.captures?.[0]?.amount;
+      const expectedValue = (snapshot.total / 100).toFixed(2);
+      if (!captured || captured.currency_code !== snapshot.currency || captured.value !== expectedValue) {
+        writeLog('payment', 'error', 'PayPal captured amount/currency mismatch — order NOT fulfilled', {
+          paypalOrderId: body.paypalOrderId,
+          expected: { currency: snapshot.currency, value: expectedValue },
+          captured,
+        });
+        return reply.code(400).send({ error: 'Payment verification failed. Please contact support.' });
+      }
 
       const order = createOrder({
-        email,
-        subtotal: cart.subtotal.amount,
-        discountAmount: cart.discountAmount?.amount ?? 0,
-        shipping: ppShippingAmount,
-        total: ppOrderTotal,
+        email: snapshot.email,
+        subtotal: snapshot.subtotal,
+        discountAmount: snapshot.discountAmount,
+        shipping: snapshot.shippingAmount,
+        total: snapshot.total,
         currency: settings.store_currency || 'GBP',
-        discountCode: cart.discountCode,
+        discountCode: snapshot.discountCode,
         notes: null,
-        shippingAddress: address,
+        shippingAddress: snapshot.address,
         paymentProvider: 'paypal',
         paymentReference: data.id,
-        shippingRateId: pendingRateId || null,
-        shippingTitle: ppShippingTitle,
-        taxAmount: ppTaxAmount,
-        items: cart.items.map(i => ({
+        shippingRateId: snapshot.shippingRateId,
+        shippingTitle: snapshot.shippingTitle,
+        taxAmount: snapshot.taxAmount,
+        items: snapshot.items.map(i => ({
           variantId: i.variantId,
           productTitle: i.productTitle,
           variantTitle: i.variantTitle,
           sku: null,
-          price: i.price.amount,
+          price: i.price,
           quantity: i.quantity,
         })),
       });
 
       markOrderPaid(order.id, data.id);
       clearCart(req.cartId);
-      delete req.session.pendingCheckoutAddress;
-      delete req.session.pendingCheckoutEmail;
-      delete req.session.pendingShippingRateId;
+      delete req.session.pendingPaypalOrder;
 
       writeLog('payment', 'info', 'PayPal payment confirmed', {
-        orderId: order.id, orderNumber: order.order_number, email, total: order.total,
+        orderId: order.id, orderNumber: order.order_number, email: snapshot.email, total: order.total,
         paypalOrderId: data.id,
       });
 
       const ppStoreUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
       const ppDownloads = createOrderDownloads(order.id);
-      sendTemplatedEmail('order_confirmation', email, {
+      sendTemplatedEmail('order_confirmation', snapshot.email, {
         order: { ...order, items: findOrderItems(order.id) },
         store: { name: settings.store_name },
         downloads: ppDownloads.map(d => ({ ...d, url: `${ppStoreUrl}/downloads/${d.token}` })),
@@ -525,7 +540,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
 
     const accountsEnabled = settings.customer_accounts_enabled !== '0';
     const alreadyLoggedIn = !!req.session.customerId;
-    const emailHasAccount = !!findCustomerByEmail(order.email);
+    const emailHasAccount = isAccountClaimed(findCustomerByEmail(order.email));
     const canCreateAccount = accountsEnabled && !alreadyLoggedIn && !emailHasAccount;
     const accountStatus = (req.query as Record<string, string>).account ?? null;
 
@@ -562,8 +577,10 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     const order = findOrderById(orderId);
     if (!order) return reply.redirect('/');
 
-    if (findCustomerByEmail(order.email)) {
-      return reply.redirect(`/checkout/success/${orderId}?account=exists`);
+    const existing = findCustomerByEmail(order.email);
+    if (existing) {
+      if (isAccountClaimed(existing)) return reply.redirect(`/checkout/success/${orderId}?account=exists`);
+      deleteCustomer(existing.id);
     }
 
     const hash = await argon2.hash(password, { type: argon2.argon2id });
@@ -574,7 +591,9 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
         return { first: addr.first_name ?? addr.firstName ?? '', last: addr.last_name ?? addr.lastName ?? '' };
       } catch { return { first: '', last: '' }; }
     })();
-    createCustomer(customerId, order.email, hash, nameParts.first, nameParts.last);
+    const { token, expiresAt } = generateVerificationToken();
+    createCustomer(customerId, order.email, hash, nameParts.first, nameParts.last, token, expiresAt);
+    sendVerificationEmail({ email: order.email, first_name: nameParts.first }, token).catch(() => {});
     req.session.customerId = customerId;
     return reply.redirect(`/checkout/success/${orderId}?account=created`);
   });

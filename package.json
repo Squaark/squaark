@@ -19,6 +19,7 @@
     "@fastify/csrf-protection": "^6.4.1",
     "@fastify/formbody": "^7.4.0",
     "@fastify/multipart": "^8.3.1",
+    "@fastify/rate-limit": "^9.1.0",
     "@fastify/session": "^10.9.0",
     "@fastify/static": "^7.0.4",
     "adm-zip": "^0.6.0",
@@ -29,6 +30,7 @@
     "handlebars": "^4.7.8",
     "lru-cache": "^10.4.3",
     "nodemailer": "^9.0.3",
+    "sanitize-html": "^2.17.6",
     "sharp": "^0.35.2",
     "stripe": "^22.3.2"
   },
@@ -37,6 +39,7 @@
     "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^20.14.0",
     "@types/nodemailer": "^8.0.1",
+    "@types/sanitize-html": "^2.16.1",
     "@types/sharp": "^0.31.1",
     "tsx": "^4.15.0",
     "typescript": "^5.4.0",

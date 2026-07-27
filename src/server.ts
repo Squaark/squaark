@@ -5,6 +5,7 @@ import fastifyCookie from '@fastify/cookie';
 import fastifyCsrf from '@fastify/csrf-protection';
 import fastifySession from '@fastify/session';
 import fastifyMultipart from '@fastify/multipart';
+import fastifyRateLimit from '@fastify/rate-limit';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -40,6 +41,9 @@ async function build() {
   // ── Plugins ────────────────────────────────────────────────────────────────
   await fastify.register(fastifyFormbody);
   await fastify.register(fastifyMultipart, { limits: { fileSize: 10 * 1024 * 1024 } });
+  // global: false — only routes that opt in via config.rateLimit get limited;
+  // ordinary storefront browsing is unaffected.
+  await fastify.register(fastifyRateLimit, { global: false });
   await fastify.register(fastifyCookie, { secret: config.sessionSecret });
   await fastify.register(fastifySession, {
     secret: config.sessionSecret,
