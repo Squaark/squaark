@@ -35,23 +35,22 @@
 
         {{#each this.fields}}
 
-        {{!-- IMAGE field: own multipart form, inline in section --}}
+        {{!-- IMAGE field: own multipart form, uploaded async so it doesn't
+             reload the page and drop other unsaved edits --}}
         {{#if (eq this.type 'image')}}
-        <div style="margin-bottom:0.875rem;padding:0.75rem;background:#f9fafb;border:1px solid #e5e7eb;border-radius:0.5rem;">
+        <div data-image-field="{{this.flatKey}}" style="margin-bottom:0.875rem;padding:0.75rem;background:#f9fafb;border:1px solid #e5e7eb;border-radius:0.5rem;">
           <p style="font-size:0.78rem;font-weight:500;color:#374151;margin-bottom:0.5rem;">{{this.label}}</p>
-          {{#if this.value}}
-          <div style="display:flex;align-items:flex-start;gap:0.75rem;margin-bottom:0.5rem;">
+          <div class="theme-image-preview" style="display:{{#if this.value}}flex{{else}}none{{/if}};align-items:flex-start;gap:0.75rem;margin-bottom:0.5rem;">
             <div style="height:64px;background:#fff;border:1px solid #e5e7eb;border-radius:0.375rem;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:0.25rem;min-width:80px;">
               <img src="{{this.value}}" alt="" style="max-height:100%;max-width:100%;object-fit:contain;">
             </div>
-            <form method="POST" action="/admin/themes/{{../../theme.id}}/config/image/{{this.flatKey}}/remove" style="display:inline;">
+            <form method="POST" action="/admin/themes/{{../../theme.id}}/config/image/{{this.flatKey}}/remove" data-async-image="remove" style="display:inline;">
               {{csrf_field}}
               <button type="submit" style="font-size:0.7rem;color:#ef4444;background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;">Remove</button>
             </form>
           </div>
-          {{/if}}
           <form method="POST" action="/admin/themes/{{../../theme.id}}/config/image/{{this.flatKey}}" enctype="multipart/form-data"
-                style="display:flex;gap:0.5rem;align-items:center;">
+                data-async-image="upload" style="display:flex;gap:0.5rem;align-items:center;">
             {{csrf_field}}
             <input type="file" name="file" accept="image/*" required
               style="flex:1;font-size:0.72rem;color:#6b7280;min-width:0;">
@@ -291,6 +290,44 @@
       hideLoading();
     });
   }
+
+  // ── Async image upload/remove ───────────────────────────────────────────────
+  // Native form submits here would reload the whole page and throw away any
+  // other unsaved edits. Submit via fetch instead, update the thumbnail and
+  // preview in place, and leave the rest of the form untouched. The CSRF token
+  // goes in a header because @fastify/csrf-protection can't read it from a
+  // multipart body.
+  document.addEventListener('submit', function(e) {
+    var form = e.target;
+    if (!form.matches || !form.matches('[data-async-image]')) return;
+    e.preventDefault();
+    var kind = form.getAttribute('data-async-image');
+    var container = form.closest('[data-image-field]');
+    var tokenEl = document.querySelector('#config-form [name="_csrf"]') || form.querySelector('[name="_csrf"]');
+    fetch(form.action, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'fetch', 'X-CSRF-Token': tokenEl ? tokenEl.value : '' },
+      body: new FormData(form)
+    }).then(function(res) {
+      return res.json().catch(function() { return { ok: res.ok }; });
+    }).then(function(j) {
+      if (!j.ok) { alert(j.error || 'Upload failed'); return; }
+      var preview = container ? container.querySelector('.theme-image-preview') : null;
+      var img = preview ? preview.querySelector('img') : null;
+      if (kind === 'upload') {
+        if (img) img.src = j.url;
+        if (preview) preview.style.display = 'flex';
+        var fileInput = form.querySelector('input[type="file"]');
+        if (fileInput) fileInput.value = '';
+      } else {
+        if (img) img.removeAttribute('src');
+        if (preview) preview.style.display = 'none';
+      }
+      // Re-render the preview with the current (still-unsaved) fields; the
+      // iframe reload picks up the just-saved image.
+      applyPreview(true);
+    }).catch(function() { alert('Upload failed'); });
+  });
 
   // ── Wire up all inputs ──────────────────────────────────────────────────────
 

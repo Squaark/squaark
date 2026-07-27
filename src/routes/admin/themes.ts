@@ -242,11 +242,19 @@ async function uploadThemeImage(
   req: FastifyRequest<{ Params: { id: string; field: string } }>,
   reply: FastifyReply,
 ) {
+  // The editor uploads via fetch (X-Requested-With: fetch) so it can update
+  // the image without a full page reload that would discard other unsaved
+  // edits. Fall back to a redirect for a plain form submit.
+  const isAsync = req.headers['x-requested-with'] === 'fetch';
   const theme = findThemeById(req.params.id);
   if (!theme) return reply.code(404).send('Not found');
 
   const data = await req.file();
-  if (!data) return reply.redirect(`/admin/themes/${req.params.id}/config?error=no_file`);
+  if (!data) {
+    return isAsync
+      ? reply.code(400).send({ ok: false, error: 'No file provided' })
+      : reply.redirect(`/admin/themes/${req.params.id}/config?error=no_file`);
+  }
 
   try {
     const buf = await data.toBuffer();
@@ -255,12 +263,15 @@ async function uploadThemeImage(
     overrides[req.params.field] = url;
     saveConfigOverrides(theme.id, overrides);
     if (theme.active === 1) await themeRegistry.reload(fastify);
+    return isAsync
+      ? reply.send({ ok: true, url })
+      : reply.redirect(`/admin/themes/${req.params.id}/config?saved=1`);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Upload failed';
-    return reply.redirect(`/admin/themes/${req.params.id}/config?error=${encodeURIComponent(msg)}`);
+    return isAsync
+      ? reply.code(400).send({ ok: false, error: msg })
+      : reply.redirect(`/admin/themes/${req.params.id}/config?error=${encodeURIComponent(msg)}`);
   }
-
-  return reply.redirect(`/admin/themes/${req.params.id}/config?saved=1`);
 }
 
 async function removeThemeImage(
@@ -268,13 +279,16 @@ async function removeThemeImage(
   req: FastifyRequest<{ Params: { id: string; field: string } }>,
   reply: FastifyReply,
 ) {
+  const isAsync = req.headers['x-requested-with'] === 'fetch';
   const theme = findThemeById(req.params.id);
   if (!theme) return reply.code(404).send('Not found');
   const overrides = JSON.parse(theme.config_overrides || '{}') as Record<string, unknown>;
   overrides[req.params.field] = '';
   saveConfigOverrides(theme.id, overrides);
   if (theme.active === 1) await themeRegistry.reload(fastify);
-  return reply.redirect(`/admin/themes/${req.params.id}/config`);
+  return isAsync
+    ? reply.send({ ok: true })
+    : reply.redirect(`/admin/themes/${req.params.id}/config`);
 }
 
 async function uploadTheme(req: FastifyRequest, reply: FastifyReply) {
