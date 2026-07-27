@@ -47,6 +47,36 @@ The dashboard shows basic traffic analytics (page views, unique visitors, top pa
 | `npm run build` | Compile TypeScript to `dist/` |
 | `npm run db:migrate` | Apply pending migrations manually |
 | `npm run db:seed` | Seed with sample products/collections |
+| `npm run db:backup` | Snapshot the database (safe while running) |
+| `npm run db:restore <file>` | Restore the database from a snapshot |
+
+## Backups
+
+The entire store — products, orders, customers, settings — lives in a single
+SQLite file (`DATABASE_PATH`, default `data/store.db`). Back it up regularly.
+
+```bash
+# Snapshot now → backups/store-<timestamp>.db (uses SQLite's online backup,
+# so it's safe to run against a live server — no downtime needed).
+npm run db:backup
+
+# …or to a specific path (e.g. a mounted volume):
+npm run db:backup /mnt/backups/store.db
+```
+
+Schedule it with cron, e.g. hourly with 7-day retention:
+
+```cron
+0 * * * * cd /app && npm run db:backup >> /var/log/squaark-backup.log 2>&1
+0 3 * * * find /app/backups -name 'store-*.db' -mtime +7 -delete
+```
+
+To restore (**stop the server first** — this overwrites the live file; the
+current database is copied to `<db>.pre-restore` as a safety net):
+
+```bash
+npm run db:restore backups/store-20260727-104512.db
+```
 
 ## Configuration
 
