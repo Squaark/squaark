@@ -4,4 +4,6 @@ uploads/
 data/
 backups/
 .env
+*.local
+*.db
 *.log
