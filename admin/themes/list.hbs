@@ -2,7 +2,7 @@
   <h1 class="page-title">Themes</h1>
   <label class="btn btn-primary btn-sm" style="cursor:pointer;">
     Upload theme
-    <form id="upload-form" method="POST" action="/admin/themes/upload" enctype="multipart/form-data" style="display:none;">
+    <form id="upload-form" method="POST" action="/admin/themes/upload?_csrf={{@root.csrfToken}}" enctype="multipart/form-data" style="display:none;">
       {{csrf_field}}
       <input type="file" name="file" accept=".zip" onchange="document.getElementById('upload-form').submit()">
     </form>

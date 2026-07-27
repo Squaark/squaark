@@ -50,7 +50,7 @@
             </form>
           </div>
           {{/if}}
-          <form method="POST" action="/admin/themes/{{../../theme.id}}/config/image/{{this.flatKey}}" enctype="multipart/form-data"
+          <form method="POST" action="/admin/themes/{{../../theme.id}}/config/image/{{this.flatKey}}?_csrf={{@root.csrfToken}}" enctype="multipart/form-data"
                 style="display:flex;gap:0.5rem;align-items:center;">
             {{csrf_field}}
             <input type="file" name="file" accept="image/*" required

@@ -285,7 +285,7 @@
             </form>
           </div>
           {{/if}}
-          <form method="POST" action="/admin/settings/media/logo" enctype="multipart/form-data">
+          <form method="POST" action="/admin/settings/media/logo?_csrf={{@root.csrfToken}}" enctype="multipart/form-data">
             {{csrf_field}}
             <div class="row">
               <input type="file" name="file" accept="image/*" required class="form-file flex-1">
@@ -308,7 +308,7 @@
             </form>
           </div>
           {{/if}}
-          <form method="POST" action="/admin/settings/media/icon" enctype="multipart/form-data">
+          <form method="POST" action="/admin/settings/media/icon?_csrf={{@root.csrfToken}}" enctype="multipart/form-data">
             {{csrf_field}}
             <div class="row">
               <input type="file" name="file" accept="image/png,image/x-icon,image/vnd.microsoft.icon,image/svg+xml" required class="form-file flex-1">

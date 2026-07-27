@@ -145,7 +145,7 @@
         {{else}}
         <p class="text-sm text-muted mb-3">No file attached. Upload a file to make this product downloadable.</p>
         {{/if}}
-        <form method="POST" action="/admin/products/{{product.id}}/file" enctype="multipart/form-data">
+        <form method="POST" action="/admin/products/{{product.id}}/file?_csrf={{@root.csrfToken}}" enctype="multipart/form-data">
           {{csrf_field}}
           <div class="row mt-1">
             <input type="file" name="file" required class="form-file flex-1">
@@ -176,7 +176,7 @@
           </div>
           {{/each}}
         </div>
-        <form method="POST" action="/admin/products/{{product.id}}/images" enctype="multipart/form-data">
+        <form method="POST" action="/admin/products/{{product.id}}/images?_csrf={{@root.csrfToken}}" enctype="multipart/form-data">
           {{csrf_field}}
           <label class="form-label">Upload image</label>
           <div class="row mt-1">
