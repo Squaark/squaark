@@ -10,6 +10,8 @@ export interface CustomerRow {
   email_verified: number;
   verification_token: string | null;
   verification_token_expires: string | null;
+  reset_token: string | null;
+  reset_token_expires: string | null;
 }
 
 export function findCustomerByEmail(email: string): CustomerRow | null {
@@ -58,5 +60,33 @@ export function setCustomerVerificationToken(id: string, token: string, expiresA
   execute(
     'UPDATE customers SET verification_token = ?, verification_token_expires = ? WHERE id = ?',
     [token, expiresAt, id],
+  );
+}
+
+export function setCustomerResetToken(id: string, token: string, expiresAt: string): void {
+  execute(
+    'UPDATE customers SET reset_token = ?, reset_token_expires = ? WHERE id = ?',
+    [token, expiresAt, id],
+  );
+}
+
+export function findCustomerByResetToken(token: string): CustomerRow | null {
+  return queryOne<CustomerRow>('SELECT * FROM customers WHERE reset_token = ?', [token]);
+}
+
+/**
+ * Sets a new password hash and clears the reset token in one statement.
+ * A successful password reset also confirms control of the email, so
+ * email_verified is set too — this doubles as a verification path for a
+ * customer who never clicked their original verification link.
+ */
+export function updateCustomerPassword(id: string, passwordHash: string): void {
+  execute(
+    `UPDATE customers
+     SET password_hash = ?, reset_token = NULL, reset_token_expires = NULL,
+         email_verified = 1, verification_token = NULL, verification_token_expires = NULL,
+         updated_at = datetime('now')
+     WHERE id = ?`,
+    [passwordHash, id],
   );
 }

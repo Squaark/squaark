@@ -11,14 +11,20 @@ import {
   findCustomerByVerificationToken,
   markCustomerEmailVerified,
   setCustomerVerificationToken,
+  setCustomerResetToken,
+  findCustomerByResetToken,
+  updateCustomerPassword,
 } from '../../db/queries/customers';
 import { findOrdersByEmail, findOrderByIdAndEmail, findOrderItems } from '../../db/queries/orders';
 import { getSetting } from '../../db/queries/admin';
 import {
   generateVerificationToken,
+  generatePasswordResetToken,
   isVerificationTokenExpired,
+  isTokenExpired,
   isAccountClaimed,
   sendVerificationEmail,
+  sendPasswordResetEmail,
 } from '../../commerce/customer-verification';
 import '../../types';
 
@@ -158,6 +164,67 @@ export async function accountRoutes(fastify: FastifyInstance, registry: ThemeReg
     return reply.redirect('/account/orders?resent=1');
   });
 
+  fastify.get('/account/forgot', async (req, reply) => {
+    if (req.session.customerId) return reply.redirect('/account/orders');
+    const ctx = await base(req, reply, '/account/forgot', registry);
+    return render(registry, reply, 'account-forgot', {
+      ...ctx,
+      pageTitle: 'Reset password',
+      sent: (req.query as Record<string, string>).sent === '1',
+    });
+  });
+
+  fastify.post('/account/forgot', { config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (req, reply) => {
+    const { email } = req.body as { email?: string };
+    // Always land on the same "if an account exists, we've emailed a link"
+    // confirmation regardless of whether the email is registered — never
+    // reveal which addresses have accounts.
+    if (email) {
+      const customer = findCustomerByEmail(email);
+      if (customer) {
+        const { token, expiresAt } = generatePasswordResetToken();
+        setCustomerResetToken(customer.id, token, expiresAt);
+        sendPasswordResetEmail(customer, token).catch(() => {});
+      }
+    }
+    return reply.redirect('/account/forgot?sent=1');
+  });
+
+  fastify.get('/account/reset', async (req, reply) => {
+    const { token } = req.query as { token?: string };
+    const customer = token ? findCustomerByResetToken(token) : null;
+    if (!customer || isTokenExpired(customer.reset_token_expires)) {
+      const ctx = await base(req, reply, '/account/reset', registry);
+      return render(registry, reply, 'account-reset', { ...ctx, pageTitle: 'Reset password', invalid: true });
+    }
+    const ctx = await base(req, reply, '/account/reset', registry);
+    return render(registry, reply, 'account-reset', {
+      ...ctx,
+      pageTitle: 'Reset password',
+      token,
+      error: (req.query as Record<string, string>).error,
+    });
+  });
+
+  fastify.post('/account/reset', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (req, reply) => {
+    const { token, password } = req.body as { token?: string; password?: string };
+    const customer = token ? findCustomerByResetToken(token) : null;
+    // A used/expired token has no matching row (cleared on success) — treat
+    // both the same so a leaked-then-used token can't be replayed.
+    if (!customer || isTokenExpired(customer.reset_token_expires)) {
+      const ctx = await base(req, reply, '/account/reset', registry);
+      return render(registry, reply, 'account-reset', { ...ctx, pageTitle: 'Reset password', invalid: true });
+    }
+    if (!password || password.length < 8) {
+      return reply.redirect(`/account/reset?token=${encodeURIComponent(token!)}&error=password_too_short`);
+    }
+
+    const hash = await argon2.hash(password, { type: argon2.argon2id });
+    updateCustomerPassword(customer.id, hash);
+    req.session.customerId = customer.id;
+    return reply.redirect('/account/orders?password_reset=1');
+  });
+
   fastify.get('/account/orders', async (req, reply) => {
     if (!requireCustomer(req, reply)) return;
     const customer = findCustomerById(req.session.customerId!)!;
@@ -176,6 +243,7 @@ export async function accountRoutes(fastify: FastifyInstance, registry: ThemeReg
       verified: q.verified === '1',
       resent: q.resent === '1',
       verifyError: q.verify_error,
+      passwordReset: q.password_reset === '1',
     });
   });
 
