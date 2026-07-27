@@ -10,6 +10,7 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import config from './config';
+import { db } from './db/connection';
 import { runMigrations } from './db/migrate';
 import { themeRegistry } from './theme/registry';
 import { storefrontRoutes } from './routes/storefront/index';
@@ -20,7 +21,7 @@ import { recordPageView } from './db/queries/analytics';
 import { getSetting } from './db/queries/admin';
 
 const BOT_UA = /bot|crawler|spider|scrapy|wget|curl|python|java|ruby|go-http|httpclient|libwww|okhttp|axios|node-fetch|facebookexternalhit|twitterbot|linkedinbot|slackbot|whatsapp|telegram|discord|pingdom|uptimerobot|datadog|statuscake|ahrefsbot|semrushbot|mj12bot|dotbot|petalbot|yandex|baidu|duckduck|bingpreview|gptbot|claudebot|chatgpt/i;
-const SKIP_PREFIX = ['/admin', '/public/', '/uploads/', '/webhooks'];
+const SKIP_PREFIX = ['/admin', '/public/', '/uploads/', '/webhooks', '/health'];
 const SKIP_EXT   = /\.(js|css|ico|png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf|map)$/i;
 
 import './types';
@@ -144,6 +145,21 @@ async function build() {
     }
 
     recordPageView(url, referrer, ipHash);
+  });
+
+  // ── Health check ─────────────────────────────────────────────────────────
+  // Liveness/readiness probe for Docker/proxies/uptime monitors. Confirms the
+  // process is up AND the database is reachable. Excluded from the cart cookie
+  // hook and analytics via SKIP_PREFIX so probes don't create carts or skew
+  // page-view counts.
+  fastify.get('/health', async (_req, reply) => {
+    try {
+      db.prepare('SELECT 1').get();
+      return reply.send({ status: 'ok' });
+    } catch (err) {
+      fastify.log.error(err);
+      return reply.code(503).send({ status: 'error', error: 'database unavailable' });
+    }
   });
 
   // ── Routes ─────────────────────────────────────────────────────────────────

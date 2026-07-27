@@ -94,6 +94,13 @@ Copy `.env.example` to `.env`:
 
 Store-level settings (name, currency, logo, email provider, etc.) are in the admin UI, not env vars.
 
+## Health check
+
+`GET /health` returns `200 {"status":"ok"}` when the process is up and the
+database is reachable, or `503` otherwise. Point Docker healthchecks, load
+balancers, or uptime monitors at it — it's excluded from session/cart handling
+and analytics, so probing it has no side effects.
+
 ## Docker
 
 ```bash
