@@ -3,6 +3,10 @@
 <div class="container cart-page">
   <h1 class="cart-page__title">Your {{store.cartLabel}}</h1>
 
+  {{#if outOfStock}}
+    <div class="auth-error" style="margin-bottom:1.5rem;">One or more items in your {{store.cartLabel}} are no longer in stock in the quantity requested. Please adjust the quantities and try again.</div>
+  {{/if}}
+
   {{#if cart.empty}}
     <div style="text-align:center;padding:6rem 0;">
       <p style="color:#9ca3af;font-size:1.125rem;margin-bottom:1rem;">Your {{store.cartLabel}} is empty.</p>

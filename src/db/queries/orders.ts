@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { query, queryOne, execute, executeReturning } from '../connection';
+import { query, queryOne, execute, executeReturning, transaction, db } from '../connection';
 
 export interface OrderRow {
   id: string;
@@ -21,9 +21,18 @@ export interface OrderRow {
   shipping_rate_id: string | null;
   shipping_title: string | null;
   tax_amount: number;
+  tracking_number: string | null;
+  tracking_url: string | null;
+  shipped_at: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export const ORDER_STATUSES = ['pending', 'paid', 'cancelled', 'refunded'] as const;
+export type OrderStatus = (typeof ORDER_STATUSES)[number];
+
+export const FULFILLMENT_STATES = ['unfulfilled', 'shipped', 'delivered'] as const;
+export type FulfillmentState = (typeof FULFILLMENT_STATES)[number];
 
 export interface OrderItemRow {
   id: string;
@@ -131,10 +140,72 @@ export function createOrder(input: CreateOrderInput): OrderRow {
   return row;
 }
 
-export function markOrderPaid(orderId: string, paymentReference: string): void {
+/**
+ * Transitions an order to 'paid' and decrements stock for its physical items,
+ * atomically. Returns true if this call performed the transition, false if the
+ * order was already paid — the guard on `status != 'paid'` makes this
+ * idempotent, so the Stripe return handler and webhook (which can both fire
+ * for one order) decrement inventory exactly once between them. Digital
+ * products (p.is_digital = 1) carry no stock and are skipped; physical stock is
+ * floored at 0 so a race that oversells shows 0, never a negative count.
+ */
+export function markOrderPaid(orderId: string, paymentReference: string): boolean {
+  return transaction(() => {
+    const res = db.prepare(
+      `UPDATE orders SET status = 'paid', payment_reference = ?, updated_at = datetime('now')
+       WHERE id = ? AND status != 'paid'`,
+    ).run(paymentReference, orderId);
+    if (res.changes === 0) return false;
+
+    db.prepare(`
+      UPDATE product_variants
+      SET inventory_quantity = MAX(0, inventory_quantity - (
+            SELECT oi.quantity FROM order_items oi
+            WHERE oi.variant_id = product_variants.id AND oi.order_id = ?
+          )),
+          updated_at = datetime('now')
+      WHERE id IN (
+        SELECT oi.variant_id FROM order_items oi
+        JOIN products p ON p.id = (SELECT product_id FROM product_variants WHERE id = oi.variant_id)
+        WHERE oi.order_id = ? AND oi.variant_id IS NOT NULL AND p.is_digital = 0
+      )
+    `).run(orderId, orderId);
+    return true;
+  });
+}
+
+export function updateOrderStatus(orderId: string, status: OrderStatus): void {
   execute(
-    `UPDATE orders SET status = 'paid', payment_reference = ?, updated_at = datetime('now') WHERE id = ?`,
-    [paymentReference, orderId],
+    `UPDATE orders SET status = ?, updated_at = datetime('now') WHERE id = ?`,
+    [status, orderId],
+  );
+}
+
+/**
+ * Records a shipment. `shipped_at` is stamped the first time an order moves to
+ * 'shipped' and left untouched otherwise, so re-saving tracking details for an
+ * already-shipped order doesn't reset the ship date. Tracking fields are
+ * cleared when reverting to 'unfulfilled'.
+ */
+export function updateOrderFulfillment(
+  orderId: string,
+  fulfillment: FulfillmentState,
+  trackingNumber: string | null,
+  trackingUrl: string | null,
+): void {
+  if (fulfillment === 'unfulfilled') {
+    execute(
+      `UPDATE orders SET fulfillment = 'unfulfilled', tracking_number = NULL, tracking_url = NULL, shipped_at = NULL, updated_at = datetime('now') WHERE id = ?`,
+      [orderId],
+    );
+    return;
+  }
+  execute(
+    `UPDATE orders
+     SET fulfillment = ?, tracking_number = ?, tracking_url = ?,
+         shipped_at = COALESCE(shipped_at, datetime('now')), updated_at = datetime('now')
+     WHERE id = ?`,
+    [fulfillment, trackingNumber || null, trackingUrl || null, orderId],
   );
 }
 

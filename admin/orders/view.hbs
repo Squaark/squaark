@@ -58,9 +58,64 @@
       <h2 class="font-semibold text-sm mb-3">Customer</h2>
       <p class="text-sm">{{order.email}}</p>
     </div>
+
+    <div class="card--no-overflow card-body stack-sm">
+      <h2 class="font-semibold text-sm">Fulfillment</h2>
+      {{#if fulfilled}}<p class="text-xs text-success">Fulfillment updated.</p>{{/if}}
+      <p class="text-xs text-muted">
+        Current: <span class="font-medium">{{order.fulfillment}}</span>{{#if order.shipped_at}} · shipped {{date_short order.shipped_at}}{{/if}}
+      </p>
+      <form method="POST" action="/admin/orders/{{order.id}}/fulfillment" class="stack-sm">
+        {{csrf_field}}
+        <div>
+          <label class="form-label-xs">Status</label>
+          <select name="fulfillment" class="form-select">
+            {{#each fulfillmentStates}}
+            <option value="{{this}}" {{#if (eq this ../order.fulfillment)}}selected{{/if}}>{{this}}</option>
+            {{/each}}
+          </select>
+        </div>
+        <div>
+          <label class="form-label-xs">Tracking number</label>
+          <input type="text" name="tracking_number" value="{{order.tracking_number}}" placeholder="e.g. AB123456789GB" class="form-input">
+        </div>
+        <div>
+          <label class="form-label-xs">Tracking URL</label>
+          <input type="url" name="tracking_url" value="{{order.tracking_url}}" placeholder="https://…" class="form-input">
+        </div>
+        <p class="form-hint">Marking an order <strong>shipped</strong> for the first time emails the customer their tracking link.</p>
+        <button type="submit" class="btn btn-primary">Save fulfillment</button>
+      </form>
+    </div>
+
+    <div class="card--no-overflow card-body stack-sm">
+      <h2 class="font-semibold text-sm">Payment status</h2>
+      {{#if statusUpdated}}<p class="text-xs text-success">Status updated.</p>{{/if}}
+      {{#if refunded}}<p class="text-xs text-success">Payment refunded.</p>{{/if}}
+      {{#if refundError}}<p class="text-xs" style="color:#b91c1c;">Refund failed: {{refundError}}</p>{{/if}}
+      <form method="POST" action="/admin/orders/{{order.id}}/status" class="stack-sm">
+        {{csrf_field}}
+        <select name="status" class="form-select">
+          {{#each orderStatuses}}
+          <option value="{{this}}" {{#if (eq this ../order.status)}}selected{{/if}}>{{this}}</option>
+          {{/each}}
+        </select>
+        <p class="form-hint">Sets the recorded status only — it does not issue a payment refund with Stripe/PayPal.</p>
+        <button type="submit" class="btn">Update status</button>
+      </form>
+
+      {{#if canRefund}}
+      <form method="POST" action="/admin/orders/{{order.id}}/refund" onsubmit="return confirm('Refund the full amount to the customer via {{order.payment_provider}}? This cannot be undone.');" style="padding-top:0.75rem;border-top:1px solid #f3f4f6;">
+        {{csrf_field}}
+        <p class="form-hint">Issues a full refund through {{order.payment_provider}} and marks the order refunded.</p>
+        <button type="submit" class="btn" style="color:#b91c1c;border-color:#fecaca;">Refund payment</button>
+      </form>
+      {{/if}}
+    </div>
+
     <div class="card--no-overflow card-body-sm text-xs text-muted stack-xs">
       <p>Placed {{date_short order.created_at}}</p>
-      <p>Fulfillment: {{order.fulfillment}}</p>
+      {{#if order.payment_provider}}<p>Paid via {{order.payment_provider}}</p>{{/if}}
     </div>
   </div>
 </div>

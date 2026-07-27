@@ -148,7 +148,8 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
       base(req, reply, `/${cartSlug}`, registry),
       getCartPage(req.cartId),
     ]);
-    await render(registry, reply, 'cart', { ...ctx, pageTitle: `Your ${ctx.store.cartLabel}`, cart });
+    const outOfStock = (req.query as { error?: string }).error === 'out_of_stock';
+    await render(registry, reply, 'cart', { ...ctx, pageTitle: `Your ${ctx.store.cartLabel}`, cart, outOfStock });
   });
 
   fastify.get('/search', async (req, reply) => {

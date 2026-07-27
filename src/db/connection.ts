@@ -29,3 +29,12 @@ export function execute(sql: string, params: unknown[] = []): void {
 export function executeReturning<T extends object>(sql: string, params: unknown[] = []): T {
   return db.prepare(sql).get(...params) as T;
 }
+
+/**
+ * Runs `fn` inside a single SQLite transaction, committing on return and
+ * rolling back if it throws. better-sqlite3 transactions are synchronous —
+ * `fn` must not await.
+ */
+export function transaction<T>(fn: () => T): T {
+  return db.transaction(fn)();
+}

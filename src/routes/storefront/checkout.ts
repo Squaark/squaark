@@ -14,6 +14,7 @@ import { findCustomerByEmail, createCustomer, deleteCustomer } from '../../db/qu
 import { getRatesForCountry } from '../../db/queries/shipping';
 import { calculateItemsTax } from '../../commerce/tax';
 import { resolveShipping } from '../../commerce/shipping';
+import { findStockShortfalls } from '../../commerce/inventory';
 import { generateVerificationToken, isAccountClaimed, sendVerificationEmail } from '../../commerce/customer-verification';
 import argon2 from 'argon2';
 
@@ -158,6 +159,13 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     const settings = getAllSettings();
     const stripe = getStripe();
     if (!stripe) return reply.code(400).send('Stripe is not configured');
+
+    // Re-check stock against the live count before charging — the add-to-cart
+    // check can be stale by now.
+    const shortfalls = findStockShortfalls(cart.items);
+    if (shortfalls.length) {
+      return reply.redirect(`/${settings.cart_slug || 'cart'}?error=out_of_stock`);
+    }
 
     const address = parseAddress(body);
     const storeUrl = settings.store_url?.replace(/\/$/, '') || 'http://localhost:3000';
@@ -350,6 +358,10 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
 
     const cart = await getCartPage(req.cartId);
     if (cart.empty) return reply.code(400).send({ error: 'Cart is empty' });
+
+    // Re-check stock against the live count before creating the PayPal order.
+    const shortfalls = findStockShortfalls(cart.items);
+    if (shortfalls.length) return reply.code(409).send({ error: 'out_of_stock', items: shortfalls });
 
     const currency = (settings.store_currency || 'GBP').toUpperCase();
     const address = parseAddress(body);

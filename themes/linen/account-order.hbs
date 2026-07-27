@@ -21,6 +21,17 @@
     </div>
   </div>
 
+  {{#if (ne order.fulfillment 'unfulfilled')}}
+  <div class="order-detail-card">
+    <div class="order-detail-card__head">Shipping</div>
+    <div style="padding:1.25rem;font-size:0.875rem;color:#4b5563;">
+      <p style="text-transform:capitalize;">{{order.fulfillment}}{{#if order.shipped_at}} · {{timestamp order.shipped_at}}{{/if}}</p>
+      {{#if order.tracking_number}}<p style="margin-top:0.5rem;">Tracking: {{order.tracking_number}}</p>{{/if}}
+      {{#if order.tracking_url}}<p style="margin-top:0.5rem;"><a href="{{order.tracking_url}}" style="color:var(--color-primary);font-weight:500;">Track your package →</a></p>{{/if}}
+    </div>
+  </div>
+  {{/if}}
+
   <!-- Items -->
   <div class="order-detail-card">
     <div class="order-detail-card__head">Items</div>

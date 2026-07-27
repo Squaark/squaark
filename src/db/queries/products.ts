@@ -172,3 +172,11 @@ export function findVariantById(variantId: string): VariantRow | null {
     WHERE pv.id = ?
   `, [variantId]);
 }
+
+/** Current stock for a variant, or null if the variant no longer exists. */
+export function getVariantInventory(variantId: string): number | null {
+  return queryOne<{ inventory_quantity: number }>(
+    'SELECT inventory_quantity FROM product_variants WHERE id = ?',
+    [variantId],
+  )?.inventory_quantity ?? null;
+}
