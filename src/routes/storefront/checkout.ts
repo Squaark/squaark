@@ -8,6 +8,8 @@ import { getAllSettings } from '../../db/queries/admin';
 import { createOrder, markOrderPaid, findOrderById, findOrderByPaymentReference, findOrderItems, type Address } from '../../db/queries/orders';
 import { createOrderDownloads, findDownloadsForOrder } from '../../db/queries/downloads';
 import { sendTemplatedEmail } from '../../email/send';
+import { buildOrderEmailContext } from '../../email/order-context';
+import { sendMerchantNewOrderEmail } from '../../email/order-notifications';
 import config from '../../config';
 import { writeLog } from '../../db/queries/system-log';
 import { findCustomerByEmail, createCustomer, deleteCustomer } from '../../db/queries/customers';
@@ -275,13 +277,15 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       if (order) {
         const settings = getAllSettings();
         const storeUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+        const items = findOrderItems(orderId);
         const downloads = createOrderDownloads(orderId);
         sendTemplatedEmail('order_confirmation', order.email, {
-          order: { ...order, items: findOrderItems(orderId) },
+          order: buildOrderEmailContext(order, items),
           store: { name: settings.store_name },
           downloads: downloads.map(d => ({ ...d, url: `${storeUrl}/downloads/${d.token}` })),
           download_expiry_days: 30,
         }).catch(() => {});
+        sendMerchantNewOrderEmail(order, items).catch(() => {});
       }
 
       return reply.redirect(`/checkout/success/${orderId}`);
@@ -330,13 +334,15 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
             });
             if (order) {
               const storeUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+              const items = findOrderItems(orderId);
               const downloads = createOrderDownloads(orderId);
               sendTemplatedEmail('order_confirmation', order.email, {
-                order: { ...order, items: findOrderItems(orderId) },
+                order: buildOrderEmailContext(order, items),
                 store: { name: settings.store_name },
                 downloads: downloads.map(d => ({ ...d, url: `${storeUrl}/downloads/${d.token}` })),
                 download_expiry_days: 30,
               }).catch(() => {});
+              sendMerchantNewOrderEmail(order, items).catch(() => {});
             }
           }
         }
@@ -521,13 +527,15 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       });
 
       const ppStoreUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+      const ppItems = findOrderItems(order.id);
       const ppDownloads = createOrderDownloads(order.id);
       sendTemplatedEmail('order_confirmation', snapshot.email, {
-        order: { ...order, items: findOrderItems(order.id) },
+        order: buildOrderEmailContext(order, ppItems),
         store: { name: settings.store_name },
         downloads: ppDownloads.map(d => ({ ...d, url: `${ppStoreUrl}/downloads/${d.token}` })),
         download_expiry_days: 30,
       }).catch(() => {});
+      sendMerchantNewOrderEmail(order, ppItems).catch(() => {});
 
       return reply.send({ orderId: order.id });
     } catch (err) {
