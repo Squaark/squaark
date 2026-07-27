@@ -335,7 +335,7 @@ svg { display: block; }
 /* ── Empty state ────────────────────────────────────────────────────────── */
 .empty-state { padding: 3rem 1rem; text-align: center; color: #9ca3af; }
 .empty-state p { margin-bottom: 0.75rem; }
-.empty-state a { color: #111827; font-weight: 500; text-decoration: underline; }
+.empty-state a:not(.btn) { color: #111827; font-weight: 500; text-decoration: underline; }
 
 /* ── 404 / error page ───────────────────────────────────────────────────── */
 .admin-404 { text-align: center; padding: 6rem 1rem; }
