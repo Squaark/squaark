@@ -26,7 +26,7 @@
         No API keys needed. Imports products, variants, images, categories and pages.
       </p>
     </div>
-    <form method="POST" action="/admin/import/wxr" enctype="multipart/form-data" class="stack-sm">
+    <form method="POST" action="/admin/import/wxr?_csrf={{@root.csrfToken}}" enctype="multipart/form-data" class="stack-sm">
       {{csrf_field}}
       <input type="file" name="file" accept=".xml" required class="form-file">
       <div>
