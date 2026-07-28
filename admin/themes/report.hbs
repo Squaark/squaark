@@ -1,0 +1,54 @@
+<div class="page-header">
+  <div class="page-header__left">
+    <a href="/admin/themes" class="page-back">← Themes</a>
+    <h1 class="page-title">{{report.themeName}} — theme check</h1>
+  </div>
+  {{#if themeId}}
+  <a href="/admin/themes/{{themeId}}/validate" class="btn btn-secondary btn-sm">Re-run check</a>
+  {{/if}}
+</div>
+
+{{#if justInstalled}}
+<div class="alert alert-success">Theme "{{report.themeName}}" installed. Here's how it measures up against the storefront contract.</div>
+{{/if}}
+
+<div class="card--no-overflow card-body mb-4">
+  <div class="row" style="gap:1.5rem;flex-wrap:wrap;align-items:center;">
+    {{#if report.ok}}
+      <span class="badge badge-green" style="font-size:0.9rem;">✓ Functional</span>
+    {{else}}
+      <span class="badge badge-red" style="font-size:0.9rem;">✕ {{report.totals.errors}} blocking issue{{#unless (eq report.totals.errors 1)}}s{{/unless}}</span>
+    {{/if}}
+    <div class="row" style="gap:1rem;">
+      <span class="text-sm"><strong>{{report.totals.passed}}</strong> passed</span>
+      <span class="text-sm" style="color:#b45309;"><strong>{{report.totals.warnings}}</strong> recommendation{{#unless (eq report.totals.warnings 1)}}s{{/unless}}</span>
+      <span class="text-sm" style="color:#b91c1c;"><strong>{{report.totals.errors}}</strong> error{{#unless (eq report.totals.errors 1)}}s{{/unless}}</span>
+    </div>
+  </div>
+  <p class="text-xs text-muted" style="margin-top:0.75rem;">
+    Errors mean a page won't render; recommendations are optional polish (SEO, accessibility, edge states). This report never blocks activation — it's here to show what's missing.
+  </p>
+</div>
+
+<div class="stack-sm">
+  {{#each report.results}}
+  <div class="card--no-overflow card-body" style="border-left:3px solid {{#if (eq this.status "pass")}}#16a34a{{else}}{{#if (eq this.severity "error")}}#dc2626{{else}}#d97706{{/if}}{{/if}};">
+    <div class="row" style="justify-content:space-between;align-items:flex-start;gap:1rem;">
+      <div>
+        <p class="text-sm font-medium">
+          {{#if (eq this.status "pass")}}✓{{else}}{{#if (eq this.severity "error")}}✕{{else}}⚠{{/if}}{{/if}}
+          {{this.title}}
+        </p>
+        <p class="text-xs text-muted" style="margin-top:0.25rem;">{{this.detail}}</p>
+      </div>
+      <span class="badge {{#if (eq this.status "pass")}}badge-green{{else}}{{#if (eq this.severity "error")}}badge-red{{else}}badge-yellow{{/if}}{{/if}}" style="flex-shrink:0;">
+        {{#if (eq this.status "pass")}}Pass{{else}}{{#if (eq this.severity "error")}}Error{{else}}Warning{{/if}}{{/if}}
+      </span>
+    </div>
+  </div>
+  {{/each}}
+</div>
+
+<div class="mt-4">
+  <a href="/admin/themes" class="btn btn-primary btn-sm">Done</a>
+</div>

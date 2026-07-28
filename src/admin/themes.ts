@@ -11,6 +11,7 @@ const THEMES_DIR = path.resolve(process.cwd(), 'themes');
 export interface UploadResult {
   slug: string;
   name: string;
+  dir: string;
 }
 
 export async function installThemeFromZip(buffer: Buffer): Promise<UploadResult> {
@@ -74,5 +75,5 @@ export async function installThemeFromZip(buffer: Buffer): Promise<UploadResult>
     `themes/${slug}`,
   );
 
-  return { slug, name: manifest.name };
+  return { slug, name: manifest.name, dir: destDir };
 }

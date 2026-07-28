@@ -28,6 +28,7 @@
     <p class="text-sm text-muted mb-4">{{this.description}}</p>
     <div class="row">
       <a href="/admin/themes/{{this.id}}/config" class="btn btn-secondary btn-sm">Customise</a>
+      <a href="/admin/themes/{{this.id}}/validate" class="btn btn-secondary btn-sm">Check</a>
       {{#unless (eq this.active 1)}}
       <form method="POST" action="/admin/themes/{{this.id}}/activate">
         {{csrf_field}}

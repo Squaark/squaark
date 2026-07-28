@@ -5,13 +5,14 @@ import { render } from '../../admin/render';
 import { getAdminById } from '../../admin/auth';
 import { getAllSettings } from '../../db/queries/admin';
 import {
-  findAllThemes, findThemeById, activateTheme, saveConfigOverrides,
+  findAllThemes, findThemeById, findThemeBySlug, activateTheme, saveConfigOverrides,
 } from '../../db/queries/themes';
 import { loadManifest, resolveConfig, type ConfigField, type ThemeManifest } from '../../theme/config';
 import { findAllCollections } from '../../db/queries/collections';
 import { themeRegistry } from '../../theme/registry';
 import { installThemeFromZip } from '../../admin/themes';
 import { saveThemeImage } from '../../admin/store-media';
+import { validateTheme } from '../../theme/validate';
 
 export async function themeRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get('/themes', listThemes);
@@ -22,6 +23,7 @@ export async function themeRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post<{ Params: { id: string; field: string } }>('/themes/:id/config/image/:field', (req, reply) => uploadThemeImage(fastify, req, reply));
   fastify.post<{ Params: { id: string; field: string } }>('/themes/:id/config/image/:field/remove', (req, reply) => removeThemeImage(fastify, req, reply));
   fastify.post('/themes/upload', uploadTheme);
+  fastify.get<{ Params: { id: string } }>('/themes/:id/validate', validateHandler);
 }
 
 function adminCtx(req: FastifyRequest) {
@@ -298,9 +300,31 @@ async function uploadTheme(req: FastifyRequest, reply: FastifyReply) {
   try {
     const buf = await data.toBuffer();
     const result = await installThemeFromZip(buf);
-    return reply.redirect(`/admin/themes?installed=${result.name}`);
+    // Warn-only: the theme is installed regardless. The report tells the
+    // developer what's missing — it never blocks the install.
+    const report = await validateTheme(result.dir);
+    const theme = findThemeBySlug(result.slug);
+    return reply.type('text/html').send(
+      await render('themes/report', {
+        ...adminCtx(req), report, themeId: theme?.id ?? null,
+        justInstalled: true, pageTitle: `${result.name} — theme check`, pageSection: 'themes',
+      }, reply),
+    );
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Upload failed';
     return reply.redirect(`/admin/themes?error=${encodeURIComponent(msg)}`);
   }
+}
+
+async function validateHandler(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+  const theme = findThemeById(req.params.id);
+  if (!theme) return reply.code(404).send('Not found');
+  const dir = path.resolve(process.cwd(), theme.directory);
+  const report = await validateTheme(dir);
+  return reply.type('text/html').send(
+    await render('themes/report', {
+      ...adminCtx(req), report, themeId: theme.id,
+      justInstalled: false, pageTitle: `${theme.name} — theme check`, pageSection: 'themes',
+    }, reply),
+  );
 }
