@@ -123,8 +123,22 @@ export async function upsertProduct(product: NormalizedProduct): Promise<{ id: s
   return { id: productId, created };
 }
 
+// WooCommerce's own system pages are redundant here — the platform provides
+// the cart, checkout, account and shop natively — and importing them clutters
+// the store and collides with those built-in routes. Skip them on import.
+const WOO_SYSTEM_PAGE_SLUGS = new Set([
+  'cart', 'basket', 'bag', 'checkout', 'my-account', 'account',
+  'shop', 'order-received', 'order-tracking', 'lost-password', 'wishlist',
+]);
+
+export function isWooSystemPage(slug: string): boolean {
+  return WOO_SYSTEM_PAGE_SLUGS.has(slug.trim().toLowerCase());
+}
+
 /** Upserts a page (matched by wc_id). Slug is made unique on conflict by appending the wc_id. */
-export function upsertPage(page: NormalizedPage): { id: string; created: boolean } {
+export function upsertPage(page: NormalizedPage): { id: string; created: boolean; skipped?: boolean } {
+  if (isWooSystemPage(page.slug)) return { id: '', created: false, skipped: true };
+
   const existing = queryOne<{ id: string }>('SELECT id FROM pages WHERE wc_id = ?', [page.wcId]);
 
   if (existing) {
