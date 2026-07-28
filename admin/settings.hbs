@@ -55,17 +55,12 @@
           </div>
           <div>
             <label class="form-label">Cart label</label>
-            <div class="form-row form-row--2">
-              <select name="cart_label" class="form-select">
-                <option value="Cart" {{#if (eq settings.cart_label 'Cart')}}selected{{/if}}>Cart</option>
-                <option value="Basket" {{#if (eq settings.cart_label 'Basket')}}selected{{/if}}>Basket</option>
-                <option value="Bag" {{#if (eq settings.cart_label 'Bag')}}selected{{/if}}>Bag</option>
-              </select>
-              <div>
-                <input type="text" name="cart_slug" value="{{#if settings.cart_slug}}{{settings.cart_slug}}{{else}}cart{{/if}}" placeholder="cart" class="form-input">
-                <p class="form-hint">URL slug — requires restart</p>
-              </div>
-            </div>
+            <select name="cart_label" class="form-select">
+              <option value="Cart" {{#if (eq settings.cart_label 'Cart')}}selected{{/if}}>Cart</option>
+              <option value="Basket" {{#if (eq settings.cart_label 'Basket')}}selected{{/if}}>Basket</option>
+              <option value="Bag" {{#if (eq settings.cart_label 'Bag')}}selected{{/if}}>Bag</option>
+            </select>
+            <p class="form-hint">Used throughout the storefront, including its URL — e.g. “Basket” lives at <code>/basket</code>.</p>
           </div>
           <div class="row-between" style="padding:0.25rem 0;">
             <div>
@@ -436,7 +431,7 @@
     <div x-show="tab === 'server'" x-cloak>
       <div class="card--no-overflow card-body">
         <h2 class="font-semibold mb-1">Server</h2>
-        <p class="form-hint mb-4">Some settings (e.g. cart URL slug) require a server restart to take effect.</p>
+        <p class="form-hint mb-4">Restart the server after upgrading, changing environment variables, or installing a new theme.</p>
         <button id="restart-btn" onclick="doRestart()" class="btn btn-primary">Restart server</button>
         <div id="restart-status" style="display:none;margin-top:0.75rem;font-size:0.875rem;color:#6b7280;"></div>
       </div>

@@ -95,7 +95,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
   // GET /checkout — show address + payment form
   fastify.get('/checkout', async (req, reply) => {
     const cart = await getCartPage(req.cartId);
-    if (cart.empty) return reply.redirect(`/${getAllSettings().cart_slug || 'cart'}`);
+    if (cart.empty) return reply.redirect(`/${(getAllSettings().cart_label || 'Cart').toLowerCase()}`);
 
     const settings = getAllSettings();
     const ctx = await base(req, reply, registry);
@@ -156,7 +156,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
   fastify.post('/checkout', async (req, reply) => {
     const body = req.body as Record<string, string>;
     const cart = await getCartPage(req.cartId);
-    if (cart.empty) return reply.redirect(`/${getAllSettings().cart_slug || 'cart'}`);
+    if (cart.empty) return reply.redirect(`/${(getAllSettings().cart_label || 'Cart').toLowerCase()}`);
 
     const settings = getAllSettings();
     const stripe = getStripe();
@@ -166,7 +166,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     // check can be stale by now.
     const shortfalls = findStockShortfalls(cart.items);
     if (shortfalls.length) {
-      return reply.redirect(`/${settings.cart_slug || 'cart'}?error=out_of_stock`);
+      return reply.redirect(`/${(settings.cart_label || 'Cart').toLowerCase()}?error=out_of_stock`);
     }
 
     const address = parseAddress(body);

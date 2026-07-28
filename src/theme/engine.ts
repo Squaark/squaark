@@ -55,7 +55,7 @@ export class ThemeEngine {
     switch (type) {
       case 'product':    return `/products/${slugs[0] ?? ''}`;
       case 'collection': return `/collections/${slugs[0] ?? ''}`;
-      case 'cart':       return `/${getAllSettings().cart_slug || 'cart'}`;
+      case 'cart':       return `/${(getAllSettings().cart_label || 'Cart').toLowerCase()}`;
       case 'search':     return '/search';
       case 'page':       return `/${slugs[0] ?? ''}`;
       default:           return '/';

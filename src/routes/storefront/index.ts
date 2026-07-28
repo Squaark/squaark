@@ -73,8 +73,12 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
   await accountRoutes(fastify, registry);
   await downloadRoutes(fastify);
 
-  // Read once at startup — changing cart_slug requires a server restart
-  const cartSlug = getAllSettings().cart_slug || 'cart';
+  // The cart word (Cart/Basket/Bag) is configurable, so its URL can be any of
+  // these. We register all three up front and let the templates link to
+  // whichever matches the current label — so changing the word takes effect
+  // immediately, with no server restart, and switching never 404s.
+  const CART_SLUGS = ['cart', 'basket', 'bag'];
+  const activeCartSlug = (): string => (getAllSettings().cart_label || 'Cart').toLowerCase();
 
   fastify.get('/', async (req, reply) => {
     const ctx = await base(req, reply, '/', registry);
@@ -143,14 +147,53 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
     });
   });
 
-  fastify.get(`/${cartSlug}`, async (req, reply) => {
+  // ── Cart page + operations ──────────────────────────────────────────────────
+  const cartPage = async (req: FastifyRequest, reply: FastifyReply) => {
     const [ctx, cart] = await Promise.all([
-      base(req, reply, `/${cartSlug}`, registry),
+      base(req, reply, `/${activeCartSlug()}`, registry),
       getCartPage(req.cartId),
     ]);
     const outOfStock = (req.query as { error?: string }).error === 'out_of_stock';
     await render(registry, reply, 'cart', { ...ctx, pageTitle: `Your ${ctx.store.cartLabel}`, cart, outOfStock });
-  });
+  };
+
+  const cartAdd = async (req: FastifyRequest, reply: FastifyReply) => {
+    const { variantId, quantity } = req.body as { variantId: string; quantity?: string };
+    try {
+      await addToCart(req.cartId, variantId, parseInt(quantity ?? '1', 10));
+    } catch {
+      // stock/variant errors are surfaced on the cart page itself
+    }
+    if (req.headers['hx-request']) {
+      const { itemCount } = await getCartSummary(req.cartId);
+      const badge = itemCount > 0
+        ? `<span id="cart-count" class="cart-badge">${itemCount}</span>`
+        : `<span id="cart-count" class="cart-badge" style="display:none"></span>`;
+      return reply.type('text/html').send(badge);
+    }
+    return reply.redirect(`/${activeCartSlug()}`);
+  };
+
+  const cartUpdate = async (req: FastifyRequest, reply: FastifyReply) => {
+    const { itemId, quantity } = req.body as { itemId: string; quantity: string };
+    await updateCartItem(req.cartId, itemId, parseInt(quantity, 10));
+    if (req.headers['hx-request']) return cartFragment(registry, req, reply);
+    return reply.redirect(`/${activeCartSlug()}`);
+  };
+
+  const cartRemove = async (req: FastifyRequest, reply: FastifyReply) => {
+    const { itemId } = req.params as { itemId: string };
+    await removeFromCart(req.cartId, itemId);
+    if (req.headers['hx-request']) return cartFragment(registry, req, reply);
+    return reply.redirect(`/${activeCartSlug()}`);
+  };
+
+  for (const slug of CART_SLUGS) {
+    fastify.get(`/${slug}`, cartPage);
+    fastify.post(`/${slug}/add`, cartAdd);
+    fastify.post(`/${slug}/update`, cartUpdate);
+    fastify.delete(`/${slug}/remove/:itemId`, cartRemove);
+  }
 
   fastify.get('/search', async (req, reply) => {
     const { q = '' } = req.query as { q?: string };
@@ -179,40 +222,6 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
       metaDescription: page.seo_description || page.excerpt || '',
       page: { ...page, sections },
     });
-  });
-
-  // ── Cart operations ────────────────────────────────────────────────────────
-
-  fastify.post(`/${cartSlug}/add`, async (req, reply) => {
-    const { variantId, quantity } = req.body as { variantId: string; quantity?: string };
-    try {
-      await addToCart(req.cartId, variantId, parseInt(quantity ?? '1', 10));
-    } catch {
-      // stock/variant errors — Phase 5 adds proper error display
-    }
-
-    if (req.headers['hx-request']) {
-      const { itemCount } = await getCartSummary(req.cartId);
-      const badge = itemCount > 0
-        ? `<span id="cart-count" class="cart-badge">${itemCount}</span>`
-        : `<span id="cart-count" class="cart-badge" style="display:none"></span>`;
-      return reply.type('text/html').send(badge);
-    }
-    return reply.redirect(`/${cartSlug}`);
-  });
-
-  fastify.post(`/${cartSlug}/update`, async (req, reply) => {
-    const { itemId, quantity } = req.body as { itemId: string; quantity: string };
-    await updateCartItem(req.cartId, itemId, parseInt(quantity, 10));
-    if (req.headers['hx-request']) return cartFragment(registry, req, reply);
-    return reply.redirect(`/${cartSlug}`);
-  });
-
-  fastify.delete(`/${cartSlug}/remove/:itemId`, async (req, reply) => {
-    const { itemId } = req.params as { itemId: string };
-    await removeFromCart(req.cartId, itemId);
-    if (req.headers['hx-request']) return cartFragment(registry, req, reply);
-    return reply.redirect(`/${cartSlug}`);
   });
 
   fastify.get('/robots.txt', async (_req, reply) => {

@@ -7,10 +7,11 @@ import { getAllSettings, setSetting } from '../../db/queries/admin';
 export interface NavItem { label: string; url: string }
 
 function defaultNavMain(settings: Record<string, string>): NavItem[] {
+  const cartLabel = settings.cart_label || 'Cart';
   return [
     { label: 'Home', url: '/' },
     { label: 'Shop', url: '/collections/all' },
-    { label: 'Cart', url: `/${settings.cart_slug || 'cart'}` },
+    { label: cartLabel, url: `/${cartLabel.toLowerCase()}` },
   ];
 }
 

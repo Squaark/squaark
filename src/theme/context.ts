@@ -186,7 +186,8 @@ export function buildGlobalContext(
       logo: settings.store_logo || null,
       icon: settings.store_icon || null,
       cartLabel: settings.cart_label || 'Cart',
-      cartSlug: settings.cart_slug || 'cart',
+      // URL follows the chosen word (Cart → /cart, Basket → /basket, Bag → /bag).
+      cartSlug: (settings.cart_label || 'Cart').toLowerCase(),
       customerAccountsEnabled: settings.customer_accounts_enabled !== '0',
       currency: {
         code: currencyCode,
