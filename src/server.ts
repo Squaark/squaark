@@ -1,4 +1,4 @@
-import Fastify, { type FastifyRequest, type FastifyReply } from 'fastify';
+import Fastify, { type FastifyRequest, type FastifyReply, type FastifyError } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyFormbody from '@fastify/formbody';
 import fastifyCookie from '@fastify/cookie';
@@ -51,7 +51,25 @@ async function build() {
     cookie: { secure: config.nodeEnv === 'production', httpOnly: true, sameSite: 'lax', maxAge: 8 * 60 * 60 * 1000 },
     saveUninitialized: false,
   });
-  await fastify.register(fastifyCsrf, { sessionPlugin: '@fastify/cookie' });
+  await fastify.register(fastifyCsrf, {
+    sessionPlugin: '@fastify/cookie',
+    // @fastify/multipart's content-type parser never populates req.body — the
+    // parts are only consumed lazily by req.file() inside the handler — so the
+    // plugin's default body lookup can't see the {{csrf_field}} hidden input on
+    // an upload form. Multipart forms therefore carry the token in the action's
+    // query string instead; everything else still uses the body. The token is
+    // base64url, so it needs no escaping in a URL.
+    getToken: (req: FastifyRequest) => {
+      const body = req.body as { _csrf?: string } | undefined;
+      const query = req.query as { _csrf?: string } | undefined;
+      return (
+        body?._csrf ||
+        query?._csrf ||
+        (req.headers['csrf-token'] as string | undefined) ||
+        (req.headers['x-csrf-token'] as string | undefined)
+      );
+    },
+  });
 
   await fastify.register(fastifyStatic, {
     root: path.resolve(process.cwd(), 'public'),
@@ -99,7 +117,7 @@ async function build() {
   });
 
   // ── Global error handler ───────────────────────────────────────────────────
-  fastify.setErrorHandler((err, req, reply) => {
+  fastify.setErrorHandler((err: FastifyError, req, reply) => {
     writeLog('error', 'error', err.message || 'Unhandled error', {
       url: req.url,
       method: req.method,
