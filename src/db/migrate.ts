@@ -4,6 +4,11 @@ import { db } from './connection';
 
 const MIGRATIONS_DIR = path.join(__dirname, 'migrations');
 
+/** The migration files this build ships — i.e. the schema version this code understands. */
+export function listMigrationFilenames(): string[] {
+  return readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.sql')).sort();
+}
+
 /** Applies any migration files not yet recorded in the `migrations` table. Safe to call on every boot. */
 export function runMigrations(): void {
   db.exec(`

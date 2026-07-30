@@ -2,8 +2,13 @@ import Database, { type Database as BetterSqliteDatabase } from 'better-sqlite3'
 import { mkdirSync } from 'fs';
 import path from 'path';
 import config from '../config';
+import { applyPendingImport } from './pending-import';
 
 mkdirSync(path.dirname(config.databasePath), { recursive: true });
+
+// A store import staged before the last restart is swapped in here, before the
+// connection opens — never while the app holds the database open.
+applyPendingImport();
 
 export const db: BetterSqliteDatabase = new Database(config.databasePath);
 

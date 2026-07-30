@@ -4,9 +4,12 @@ import { render } from '../../admin/render';
 import { getAllSettings, setSetting, getSetting } from '../../db/queries/admin';
 import { getAdminById } from '../../admin/auth';
 import { saveStoreMedia, type StoreMediaSlot } from '../../admin/store-media';
+import { exportStore, stageStoreImport } from '../../admin/store-transfer';
 import { sendTestEmail } from '../../email/send';
 import { listRecentEmailLog } from '../../db/queries/email';
 import { listLogs } from '../../db/queries/system-log';
+import { createReadStream } from 'fs';
+import fs from 'fs';
 import Handlebars from 'handlebars';
 
 // Settings keys holding secrets: the form always renders these blank (see
@@ -29,6 +32,8 @@ export async function settingsRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post('/settings/restart', restartServer);
   fastify.post('/settings/media/:slot/remove', removeMedia);
   fastify.post('/settings/tax', taxSettingsSave);
+  fastify.get('/settings/export', exportStoreHandler);
+  fastify.post('/settings/import', importStoreHandler);
 }
 
 async function settingsPage(req: FastifyRequest, reply: FastifyReply) {
@@ -169,4 +174,47 @@ async function restartServer(_req: FastifyRequest, reply: FastifyReply) {
   reply.code(200).send({ ok: true });
   // Allow the response to flush before exiting — process manager handles the restart
   setTimeout(() => process.exit(0), 300);
+}
+
+async function exportStoreHandler(
+  req: FastifyRequest<{ Querystring: { digital?: string } }>,
+  reply: FastifyReply,
+) {
+  const includeDigitalFiles = req.query.digital === '1';
+  const { zipPath, dir, filename } = await exportStore({ includeDigitalFiles });
+  const stream = createReadStream(zipPath);
+  const cleanup = () => fs.rmSync(dir, { recursive: true, force: true });
+  stream.on('close', cleanup);
+  stream.on('error', cleanup);
+  reply.header('Content-Type', 'application/zip');
+  reply.header('Content-Disposition', `attachment; filename="${filename}"`);
+  return reply.send(stream);
+}
+
+async function importStoreHandler(req: FastifyRequest, reply: FastifyReply) {
+  // A whole-store export can be very large (all product images, digital files),
+  // so lift the per-file limit well above the global multipart cap.
+  const data = await req.file({ limits: { fileSize: 5 * 1024 * 1024 * 1024 } });
+  if (!data) return reply.redirect('/admin/settings?error=No+file+uploaded#server');
+
+  try {
+    const buffer = await data.toBuffer();
+    const { manifest } = await stageStoreImport(buffer);
+    // The current DB is about to be replaced by the import, so log to stdout
+    // (survives the restart) rather than the soon-to-be-overwritten DB.
+    console.log('Store import staged — restarting to apply.', JSON.stringify(manifest.counts));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Import failed';
+    return reply.redirect(`/admin/settings?error=${encodeURIComponent(msg)}#server`);
+  }
+
+  // Staged successfully — restart so pending-import applies it before the DB
+  // reopens. Show a self-refreshing page since /admin is briefly unavailable.
+  reply.type('text/html').send(`<!doctype html><html><head><meta charset="utf-8">
+<title>Importing store…</title><meta http-equiv="refresh" content="8; url=/admin">
+<style>body{font-family:-apple-system,system-ui,sans-serif;max-width:32rem;margin:6rem auto;padding:0 1.5rem;color:#374151;text-align:center}</style>
+</head><body><h1 style="font-size:1.25rem">Importing your store…</h1>
+<p>The server is restarting to apply the import. This page will reload automatically — if it doesn't, <a href="/admin">click here</a> in a few seconds.</p>
+</body></html>`);
+  setTimeout(() => process.exit(0), 600);
 }

@@ -84,11 +84,12 @@ async function build() {
     decorateReply: false,
   });
 
-  // Serve uploaded product images
-  const uploadsDir = path.resolve(process.cwd(), 'uploads');
-  fs.mkdirSync(uploadsDir, { recursive: true });
+  // Serve uploaded product images. Use config.uploadsDir (honours UPLOADS_DIR)
+  // so serving matches where uploads are written, exported and imported — a
+  // hardcoded cwd/uploads would 404 whenever UPLOADS_DIR points elsewhere.
+  fs.mkdirSync(config.uploadsDir, { recursive: true });
   await fastify.register(fastifyStatic, {
-    root: uploadsDir,
+    root: config.uploadsDir,
     prefix: '/uploads/',
     decorateReply: false,
   });
