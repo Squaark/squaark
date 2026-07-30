@@ -7,4 +7,10 @@ backups/
 *.local
 *.db
 *.log
-.env.deploy
+
+# Themes uploaded through the admin extract into themes/<slug> at runtime and
+# are store data, not source — keep them out of git so `git pull` never fights
+# with them. Only themes bundled with the repo are tracked (add a new
+# `!themes/<name>/` line for each one you ship in-repo).
+themes/*
+!themes/linen/

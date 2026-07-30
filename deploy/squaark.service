@@ -1,0 +1,28 @@
+[Unit]
+Description=Squaark storefront
+After=network.target
+
+[Service]
+Type=simple
+
+# ── EDIT THESE for your server ───────────────────────────────────────────────
+# The Linux user that owns the checkout, and the absolute path to the repo.
+User=squaark
+WorkingDirectory=/home/squaark/squaark
+# Path to node. Run `which node` on the server and set it here. If you installed
+# Node via nvm it will NOT be /usr/bin/node — use the full nvm path instead.
+ExecStart=/usr/bin/node dist/server.js
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Forced here so a stray NODE_ENV=development in .env can't accidentally run the
+# store with insecure cookies. dotenv loads the rest of .env from
+# WorkingDirectory and does not override variables already set by systemd.
+Environment=NODE_ENV=production
+
+Restart=on-failure
+RestartSec=5
+# Basic hardening — the process never needs elevated privileges.
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
