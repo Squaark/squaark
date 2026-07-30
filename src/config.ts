@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import path from 'path';
 
 const DEV_DEFAULT_SESSION_SECRET = 'dev-secret-change-in-production-min32chars!';

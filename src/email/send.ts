@@ -12,6 +12,14 @@ export async function sendTemplatedEmail(
   const transport = getActiveTransport(settings);
   const { subject, html } = renderEmailTemplate(templateKey, data);
 
+  // A live provider with no sender address produces `From: Name <>`, which SMTP
+  // servers reject with an opaque error. Fail with an actionable one instead.
+  if (transport.id !== 'console' && !settings.fromAddress) {
+    const error = 'No sender address configured — set "Email from address" (or Store email) in Settings → Email.';
+    logEmailAttempt({ templateKey, to, subject, provider: transport.id, status: 'failed', error });
+    throw new Error(error);
+  }
+
   try {
     await transport.send({ to, from: settings.fromAddress, fromName: settings.fromName, subject, html });
     logEmailAttempt({ templateKey, to, subject, provider: transport.id, status: 'sent' });
@@ -27,6 +35,12 @@ export async function sendTestEmail(to: string, subject: string, body: string): 
   const settings = getEmailSettings();
   const transport = getActiveTransport(settings);
   const { html } = renderEmailPreview(subject, body, { store: { name: settings.fromName } });
+
+  if (transport.id !== 'console' && !settings.fromAddress) {
+    const error = 'No sender address configured — set "Email from address" (or Store email) in Settings → Email.';
+    logEmailAttempt({ templateKey: null, to, subject, provider: transport.id, status: 'failed', error });
+    throw new Error(error);
+  }
 
   try {
     await transport.send({ to, from: settings.fromAddress, fromName: settings.fromName, subject, html });

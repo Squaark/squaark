@@ -17,7 +17,7 @@
     </thead>
     <tbody>
       {{#each orders}}
-      <tr>
+      <tr class="row-link" style="cursor:pointer" onclick="location.href='/admin/orders/{{this.id}}'">
         <td class="cell-title">
           <a href="/admin/orders/{{this.id}}">#{{this.order_number}}</a>
         </td>
