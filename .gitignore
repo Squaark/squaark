@@ -3,7 +3,8 @@ dist/
 uploads/
 data/
 backups/
-.env
+.env*
+!.env.example
 *.local
 *.db
 *.log
