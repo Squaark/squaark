@@ -63,6 +63,23 @@ interface PendingPaypalOrder {
   currency: string;
 }
 
+/**
+ * Collapses a possibly-duplicated query/body field to one usable string.
+ *
+ * A form or hx-include can send the same name twice (the checkout page had two
+ * elements called "country"), and Fastify parses duplicate keys into an array.
+ * An array then silently fails every `codes.includes(country)` zone lookup, so
+ * shipping fell through to the wildcard "rest of world" zone — and `.trim()` on
+ * an array would throw outright. Take the first non-empty value.
+ */
+function one(v: unknown): string {
+  if (Array.isArray(v)) {
+    const hit = v.find((x) => typeof x === 'string' && x.trim() !== '');
+    return typeof hit === 'string' ? hit.trim() : '';
+  }
+  return typeof v === 'string' ? v.trim() : '';
+}
+
 function parseAddress(body: Record<string, string>): Address {
   return {
     firstName: body.firstName?.trim() ?? '',
@@ -72,7 +89,7 @@ function parseAddress(body: Record<string, string>): Address {
     city: body.city?.trim() ?? '',
     county: body.county?.trim() || undefined,
     postcode: body.postcode?.trim() ?? '',
-    country: body.country?.trim() ?? '',
+    country: one(body.country),
     phone: body.phone?.trim() || undefined,
   };
 }
@@ -118,7 +135,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
 
   // GET /checkout/shipping-rates — htmx fragment: rate options for a given country
   fastify.get('/checkout/shipping-rates', async (req, reply) => {
-    const { country = '' } = req.query as { country?: string };
+    const country = one((req.query as { country?: unknown }).country);
     const cart = await getCartPage(req.cartId);
     const settings = getAllSettings();
     const currencyCode = settings.store_currency ?? 'GBP';
@@ -133,9 +150,15 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
         ? [{ id: 'free_shipping_product', name: 'Free Shipping', amount: 0, isFree: true }]
         : getRatesForCountry(country, cart.subtotal.amount - (cart.discountAmount?.amount ?? 0));
 
+    // Return the body rather than calling reply.send() by hand. reply.sent is
+    // `raw.writableEnded`, and both onSend hooks are async, so a hand-send only
+    // *starts* the write: when this async handler then resolves in the same tick
+    // Fastify still sees sent === false and sends a SECOND time. The duplicate
+    // onSend chain hits writeHead twice, and ERR_HTTP_HEADERS_SENT thrown inside
+    // a promise took the whole process down on every checkout page load.
     if (!rates.length) {
-      reply.type('text/html').send('');
-      return;
+      reply.type('text/html');
+      return '';
     }
 
     const html = rates.map((r, i) => {
@@ -149,7 +172,8 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
 </label>`;
     }).join('\n');
 
-    reply.type('text/html').send(html);
+    reply.type('text/html');
+    return html;
   });
 
   // POST /checkout — create Stripe session and redirect

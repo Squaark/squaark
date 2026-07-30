@@ -27,7 +27,14 @@ const SKIP_EXT   = /\.(js|css|ico|png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf|map)$
 import './types';
 
 async function build() {
-  const fastify = Fastify({ logger: true });
+  // trustProxy: the app runs behind Caddy, which terminates TLS and forwards
+  // plain HTTP to loopback. Without this, request.protocol is 'http', and
+  // @fastify/session refuses to persist a session whose cookie is marked
+  // `secure` — so every login would silently fail in production. It also makes
+  // request.ip the real client address rather than the proxy's, which the rate
+  // limiter and analytics both depend on. Safe because HOST binds to loopback,
+  // so only the proxy can reach the app and forge X-Forwarded-* headers.
+  const fastify = Fastify({ logger: true, trustProxy: true });
 
   // ── Security headers ───────────────────────────────────────────────────────
   // SAMEORIGIN (not DENY) because the theme customiser embeds the storefront

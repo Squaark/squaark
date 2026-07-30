@@ -47,14 +47,22 @@ async function cartFragment(
   registry: ThemeRegistry,
   req: FastifyRequest,
   reply: FastifyReply,
-): Promise<void> {
+): Promise<string> {
   const cart = await getCartPage(req.cartId);
+  // `store` is required: cart-contents.hbs builds its own hx-post/hx-delete URLs
+  // from {{../store.cartSlug}}. Without it the re-rendered buttons collapse to
+  // "//update" and "//remove/<id>", which a browser reads as protocol-relative
+  // URLs pointing at a host called "update"/"remove" — so after the first htmx
+  // swap every quantity change and Remove click silently went nowhere.
+  const global = buildGlobalContext(req.url.split('?')[0], registry.currentThemeConfig);
   const html = await registry.currentEngine.render('partials/cart-contents', {
+    ...global,
     cart,
     csrfToken: reply.generateCsrf(),
     cssVars: registry.currentCssVars,
   });
-  reply.type('text/html').send(html);
+  reply.type('text/html');
+  return html;
 }
 
 export async function storefrontRoutes(fastify: FastifyInstance, registry: ThemeRegistry): Promise<void> {
@@ -169,7 +177,8 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
       const badge = itemCount > 0
         ? `<span id="cart-count" class="cart-badge">${itemCount}</span>`
         : `<span id="cart-count" class="cart-badge" style="display:none"></span>`;
-      return reply.type('text/html').send(badge);
+      reply.type('text/html');
+      return badge;
     }
     return reply.redirect(`/${activeCartSlug()}`);
   };
