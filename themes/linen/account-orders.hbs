@@ -28,7 +28,7 @@
 
   {{#unless emailVerified}}
   <div class="order-table-empty">
-    <p style="margin-bottom:1rem;">Please verify your email address to view your order history. Check your inbox for a verification link.</p>
+    <p style="margin-bottom:1rem;">Please verify your email address to view your order history. Check your inbox — and your spam or junk folder — for a verification link.</p>
     <form method="POST" action="/account/verify/resend">
       {{csrf_field}}
       <button type="submit" class="btn">Resend verification email</button>

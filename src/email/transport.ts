@@ -3,6 +3,7 @@ import type { EmailSettings, EmailTransport } from './types';
 import { consoleTransport } from './transports/console';
 import { createSmtpTransport } from './transports/smtp';
 import { createResendTransport } from './transports/resend';
+import { createDirectTransport } from './transports/direct';
 
 export function getEmailSettings(): EmailSettings {
   const s = getAllSettings();
@@ -25,6 +26,8 @@ export function getActiveTransport(settings: EmailSettings = getEmailSettings())
       return createSmtpTransport(settings);
     case 'resend':
       return createResendTransport(settings);
+    case 'direct':
+      return createDirectTransport(settings);
     default:
       return consoleTransport;
   }
