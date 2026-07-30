@@ -60,7 +60,7 @@
                 hx-get="/checkout/shipping-rates"
                 hx-trigger="change, load"
                 hx-target="#shipping-rate-options"
-                hx-include="[name='country']"
+                hx-include="#country"
                 @htmx:after-settle="$dispatch('shipping-rates-loaded')">
                 <option value="GB" selected>United Kingdom</option>
                 <option value="US">United States</option>

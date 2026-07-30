@@ -25,19 +25,19 @@
             {{/unless}}
             <p class="success-item__qty">Qty {{this.quantity}}</p>
           </div>
-          <p class="success-item__price">{{money this.line_total}}</p>
+          <p class="success-item__price">{{pence this.line_total}}</p>
         </div>
       {{/each}}
     </div>
     <div class="success-total">
       <span>Total</span>
-      <span>{{money order.total}}</span>
+      <span>{{pence order.total}}</span>
     </div>
     {{#if taxEnabled}}
       {{#if order.tax_amount}}
         <div class="success-tax">
           <span>{{taxLabel}} included</span>
-          <span>{{money order.tax_amount}}</span>
+          <span>{{pence order.tax_amount}}</span>
         </div>
         {{#if taxNumber}}
           <p class="success-tax-number">{{taxLabel}} No. {{taxNumber}}</p>
