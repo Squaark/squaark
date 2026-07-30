@@ -24,8 +24,13 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 # ── Config ───────────────────────────────────────────────────────────────────
+# .env.deploy supplies the connection details, but anything already set in the
+# environment wins over it — otherwise `DEPLOY_HOST=staging ./deploy.sh` would
+# silently deploy to whatever host the file names instead.
+_overrides="$(export -p | grep -E '^declare -x (DEPLOY_[A-Z_]+|SSH_KEY|HEALTH_URL|REMOTE_NODE_BIN)=' || true)"
 # shellcheck disable=SC1091
 [ -f .env.deploy ] && source .env.deploy
+[ -n "$_overrides" ] && eval "$_overrides"
 
 DEPLOY_HOST="${DEPLOY_HOST:-}"
 DEPLOY_USER="${DEPLOY_USER:-squaark}"
@@ -33,6 +38,11 @@ DEPLOY_PATH="${DEPLOY_PATH:-/opt/squaark}"
 DEPLOY_SERVICE="${DEPLOY_SERVICE:-squaark}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3000/health}"
 SSH_KEY="${SSH_KEY:-}"
+# Directory holding the node/npm the SERVICE runs. A login shell's default node
+# is often a different, older version than the one in the systemd unit, and
+# building against the wrong one is how you get native-module and tooling
+# failures that never reproduce locally.
+REMOTE_NODE_BIN="${REMOTE_NODE_BIN:-}"
 
 DRY_RUN=0
 SKIP_TESTS=0
@@ -108,6 +118,12 @@ fi
 # --delete-excluded is deliberately NOT used. rsync protects excluded paths from
 # deletion, and that is the only thing standing between this script and the live
 # database, customer uploads, backups and .env. Do not add it.
+# --no-owner/--no-group/--no-perms: without these, rsync running as root stamps
+# every file AND the deploy directory itself with your laptop's uid/gid/mode.
+# uid 501 does not exist on the server, which breaks both the service and any
+# attempt to read the intended owner back off the filesystem.
+RSYNC_OWNERSHIP=(--no-owner --no-group --no-perms)
+
 RSYNC_EXCLUDES=(
   --exclude '.git'
   --exclude '.github'
@@ -128,7 +144,7 @@ if [ "$DRY_RUN" -eq 1 ]; then
   step "Dry run — changes rsync would make on the server"
   rsync -az --delete --itemize-changes --dry-run \
     -e "$SSH_CMD" \
-    "${RSYNC_EXCLUDES[@]}" ./ "$TARGET:$DEPLOY_PATH/"
+    "${RSYNC_OWNERSHIP[@]}" "${RSYNC_EXCLUDES[@]}" ./ "$TARGET:$DEPLOY_PATH/"
   echo
   info "${DIM}nothing was changed${RESET}"
   exit 0
@@ -139,12 +155,31 @@ step "Syncing source"
 # as "rsync 2.6.9 compatible" and rejects the newer --info flag.
 rsync -az --delete --stats \
   -e "$SSH_CMD" \
-  "${RSYNC_EXCLUDES[@]}" ./ "$TARGET:$DEPLOY_PATH/"
+  "${RSYNC_OWNERSHIP[@]}" "${RSYNC_EXCLUDES[@]}" ./ "$TARGET:$DEPLOY_PATH/"
 
 # ── Build and restart ────────────────────────────────────────────────────────
 step "Building and restarting on the server"
-remote "DEPLOY_PATH='$DEPLOY_PATH' DEPLOY_SERVICE='$DEPLOY_SERVICE' bash -euo pipefail -s" <<'REMOTE'
+remote "DEPLOY_PATH='$DEPLOY_PATH' DEPLOY_SERVICE='$DEPLOY_SERVICE' REMOTE_NODE_BIN='$REMOTE_NODE_BIN' bash -euo pipefail -s" <<'REMOTE'
 cd "$DEPLOY_PATH"
+
+# Build with the same Node the service runs under. Without this the deploy uses
+# whatever node is first on a non-interactive shell's PATH, which on this box is
+# older than the unit's and segfaults tsx during the backup step.
+if [ -n "$REMOTE_NODE_BIN" ]; then
+  export PATH="$REMOTE_NODE_BIN:$PATH"
+fi
+NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
+if [ "$NODE_MAJOR" -lt 22 ]; then
+  echo "    node $(node --version) is too old (package.json needs >=22)." >&2
+  echo "    Set REMOTE_NODE_BIN in .env.deploy to the bin dir of the node the service uses." >&2
+  exit 1
+fi
+echo "    node $(node --version) at $(command -v node)"
+
+# Already root (DEPLOY_USER=root) means sudo is redundant, and lean server
+# images often don't ship it at all. Only reach for it when we actually need it.
+SUDO=""
+[ "$(id -u)" -eq 0 ] || SUDO="sudo"
 
 # Full install first — `npm run build` needs typescript, a devDependency.
 # Native modules compile here, against this machine's Node and libc.
@@ -164,8 +199,23 @@ npm run build
 # weight at runtime.
 npm prune --omit=dev
 
+# npm ci/build ran as the SSH user, which is not necessarily the account systemd
+# runs the app as, and the app writes into themes/ and uploads/ at runtime. Read
+# the target owner from the unit rather than off the filesystem: the filesystem
+# is exactly what a bad deploy corrupts, so it cannot be the source of truth.
+SVC_USER="$(systemctl show "$DEPLOY_SERVICE" -p User --value)"
+SVC_GROUP="$(systemctl show "$DEPLOY_SERVICE" -p Group --value)"
+[ -n "$SVC_USER" ]  || SVC_USER=root
+[ -n "$SVC_GROUP" ] || SVC_GROUP="$SVC_USER"
+echo "    setting owner to $SVC_USER:$SVC_GROUP"
+chown -R "$SVC_USER:$SVC_GROUP" "$DEPLOY_PATH"
+
+# Repeated fast failures trip systemd's start-rate limit, after which it refuses
+# to start at all until the counter is cleared.
+$SUDO systemctl reset-failed "$DEPLOY_SERVICE" 2>/dev/null || true
+
 echo "    restarting $DEPLOY_SERVICE"
-sudo systemctl restart "$DEPLOY_SERVICE"
+$SUDO systemctl restart "$DEPLOY_SERVICE"
 REMOTE
 
 # ── Verify ───────────────────────────────────────────────────────────────────
@@ -174,6 +224,9 @@ REMOTE
 # up AND the database is reachable.
 step "Verifying health"
 if remote "DEPLOY_SERVICE='$DEPLOY_SERVICE' HEALTH_URL='$HEALTH_URL' bash -euo pipefail -s" <<'REMOTE'
+SUDO=""
+[ "$(id -u)" -eq 0 ] || SUDO="sudo"
+
 for i in $(seq 1 15); do
   if curl -fsS --max-time 5 "$HEALTH_URL" > /dev/null 2>&1; then
     echo "    healthy after ${i}s"
@@ -182,7 +235,7 @@ for i in $(seq 1 15); do
   sleep 1
 done
 echo "    /health did not return 200 within 15s — last 50 journal lines:" >&2
-sudo journalctl -u "$DEPLOY_SERVICE" -n 50 --no-pager >&2
+$SUDO journalctl -u "$DEPLOY_SERVICE" -n 50 --no-pager >&2
 exit 1
 REMOTE
 then
