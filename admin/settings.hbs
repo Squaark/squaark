@@ -134,6 +134,7 @@
               <div>
                 <label class="form-label">Port</label>
                 <input type="number" name="smtp_port" value="{{settings.smtp_port}}" class="form-input">
+                <p class="form-hint">465 = TLS, 587 = STARTTLS (most common). The port sets the encryption automatically.</p>
               </div>
             </div>
             <div>
@@ -148,7 +149,7 @@
             </div>
             <label class="form-check">
               <input type="checkbox" name="smtp_secure" value="1" {{#if (eq settings.smtp_secure '1')}}checked{{/if}}>
-              <span class="text-sm">Use TLS (port 465 yes, port 587 no)</span>
+              <span class="text-sm">Force TLS — only used for non-standard ports (465/587/25 are handled automatically)</span>
             </label>
           </div>
         </div>
