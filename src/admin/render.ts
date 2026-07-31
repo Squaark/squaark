@@ -20,8 +20,11 @@ function loadPartials() {
 
 loadPartials();
 
-hbs.registerHelper('csrf_field', function (this: { csrfToken?: string }) {
-  const token = Handlebars.escapeExpression(this.csrfToken ?? '');
+hbs.registerHelper('csrf_field', function (this: { csrfToken?: string }, options: Handlebars.HelperOptions) {
+  // Fall back to the root context — inside an {{#each}} block `this` is the loop
+  // item, which has no csrfToken, so a naive `this.csrfToken` would render an
+  // empty token and every form in the loop would fail the CSRF check.
+  const token = Handlebars.escapeExpression(this?.csrfToken ?? options?.data?.root?.csrfToken ?? '');
   return new Handlebars.SafeString(`<input type="hidden" name="_csrf" value="${token}">`);
 });
 
