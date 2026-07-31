@@ -2,6 +2,7 @@ import Handlebars from 'handlebars';
 import fs from 'fs';
 import path from 'path';
 import type { FastifyReply } from 'fastify';
+import { getCachedUpdateStatus } from './updates';
 
 const ADMIN_VIEWS = path.resolve(process.cwd(), 'admin');
 
@@ -120,7 +121,8 @@ hbs.registerHelper('status_badge', (status: string) => {
  */
 export async function render(template: string, context: Record<string, unknown>, reply: FastifyReply): Promise<string> {
   const csrfToken = await reply.generateCsrf();
-  const fullContext = { ...context, csrfToken };
+  // Cached (never blocks) — powers the "update available" banner in the layout.
+  const fullContext = { ...context, csrfToken, update: getCachedUpdateStatus() };
 
   const file = path.join(ADMIN_VIEWS, `${template}.hbs`);
   const src = fs.readFileSync(file, 'utf-8');
