@@ -25,6 +25,18 @@ export function resolveSmtpSecurity(port: number, secureFlag: boolean): SmtpSecu
   return { secure: secureFlag, requireTLS: false };
 }
 
+/**
+ * App passwords (Gmail, Yahoo, Outlook, iCloud, Fastmail…) are shown grouped
+ * with spaces for readability — "abcd efgh ijkl mnop" — but the actual
+ * credential is the 16 characters with no spaces. Pasted verbatim, the spaces
+ * get sent over SMTP AUTH and the login is rejected (535 BadCredentials). Real
+ * SMTP passwords don't contain whitespace, so stripping it is safe and fixes
+ * the most common "app password still doesn't work" case.
+ */
+export function normalizeSmtpPassword(pass: string): string {
+  return pass.replace(/\s+/g, '');
+}
+
 export function createSmtpTransport(settings: EmailSettings): EmailTransport {
   const { secure, requireTLS } = resolveSmtpSecurity(settings.smtpPort, settings.smtpSecure);
 
@@ -39,7 +51,9 @@ export function createSmtpTransport(settings: EmailSettings): EmailTransport {
     connectionTimeout: 15_000,
     greetingTimeout: 10_000,
     socketTimeout: 20_000,
-    auth: settings.smtpUser ? { user: settings.smtpUser, pass: settings.smtpPass } : undefined,
+    auth: settings.smtpUser
+      ? { user: settings.smtpUser.trim(), pass: normalizeSmtpPassword(settings.smtpPass) }
+      : undefined,
   });
 
   return {
