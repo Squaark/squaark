@@ -85,6 +85,12 @@
 
     <!-- Main content -->
     <main class="admin-main">
+      {{#if update.updateAvailable}}
+      <div style="background:#eff6ff;border-bottom:1px solid #bfdbfe;padding:0.6rem 1.5rem;font-size:0.85rem;color:#1e40af;display:flex;align-items:center;justify-content:center;gap:0.75rem;flex-wrap:wrap;">
+        <span>⬆︎ An update is available — you're <strong>{{update.behind}}</strong> commit{{#unless (eq update.behind 1)}}s{{/unless}} behind.</span>
+        <a href="https://github.com/Squaark/squaark/compare/{{update.currentSha}}...master" target="_blank" rel="noopener" style="color:#1d4ed8;text-decoration:underline;">See what's changed</a>
+      </div>
+      {{/if}}
       <div class="{{#if fullWidth}}{{else}}admin-content{{/if}}">
         {{{body}}}
       </div>
