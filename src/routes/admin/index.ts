@@ -15,6 +15,7 @@ import { navigationRoutes } from './navigation';
 import { usersRoutes } from './users';
 import { shippingRoutes } from './shipping';
 import { taxRoutes } from './tax';
+import { discountRoutes } from './discounts';
 import { countOrders } from '../../db/queries/orders';
 import { getAllSettings } from '../../db/queries/admin';
 import { queryOne } from '../../db/connection';
@@ -53,6 +54,7 @@ export async function adminRoutes(fastify: FastifyInstance): Promise<void> {
       await app.register(orderRoutes);
       await app.register(shippingRoutes);
       await app.register(taxRoutes);
+      await app.register(discountRoutes);
 
       // Admin-only areas: staff accounts are blocked here, again via plugin
       // encapsulation rather than string-matching the request path.

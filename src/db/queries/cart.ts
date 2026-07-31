@@ -40,6 +40,14 @@ export function findCart(cartId: string): CartRow | null {
   );
 }
 
+export function setCartDiscount(cartId: string, code: string): void {
+  execute('UPDATE carts SET discount_code = ? WHERE id = ?', [code.trim().toUpperCase(), cartId]);
+}
+
+export function clearCartDiscount(cartId: string): void {
+  execute('UPDATE carts SET discount_code = NULL, discount_amount = 0 WHERE id = ?', [cartId]);
+}
+
 export function findCartItems(cartId: string): CartItemRow[] {
   return query<CartItemRow>(`
     SELECT
