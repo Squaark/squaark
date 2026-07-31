@@ -6,21 +6,26 @@ export interface AdminUserRow {
   password_hash: string;
   name: string;
   role: 'admin' | 'staff';
+  two_factor_enabled: number;
   created_at: string;
 }
 
 export function findAdminByEmail(email: string): AdminUserRow | null {
   return queryOne<AdminUserRow>(
-    'SELECT id, email, password_hash, name, role, created_at FROM admin_users WHERE email = ?',
+    'SELECT id, email, password_hash, name, role, two_factor_enabled, created_at FROM admin_users WHERE email = ?',
     [email],
   );
 }
 
 export function findAdminById(id: string): AdminUserRow | null {
   return queryOne<AdminUserRow>(
-    'SELECT id, email, password_hash, name, role, created_at FROM admin_users WHERE id = ?',
+    'SELECT id, email, password_hash, name, role, two_factor_enabled, created_at FROM admin_users WHERE id = ?',
     [id],
   );
+}
+
+export function setAdminTwoFactor(id: string, enabled: boolean): void {
+  execute('UPDATE admin_users SET two_factor_enabled = ?, updated_at = datetime(\'now\') WHERE id = ?', [enabled ? 1 : 0, id]);
 }
 
 export function listAdminUsers(): AdminUserRow[] {

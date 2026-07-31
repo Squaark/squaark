@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enter your code — Squaark</title>
+  <link rel="stylesheet" href="/public/admin.css">
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-card__header">
+        <h1 class="auth-card__title">Squaark</h1>
+        <p class="auth-card__sub">Two-factor authentication</p>
+      </div>
+      <div class="auth-card__body">
+        {{#if error}}<div class="alert alert-error">{{error}}</div>{{/if}}
+        {{#if resent}}<div class="alert alert-success">A new code is on its way.</div>{{/if}}
+        <p class="text-sm text-muted" style="margin-bottom:1rem;">We've emailed a 6-digit code. Enter it below to finish signing in — it expires in 10 minutes.</p>
+        <form method="POST" action="/admin/2fa" class="auth-form">
+          {{csrf_field}}
+          <div>
+            <label class="form-label">Code</label>
+            <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*"
+              maxlength="6" required autofocus class="form-input font-mono" style="letter-spacing:0.3em;text-align:center;font-size:1.25rem;">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Verify</button>
+        </form>
+        <form method="POST" action="/admin/2fa/resend" style="margin-top:0.75rem;text-align:center;">
+          {{csrf_field}}
+          <button type="submit" class="btn-link btn-link--sm">Didn't get it? Resend code</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
