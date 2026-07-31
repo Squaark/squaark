@@ -170,6 +170,13 @@ export function markOrderPaid(orderId: string, paymentReference: string): boolea
         WHERE oi.order_id = ? AND oi.variant_id IS NOT NULL AND p.is_digital = 0
       )
     `).run(orderId, orderId);
+
+    // Count a discount code's use once the order is actually paid (not on the
+    // abandoned pending order), so usage limits reflect real redemptions.
+    const dc = db.prepare('SELECT discount_code FROM orders WHERE id = ?').get(orderId) as { discount_code: string | null };
+    if (dc?.discount_code) {
+      db.prepare('UPDATE discounts SET times_used = times_used + 1 WHERE code = ?').run(dc.discount_code);
+    }
     return true;
   });
 }

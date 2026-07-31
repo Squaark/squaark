@@ -1,0 +1,46 @@
+<div class="page-header">
+  <h1 class="page-title">Discounts</h1>
+  <a href="/admin/discounts/new" class="btn btn-primary">Add discount</a>
+</div>
+
+{{#if saved}}<div class="alert alert-success">Saved.</div>{{/if}}
+
+<div class="card">
+  {{#if discounts.length}}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Discount</th>
+          <th>Status</th>
+          <th class="right">Used</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each discounts}}
+        <tr>
+          <td><a href="/admin/discounts/{{this.id}}" class="cell-title font-mono">{{this.code}}</a></td>
+          <td class="text-sm">
+            {{#if (eq this.type 'percentage')}}{{this.value}}% off{{else}}{{money_pence this.value}} off{{/if}}
+            {{#if this.min_subtotal}}<span class="text-muted"> · min {{money_pence this.min_subtotal}}</span>{{/if}}
+          </td>
+          <td>
+            {{#if this.active}}<span class="badge badge-green">Active</span>{{else}}<span class="badge badge-gray">Inactive</span>{{/if}}
+          </td>
+          <td class="right text-sm">
+            {{this.times_used}}{{#if this.usage_limit}} / {{this.usage_limit}}{{/if}}
+          </td>
+          <td class="right"><a href="/admin/discounts/{{this.id}}" class="btn-link btn-link--xs">Edit</a></td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  {{else}}
+    <div class="empty-state">
+      <p>No discount codes yet.</p>
+      <p class="text-sm text-muted">Create a code customers can enter at the cart — a percentage or fixed amount off, with optional minimum spend, expiry and usage limit.</p>
+      <a href="/admin/discounts/new" class="btn btn-primary mt-4">Add first discount</a>
+    </div>
+  {{/if}}
+</div>

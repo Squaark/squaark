@@ -1,0 +1,85 @@
+<div class="page-header__left mb-6">
+  <a href="/admin/discounts" class="page-back">← Discounts</a>
+  <h1 class="page-title">{{#if discount}}{{discount.code}}{{else}}New discount{{/if}}</h1>
+</div>
+
+{{#if error}}<div class="alert alert-error mb-4">{{error}}</div>{{/if}}
+
+<form method="POST" action="{{#if discount}}/admin/discounts/{{discount.id}}{{else}}/admin/discounts{{/if}}"
+      x-data="{ type: '{{#if form.type}}{{form.type}}{{else}}percentage{{/if}}' }">
+  {{csrf_field}}
+  <div class="grid-form">
+    <div class="stack">
+      <div class="card--no-overflow card-body stack-sm">
+        <div>
+          <label class="form-label">Code</label>
+          <input type="text" name="code" value="{{form.code}}" placeholder="e.g. WELCOME10"
+            class="form-input font-mono" style="text-transform:uppercase;" required autofocus>
+          <p class="form-hint">What customers type at the cart. Case-insensitive.</p>
+        </div>
+
+        <div class="form-row form-row--2">
+          <div>
+            <label class="form-label">Type</label>
+            <select name="type" x-model="type" class="form-select">
+              <option value="percentage" {{#if (eq form.type 'percentage')}}selected{{/if}}>Percentage off</option>
+              <option value="fixed" {{#if (eq form.type 'fixed')}}selected{{/if}}>Fixed amount off</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label"><span x-show="type === 'percentage'">Percent (%)</span><span x-show="type === 'fixed'" x-cloak>Amount</span></label>
+            <input type="number" name="value" value="{{form.value}}" min="0" step="0.01"
+              placeholder="10" class="form-input">
+            <p class="form-hint"><span x-show="type === 'percentage'">A whole number, 1–100.</span><span x-show="type === 'fixed'" x-cloak>The amount off, in your store currency (e.g. 5.00).</span></p>
+          </div>
+        </div>
+
+        <div class="form-row form-row--2">
+          <div>
+            <label class="form-label">Minimum spend <span class="form-optional">(optional)</span></label>
+            <input type="number" name="min_subtotal" value="{{form.min_subtotal}}" min="0" step="0.01"
+              placeholder="0.00" class="form-input">
+            <p class="form-hint">Subtotal required to use the code.</p>
+          </div>
+          <div>
+            <label class="form-label">Usage limit <span class="form-optional">(optional)</span></label>
+            <input type="number" name="usage_limit" value="{{form.usage_limit}}" min="1" step="1"
+              placeholder="Unlimited" class="form-input">
+            <p class="form-hint">Total times the code can be redeemed.</p>
+          </div>
+        </div>
+
+        <div>
+          <label class="form-label">Expires <span class="form-optional">(optional)</span></label>
+          <input type="date" name="ends_at" value="{{form.ends_at}}" class="form-input" style="max-width:14rem;">
+          <p class="form-hint">Valid through the end of this day. Leave blank for no expiry.</p>
+        </div>
+
+        <label class="form-check">
+          <input type="checkbox" name="active" value="1" {{#if form.active}}checked{{/if}}>
+          <span class="text-sm">Active</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="stack-sm">
+      <div class="card--no-overflow card-body">
+        <button type="submit" class="btn btn-primary w-full">
+          {{#if discount}}Save discount{{else}}Create discount{{/if}}
+        </button>
+      </div>
+
+      {{#if discount}}
+      <div class="card--no-overflow card-body text-xs text-muted">
+        <p>Redeemed {{discount.times_used}} time{{#unless (eq discount.times_used 1)}}s{{/unless}}.</p>
+      </div>
+      <div class="card--no-overflow card-body">
+        <form method="POST" action="/admin/discounts/{{discount.id}}/delete" onsubmit="return confirm('Delete this discount code?')">
+          {{csrf_field}}
+          <button type="submit" class="btn-link btn-link--danger btn-link--sm">Delete discount</button>
+        </form>
+      </div>
+      {{/if}}
+    </div>
+  </div>
+</form>

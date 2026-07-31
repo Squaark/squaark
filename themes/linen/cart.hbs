@@ -47,10 +47,24 @@
             <span>{{money cart.total}}</span>
           </div>
 
-          <div class="discount-row">
-            <input type="text" name="discount" placeholder="Discount code" class="store-input" style="flex:1;">
-            <button type="submit" class="btn btn-secondary btn-sm">Apply</button>
-          </div>
+          {{#if cart.discountCode}}
+            <div class="discount-row" style="justify-content:space-between;align-items:center;">
+              <span style="font-size:0.875rem;color:#374151;">Code <strong>{{cart.discountCode}}</strong> applied</span>
+              <form method="POST" action="/{{store.cartSlug}}/discount/remove" style="display:inline;">
+                {{csrf_field}}
+                <button type="submit" style="font-size:0.8rem;color:#9ca3af;background:none;border:none;cursor:pointer;text-decoration:underline;">Remove</button>
+              </form>
+            </div>
+          {{else}}
+            <form method="POST" action="/{{store.cartSlug}}/discount" class="discount-row">
+              {{csrf_field}}
+              <input type="text" name="discount" placeholder="Discount code" class="store-input" style="flex:1;">
+              <button type="submit" class="btn btn-secondary btn-sm">Apply</button>
+            </form>
+          {{/if}}
+          {{#if discountError}}
+            <p style="font-size:0.8rem;color:#b91c1c;margin-top:0.4rem;">{{discountError}}</p>
+          {{/if}}
 
           <a href="{{cart.checkoutUrl}}"
              class="btn btn-block"

@@ -8,6 +8,8 @@ import {
   type CartItemRow,
 } from '../db/queries/cart';
 import { findVariantById } from '../db/queries/products';
+import { findDiscountByCode } from '../db/queries/discounts';
+import { validateDiscount } from './discounts';
 import type { CartItem, Image } from '../theme/context';
 import { money } from '../theme/context';
 
@@ -71,13 +73,23 @@ export async function getCartPage(cartId: string): Promise<CartPage> {
 
   const itemCount      = items.reduce((s, i) => s + i.quantity, 0);
   const subtotalAmount = items.reduce((s, i) => s + i.price.amount * i.quantity, 0);
-  const discountAmount = cart?.discount_amount ?? 0;
+
+  // Recompute the discount from the stored code against the *current* subtotal,
+  // so it can never be stale. A code that's since become invalid (expired, cart
+  // now below its minimum) simply produces no discount — it stays on the cart
+  // and re-applies if the cart qualifies again.
+  let discountCode: string | null = null;
+  let discountAmount = 0;
+  if (cart?.discount_code) {
+    const v = validateDiscount(findDiscountByCode(cart.discount_code), subtotalAmount);
+    if (v.ok) { discountCode = v.code; discountAmount = v.amount; }
+  }
 
   return {
     items,
     itemCount,
     subtotal:       money(subtotalAmount),
-    discountCode:   cart?.discount_code   ?? null,
+    discountCode,
     discountAmount: discountAmount > 0 ? money(discountAmount) : null,
     total:          money(Math.max(0, subtotalAmount - discountAmount)),
     empty:          items.length === 0,

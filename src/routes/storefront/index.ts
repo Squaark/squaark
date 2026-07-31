@@ -4,12 +4,27 @@ import { buildGlobalContext } from '../../theme/context';
 import { getProduct, listProducts, searchProducts } from '../../commerce/products';
 import { getCollectionPage, listCollections, listFeaturedProducts } from '../../commerce/collections';
 import { getCartSummary, getCartPage, addToCart, updateCartItem, removeFromCart } from '../../commerce/cart';
+import { setCartDiscount, clearCartDiscount } from '../../db/queries/cart';
+import { findDiscountByCode } from '../../db/queries/discounts';
+import { validateDiscount, type DiscountValidation } from '../../commerce/discounts';
 import { findAllPages, findPageBySlug } from '../../db/queries/pages';
 import { getAllSettings } from '../../db/queries/admin';
+import { CURRENCY_SYMBOLS } from '../../theme/context';
 import { checkoutRoutes } from './checkout';
 import { accountRoutes } from './account';
 import { downloadRoutes } from './downloads';
 import { findCustomerById } from '../../db/queries/customers';
+
+function discountErrorMessage(v: Extract<DiscountValidation, { ok: false }>): string {
+  const symbol = CURRENCY_SYMBOLS[getAllSettings().store_currency ?? 'GBP'] ?? '';
+  switch (v.reason) {
+    case 'inactive':     return 'That code is no longer active.';
+    case 'expired':      return 'That code has expired.';
+    case 'usage_limit':  return 'That code has reached its usage limit.';
+    case 'min_subtotal': return `Spend at least ${symbol}${((v.minSubtotal ?? 0) / 100).toFixed(2)} to use this code.`;
+    default:             return "That code isn't valid.";
+  }
+}
 
 async function base(
   req: FastifyRequest,
@@ -161,8 +176,30 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
       base(req, reply, `/${activeCartSlug()}`, registry),
       getCartPage(req.cartId),
     ]);
-    const outOfStock = (req.query as { error?: string }).error === 'out_of_stock';
-    await render(registry, reply, 'cart', { ...ctx, pageTitle: `Your ${ctx.store.cartLabel}`, cart, outOfStock });
+    const q = req.query as { error?: string; discount_error?: string };
+    await render(registry, reply, 'cart', {
+      ...ctx, pageTitle: `Your ${ctx.store.cartLabel}`, cart,
+      outOfStock: q.error === 'out_of_stock',
+      discountError: q.discount_error,
+    });
+  };
+
+  const cartApplyDiscount = async (req: FastifyRequest, reply: FastifyReply) => {
+    const code = ((req.body as { discount?: string }).discount ?? '').trim();
+    const slug = activeCartSlug();
+    if (!code) return reply.redirect(`/${slug}`);
+    const cart = await getCartPage(req.cartId);
+    const v = validateDiscount(findDiscountByCode(code), cart.subtotal.amount);
+    if (v.ok) {
+      setCartDiscount(req.cartId, v.code);
+      return reply.redirect(`/${slug}`);
+    }
+    return reply.redirect(`/${slug}?discount_error=${encodeURIComponent(discountErrorMessage(v))}`);
+  };
+
+  const cartRemoveDiscount = async (req: FastifyRequest, reply: FastifyReply) => {
+    clearCartDiscount(req.cartId);
+    return reply.redirect(`/${activeCartSlug()}`);
   };
 
   const cartAdd = async (req: FastifyRequest, reply: FastifyReply) => {
@@ -202,6 +239,8 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
     fastify.post(`/${slug}/add`, cartAdd);
     fastify.post(`/${slug}/update`, cartUpdate);
     fastify.delete(`/${slug}/remove/:itemId`, cartRemove);
+    fastify.post(`/${slug}/discount`, cartApplyDiscount);
+    fastify.post(`/${slug}/discount/remove`, cartRemoveDiscount);
   }
 
   fastify.get('/search', async (req, reply) => {
