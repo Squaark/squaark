@@ -1,7 +1,8 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import '../../types';
-import { verifyLogin, createFirstAdmin, adminExists } from '../../admin/auth';
+import { verifyLogin, getAdminById, createFirstAdmin, adminExists } from '../../admin/auth';
 import { renderAuth } from '../../admin/render';
+import { newChallenge, codeMatches, isExpired, sendLoginCode, MAX_ATTEMPTS } from '../../admin/two-factor';
 
 export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.addHook('preHandler', (req: FastifyRequest, reply: FastifyReply, done: (err?: Error) => void) => {
@@ -13,6 +14,9 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
 
   fastify.get('/login', loginPage);
   fastify.post('/login', loginRateLimit, loginSubmit);
+  fastify.get('/2fa', twoFactorPage);
+  fastify.post('/2fa', loginRateLimit, twoFactorVerify);
+  fastify.post('/2fa/resend', { config: { rateLimit: { max: 3, timeWindow: '5 minutes' } } }, twoFactorResend);
   fastify.post('/logout', logout);
   fastify.get('/setup', setupPage);
   fastify.post('/setup', loginRateLimit, setupSubmit);
@@ -34,8 +38,74 @@ async function loginSubmit(
       await renderAuth('login', { pageTitle: 'Sign in', error: 'Invalid email or password' }, reply),
     );
   }
+
+  // Password is correct. If the account has 2FA on, hold off setting the
+  // session until the emailed code is confirmed — the challenge only starts
+  // AFTER a valid password, so it never reveals whether an email has 2FA.
+  if (admin.twoFactorEnabled) {
+    const { code, challenge } = newChallenge(admin.id);
+    req.session.pending2fa = challenge;
+    delete req.session.adminId;
+    sendLoginCode(admin.email, admin.name, code).catch(() => { /* resend covers a transient failure */ });
+    return reply.redirect('/admin/2fa');
+  }
+
   req.session.set('adminId', admin.id);
   return reply.redirect('/admin');
+}
+
+async function twoFactorPage(req: FastifyRequest<{ Querystring: { error?: string } }>, reply: FastifyReply) {
+  if (!req.session.pending2fa) return reply.redirect('/admin/login');
+  const errors: Record<string, string> = {
+    invalid: 'That code is incorrect. Check your email and try again.',
+    resent: '',
+  };
+  return reply.type('text/html').send(
+    await renderAuth('2fa', {
+      pageTitle: 'Enter your code',
+      error: req.query.error && req.query.error !== 'resent' ? errors[req.query.error] : undefined,
+      resent: req.query.error === 'resent',
+    }, reply),
+  );
+}
+
+async function twoFactorVerify(req: FastifyRequest<{ Body: { code?: string } }>, reply: FastifyReply) {
+  const ch = req.session.pending2fa;
+  if (!ch || isExpired(ch.expiresAt)) {
+    delete req.session.pending2fa;
+    return reply.redirect('/admin/login?error=expired');
+  }
+  if (ch.attempts >= MAX_ATTEMPTS) {
+    delete req.session.pending2fa;
+    return reply.redirect('/admin/login?error=too_many');
+  }
+
+  const code = (req.body.code ?? '').trim();
+  if (!code || !codeMatches(code, ch.codeHash)) {
+    ch.attempts += 1;
+    req.session.pending2fa = ch; // persist the incremented attempt count
+    if (ch.attempts >= MAX_ATTEMPTS) {
+      delete req.session.pending2fa;
+      return reply.redirect('/admin/login?error=too_many');
+    }
+    return reply.redirect('/admin/2fa?error=invalid');
+  }
+
+  // Correct — complete the login and burn the challenge (single-use).
+  req.session.set('adminId', ch.adminId);
+  delete req.session.pending2fa;
+  return reply.redirect('/admin');
+}
+
+async function twoFactorResend(req: FastifyRequest, reply: FastifyReply) {
+  const ch = req.session.pending2fa;
+  if (!ch) return reply.redirect('/admin/login');
+  const admin = getAdminById(ch.adminId);
+  if (!admin) { delete req.session.pending2fa; return reply.redirect('/admin/login'); }
+  const { code, challenge } = newChallenge(admin.id);
+  req.session.pending2fa = challenge;
+  sendLoginCode(admin.email, admin.name, code).catch(() => {});
+  return reply.redirect('/admin/2fa?error=resent');
 }
 
 async function logout(req: FastifyRequest, reply: FastifyReply) {

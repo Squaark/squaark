@@ -6,6 +6,7 @@ export interface AdminUser {
   email: string;
   name: string;
   role: 'admin' | 'staff';
+  twoFactorEnabled: boolean;
 }
 
 // Verified against on an unknown-email login so the response takes roughly
@@ -22,13 +23,13 @@ export async function verifyLogin(email: string, password: string): Promise<Admi
   }
   const ok = await argon2.verify(row.password_hash, password);
   if (!ok) return null;
-  return { id: row.id, email: row.email, name: row.name, role: row.role ?? 'admin' };
+  return { id: row.id, email: row.email, name: row.name, role: row.role ?? 'admin', twoFactorEnabled: !!row.two_factor_enabled };
 }
 
 export function getAdminById(id: string): AdminUser | null {
   const row = findAdminById(id);
   if (!row) return null;
-  return { id: row.id, email: row.email, name: row.name, role: row.role ?? 'admin' };
+  return { id: row.id, email: row.email, name: row.name, role: row.role ?? 'admin', twoFactorEnabled: !!row.two_factor_enabled };
 }
 
 export async function createFirstAdmin(email: string, password: string, name: string): Promise<void> {

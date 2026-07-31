@@ -1,0 +1,23 @@
+<div class="page-header__left mb-6">
+  <a href="/admin/account" class="page-back">← My account</a>
+  <h1 class="page-title">Confirm two-factor</h1>
+</div>
+
+{{#if error}}<div class="alert alert-error mb-4">{{error}}</div>{{/if}}
+
+<div class="card--no-overflow card-body stack-sm" style="max-width:26rem;">
+  <p class="text-sm text-muted">We've emailed a 6-digit code to <strong>{{admin.email}}</strong>. Enter it to turn on two-factor authentication. It expires in 10 minutes.</p>
+  <form method="POST" action="/admin/account/2fa/confirm" class="stack-sm">
+    {{csrf_field}}
+    <div>
+      <label class="form-label-xs">Code</label>
+      <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*"
+        maxlength="6" required autofocus class="form-input font-mono" style="letter-spacing:0.3em;text-align:center;font-size:1.25rem;max-width:12rem;">
+    </div>
+    <button type="submit" class="btn btn-primary">Turn on two-factor</button>
+  </form>
+  <form method="POST" action="/admin/account/2fa/enable" style="margin-top:0.25rem;">
+    {{csrf_field}}
+    <button type="submit" class="btn-link btn-link--sm">Resend code</button>
+  </form>
+</div>
