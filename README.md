@@ -101,6 +101,36 @@ database is reachable, or `503` otherwise. Point Docker healthchecks, load
 balancers, or uptime monitors at it — it's excluded from session/cart handling
 and analytics, so probing it has no side effects.
 
+## Updating
+
+For a **git-checkout deploy run under a supervisor**, the admin shows an
+"update available" banner when the checkout is behind `origin/master`, and
+Settings → Server has a one-click **Update now** button. It pulls, `npm install`,
+`npm run build` — all while the old code keeps serving — then exits so the
+supervisor restarts into the new code. If any step fails it resets the checkout
+to the previous commit and does **not** restart, so a bad commit can't take the
+store down. A **Revert** button appears for 30 minutes afterwards (disabled when
+the update changed the database schema, since migrations are forward-only).
+
+Two requirements:
+
+1. The process must be **restarted automatically on exit** — e.g. a systemd unit
+   with `Restart=always`, or pm2. Without that, the update builds but the server
+   stays down. (Docker deploys update by pulling a new image, not via this button.)
+2. A **private** repo needs a read deploy-key on the server for the background
+   `git fetch` to work.
+
+The first time, **dry-run it on a throwaway clone** rather than production:
+
+```bash
+git clone <your-repo> /tmp/squaark-dryrun && cd /tmp/squaark-dryrun
+git reset --hard HEAD~3                 # pretend we're a few commits behind
+git pull --ff-only origin master && npm install && npm run build && echo "clean update ✓"
+```
+
+Manual equivalent if you'd rather not use the button:
+`git pull --ff-only && npm install && npm run build`, then restart the service.
+
 ## Docker
 
 ```bash

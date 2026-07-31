@@ -5,6 +5,7 @@ import { getAllSettings, setSetting, getSetting } from '../../db/queries/admin';
 import { getAdminById } from '../../admin/auth';
 import { saveStoreMedia, type StoreMediaSlot } from '../../admin/store-media';
 import { exportStore, stageStoreImport } from '../../admin/store-transfer';
+import { startUpdate, startRevert, readJob, revertAvailability } from '../../admin/self-update';
 import { sendTestEmail } from '../../email/send';
 import { listRecentEmailLog } from '../../db/queries/email';
 import { listLogs } from '../../db/queries/system-log';
@@ -34,6 +35,21 @@ export async function settingsRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post('/settings/tax', taxSettingsSave);
   fastify.get('/settings/export', exportStoreHandler);
   fastify.post('/settings/import', importStoreHandler);
+  fastify.post('/settings/update', updateHandler);
+  fastify.post('/settings/revert', revertHandler);
+  fastify.get('/settings/update-status', updateStatusHandler);
+}
+
+async function updateHandler(_req: FastifyRequest, reply: FastifyReply) {
+  return reply.send(startUpdate());
+}
+
+async function revertHandler(_req: FastifyRequest, reply: FastifyReply) {
+  return reply.send(await startRevert());
+}
+
+async function updateStatusHandler(_req: FastifyRequest, reply: FastifyReply) {
+  return reply.send({ job: readJob(), revert: await revertAvailability(process.cwd()) });
 }
 
 async function settingsPage(req: FastifyRequest, reply: FastifyReply) {
@@ -48,6 +64,8 @@ async function settingsPage(req: FastifyRequest, reply: FastifyReply) {
       pageTitle: 'Settings',
       pageSection: 'settings',
       saved: 'saved' in (req.query as Record<string, string>),
+      updateJob: readJob(),
+      revert: await revertAvailability(process.cwd()),
     }, reply),
   );
 }
