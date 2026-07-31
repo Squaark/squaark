@@ -1,5 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { resolveSmtpSecurity } from '../../src/email/transports/smtp';
+import { resolveSmtpSecurity, normalizeSmtpPassword } from '../../src/email/transports/smtp';
+
+describe('normalizeSmtpPassword', () => {
+  it('strips the display spaces from a Gmail-style app password', () => {
+    expect(normalizeSmtpPassword('abcd efgh ijkl mnop')).toBe('abcdefghijklmnop');
+  });
+  it('removes trailing whitespace/newlines from a paste', () => {
+    expect(normalizeSmtpPassword('  secret\n')).toBe('secret');
+  });
+  it('leaves a normal password untouched', () => {
+    expect(normalizeSmtpPassword('s3cr3t-token')).toBe('s3cr3t-token');
+  });
+});
 
 describe('resolveSmtpSecurity', () => {
   it('port 465 → implicit TLS regardless of the flag', () => {
