@@ -43,6 +43,21 @@
           "sort":       { "type": "select", "default": "featured", "options": ["featured", "newest"], "label": "Sort order" },
           "count":      { "type": "select", "default": "8", "options": ["4", "6", "8", "12", "16"], "label": "Number of products" }
         }
+      },
+      "showValueProps": { "type": "boolean", "default": true, "label": "Show homepage value props (trust badges)" },
+      "valueProps": {
+        "type": "repeater",
+        "default": [
+          { "title": "Free Shipping",   "body": "On all orders over $50", "icon": "truck" },
+          { "title": "30-Day Returns",  "body": "Hassle-free returns",    "icon": "returns" },
+          { "title": "Secure Checkout", "body": "SSL encrypted payments", "icon": "lock" }
+        ],
+        "label": "Value props (homepage badges)",
+        "itemFields": {
+          "title": { "type": "text",   "default": "Free Shipping",       "label": "Title" },
+          "body":  { "type": "text",   "default": "On all orders over $50", "label": "Subtext" },
+          "icon":  { "type": "select", "default": "check", "options": ["check", "truck", "returns", "lock", "shield", "star", "heart", "gift"], "label": "Icon" }
+        }
       }
     }
   }
