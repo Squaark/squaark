@@ -15,6 +15,14 @@ import { accountRoutes } from './account';
 import { downloadRoutes } from './downloads';
 import { findCustomerById } from '../../db/queries/customers';
 
+// Shown on the homepage when the theme's value-props haven't been customised.
+// Kept in sync with the manifest default in themes/linen/theme.json.
+const DEFAULT_VALUE_PROPS = [
+  { title: 'Free Shipping',   body: 'On all orders over $50', icon: 'truck' },
+  { title: '30-Day Returns',  body: 'Hassle-free returns',    icon: 'returns' },
+  { title: 'Secure Checkout', body: 'SSL encrypted payments', icon: 'lock' },
+];
+
 function discountErrorMessage(v: Extract<DiscountValidation, { ok: false }>): string {
   const symbol = CURRENCY_SYMBOLS[getAllSettings().store_currency ?? 'GBP'] ?? '';
   switch (v.reason) {
@@ -127,6 +135,10 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
       heroEyebrow: layout.heroEyebrow ?? 'New Collection',
       heroHeading: layout.heroHeading ?? 'Welcome to our store',
       heroSubheading: layout.heroSubheading ?? 'Curated goods for considered living.',
+      showValueProps: layout.showValueProps ?? true,
+      // Un-customised stores (no override yet) get the three defaults; a store
+      // that has customised and removed every row keeps an empty array (no section).
+      valueProps: Array.isArray(layout.valueProps) ? layout.valueProps : DEFAULT_VALUE_PROPS,
     });
   });
 
