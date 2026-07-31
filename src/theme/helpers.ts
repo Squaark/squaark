@@ -31,8 +31,11 @@ export function registerHelpers(
     return resolveUrl(type, slugs);
   });
 
-  hbs.registerHelper('csrf_field', function (this: { csrfToken?: string }) {
-    const token = Handlebars.escapeExpression(this.csrfToken ?? '');
+  hbs.registerHelper('csrf_field', function (this: { csrfToken?: string }, options: Handlebars.HelperOptions) {
+    // Fall back to the root context — inside an {{#each}} block `this` is the
+    // loop item (no csrfToken), so a naive `this.csrfToken` would emit an empty
+    // token and forms inside the loop would fail the CSRF check.
+    const token = Handlebars.escapeExpression(this?.csrfToken ?? options?.data?.root?.csrfToken ?? '');
     return new Handlebars.SafeString(
       `<input type="hidden" name="_csrf" value="${token}">`,
     );
