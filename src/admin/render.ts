@@ -121,8 +121,11 @@ hbs.registerHelper('status_badge', (status: string) => {
  */
 export async function render(template: string, context: Record<string, unknown>, reply: FastifyReply): Promise<string> {
   const csrfToken = await reply.generateCsrf();
-  // Cached (never blocks) — powers the "update available" banner in the layout.
-  const fullContext = { ...context, csrfToken, update: getCachedUpdateStatus() };
+  // The cached status (never blocks) powers the "update available" banner in the
+  // layout. A page may pass its own freshly-computed `update` (e.g. the Server
+  // settings tab, which shouldn't sit on "Checking…" if the cache is cold);
+  // only fall back to the cache when it hasn't.
+  const fullContext = { ...context, csrfToken, update: context.update ?? getCachedUpdateStatus() };
 
   const file = path.join(ADMIN_VIEWS, `${template}.hbs`);
   const src = fs.readFileSync(file, 'utf-8');
