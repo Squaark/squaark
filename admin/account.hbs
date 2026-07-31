@@ -1,0 +1,59 @@
+<div class="page-header">
+  <h1 class="page-title">My account</h1>
+</div>
+
+{{#if profileSaved}}<div class="alert alert-success">Profile updated.</div>{{/if}}
+{{#if passwordSaved}}<div class="alert alert-success">Password changed.</div>{{/if}}
+{{#if error}}
+<div class="alert alert-error">
+  {{#if (eq error 'missing_fields')}}Please fill in all the fields.{{/if}}
+  {{#if (eq error 'email_taken')}}That email address is already in use by another user.{{/if}}
+  {{#if (eq error 'too_short')}}Your new password must be at least 8 characters.{{/if}}
+  {{#if (eq error 'mismatch')}}The new passwords don't match.{{/if}}
+  {{#if (eq error 'wrong_password')}}Your current password is incorrect.{{/if}}
+</div>
+{{/if}}
+
+<div class="grid-form">
+
+  <!-- Profile -->
+  <div class="card--no-overflow card-body stack-sm">
+    <h2 class="font-semibold">Profile</h2>
+    <p class="text-xs text-muted">Your name and the email you sign in with. Role:
+      <span class="badge badge-dark">{{admin.role}}</span></p>
+    <form method="POST" action="/admin/account/profile" class="stack-sm">
+      {{csrf_field}}
+      <div>
+        <label class="form-label-xs">Name</label>
+        <input type="text" name="name" value="{{admin.name}}" required class="form-input">
+      </div>
+      <div>
+        <label class="form-label-xs">Email</label>
+        <input type="email" name="email" value="{{admin.email}}" required class="form-input">
+      </div>
+      <button type="submit" class="btn btn-primary">Save profile</button>
+    </form>
+  </div>
+
+  <!-- Password -->
+  <div class="card--no-overflow card-body stack-sm">
+    <h2 class="font-semibold">Change password</h2>
+    <form method="POST" action="/admin/account/password" class="stack-sm">
+      {{csrf_field}}
+      <div>
+        <label class="form-label-xs">Current password</label>
+        <input type="password" name="current" required autocomplete="current-password" class="form-input">
+      </div>
+      <div>
+        <label class="form-label-xs">New password</label>
+        <input type="password" name="password" required minlength="8" autocomplete="new-password" class="form-input">
+      </div>
+      <div>
+        <label class="form-label-xs">Confirm new password</label>
+        <input type="password" name="confirm" required minlength="8" autocomplete="new-password" class="form-input">
+      </div>
+      <button type="submit" class="btn btn-primary">Change password</button>
+    </form>
+  </div>
+
+</div>

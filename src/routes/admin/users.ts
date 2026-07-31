@@ -2,12 +2,13 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import '../../types';
 import { render } from '../../admin/render';
 import { getAdminById, hashPassword } from '../../admin/auth';
-import { getAllSettings, listAdminUsers, createAdminUser, updateAdminUserRole, deleteAdminUser, countAdminsByRole } from '../../db/queries/admin';
+import { getAllSettings, listAdminUsers, createAdminUser, updateAdminUserRole, updateAdminPassword, deleteAdminUser, countAdminsByRole } from '../../db/queries/admin';
 
 export async function usersRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get('/users', listUsers);
   fastify.post('/users', createUser);
   fastify.post('/users/:id/role', changeRole);
+  fastify.post('/users/:id/password', resetPassword);
   fastify.post('/users/:id/delete', deleteUser);
 }
 
@@ -57,6 +58,16 @@ async function changeRole(
     return reply.redirect('/admin/users?error=last_admin');
   }
   updateAdminUserRole(id, safeRole);
+  return reply.redirect('/admin/users?saved=1');
+}
+
+async function resetPassword(
+  req: FastifyRequest<{ Params: { id: string }; Body: { password?: string } }>,
+  reply: FastifyReply,
+) {
+  const password = req.body.password ?? '';
+  if (password.length < 8) return reply.redirect('/admin/users?error=too_short');
+  updateAdminPassword(req.params.id, await hashPassword(password));
   return reply.redirect('/admin/users?saved=1');
 }
 

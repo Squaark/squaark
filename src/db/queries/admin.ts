@@ -60,6 +60,21 @@ export function deleteAdminUser(id: string): void {
   execute('DELETE FROM admin_users WHERE id = ?', [id]);
 }
 
+/** Updates a user's name and email. Throws on a duplicate email (UNIQUE). */
+export function updateAdminProfile(id: string, name: string, email: string): void {
+  execute(
+    `UPDATE admin_users SET name = ?, email = ?, updated_at = datetime('now') WHERE id = ?`,
+    [name, email, id],
+  );
+}
+
+export function updateAdminPassword(id: string, passwordHash: string): void {
+  execute(
+    `UPDATE admin_users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?`,
+    [passwordHash, id],
+  );
+}
+
 export function countAdminUsers(): number {
   const row = queryOne<{ n: number }>('SELECT COUNT(*) AS n FROM admin_users');
   return row?.n ?? 0;

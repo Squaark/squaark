@@ -13,6 +13,8 @@ import { emailRoutes } from './emails';
 import { importRoutes } from './import';
 import { navigationRoutes } from './navigation';
 import { usersRoutes } from './users';
+import { accountRoutes } from './account';
+import { customersRoutes } from './customers';
 import { shippingRoutes } from './shipping';
 import { taxRoutes } from './tax';
 import { discountRoutes } from './discounts';
@@ -52,9 +54,12 @@ export async function adminRoutes(fastify: FastifyInstance): Promise<void> {
       await app.register(collectionRoutes);
       await app.register(pageRoutes);
       await app.register(orderRoutes);
+      await app.register(customersRoutes);
       await app.register(shippingRoutes);
       await app.register(taxRoutes);
       await app.register(discountRoutes);
+      // Every signed-in user (admin or staff) can manage their own account.
+      await app.register(accountRoutes);
 
       // Admin-only areas: staff accounts are blocked here, again via plugin
       // encapsulation rather than string-matching the request path.

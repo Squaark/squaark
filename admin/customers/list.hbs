@@ -1,0 +1,65 @@
+<div class="page-header">
+  <h1 class="page-title">Customers</h1>
+  <span class="text-muted text-sm">{{total}} total</span>
+</div>
+
+{{#if deleted}}<div class="alert alert-success">Customer deleted.</div>{{/if}}
+
+<div class="card">
+  {{#if customers.length}}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Status</th>
+        <th class="right">Orders</th>
+        <th class="right">Spent</th>
+        <th>Joined</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each customers}}
+      <tr>
+        <td class="font-medium">{{this.first_name}} {{this.last_name}}</td>
+        <td class="text-muted">{{this.email}}</td>
+        <td>
+          {{#if (eq this.email_verified 1)}}
+          <span class="badge badge-green">Verified</span>
+          {{else}}
+          <span class="badge badge-gray">Unverified</span>
+          {{/if}}
+        </td>
+        <td class="right">{{this.order_count}}</td>
+        <td class="right">{{pence this.total_spent}}</td>
+        <td class="text-muted text-xs">{{date_short this.created_at}}</td>
+        <td class="right">
+          <form method="POST" action="/admin/customers/{{this.id}}/delete"
+            onsubmit="return confirm('Delete {{this.email}}? Their account is removed; past orders are kept.')">
+            {{csrf_field}}
+            <button type="submit" class="btn-link btn-link--danger btn-link--xs">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state">
+    <p>No customers yet. Accounts created at checkout or via the storefront sign-up will appear here.</p>
+  </div>
+  {{/if}}
+</div>
+
+{{#if (gt totalPages 1)}}
+<div class="admin-pagination mt-4">
+  {{#if (gt page 1)}}
+  <a href="?page={{subtract page 1}}">← Previous</a>
+  {{else}}<span></span>{{/if}}
+  <span class="admin-pagination__info">Page {{page}} of {{totalPages}}</span>
+  {{#if (lt page totalPages)}}
+  <a href="?page={{add page 1}}">Next →</a>
+  {{else}}<span></span>{{/if}}
+</div>
+{{/if}}

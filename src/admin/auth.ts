@@ -46,6 +46,14 @@ export async function hashPassword(password: string): Promise<string> {
   return argon2.hash(password, { type: argon2.argon2id });
 }
 
+/** Verifies a plaintext password against a stored admin account — used to
+ *  confirm the current password before letting someone change their own. */
+export async function verifyAdminPassword(id: string, password: string): Promise<boolean> {
+  const row = findAdminById(id);
+  if (!row) return false;
+  return argon2.verify(row.password_hash, password);
+}
+
 export function adminExists(): boolean {
   return countAdminUsers() > 0;
 }

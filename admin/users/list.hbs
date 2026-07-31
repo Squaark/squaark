@@ -8,8 +8,9 @@
   {{#if (eq error 'email_taken')}}That email address is already in use.{{/if}}
   {{#if (eq error 'missing_fields')}}Name, email and password are all required.{{/if}}
   {{#if (eq error 'last_admin')}}There must be at least one admin — promote another user first.{{/if}}
-  {{#if (eq error 'cannot_delete_self')}}You can't delete your own account.{{/if}}
+  {{#if (eq error 'cannot_delete_self')}}You can't delete your own account. Edit it under <a href="/admin/account">My account</a>.{{/if}}
   {{#if (eq error 'cannot_change_own_role')}}You can't change your own role.{{/if}}
+  {{#if (eq error 'too_short')}}Passwords must be at least 8 characters.{{/if}}
 </div>
 {{/if}}
 
@@ -51,12 +52,25 @@
             </td>
             <td class="text-muted text-xs">{{date_short this.created_at}}</td>
             <td class="right">
-              {{#if (ne this.id ../admin.id)}}
-              <form method="POST" action="/admin/users/{{this.id}}/delete"
-                onsubmit="return confirm('Delete {{this.name}}? This cannot be undone.')">
-                {{csrf_field}}
-                <button type="submit" class="btn-link btn-link--danger btn-link--xs">Delete</button>
-              </form>
+              {{#if (eq this.id ../admin.id)}}
+              <a href="/admin/account" class="btn-link btn-link--xs">Edit in My account</a>
+              {{else}}
+              <div style="display:flex;gap:0.75rem;align-items:center;justify-content:flex-end;">
+                <form method="POST" action="/admin/users/{{this.id}}/password"
+                  style="display:inline-flex;gap:0.25rem;align-items:center;"
+                  onsubmit="return confirm('Set a new password for {{this.name}}?')">
+                  {{csrf_field}}
+                  <input type="password" name="password" placeholder="New password" minlength="8" required
+                    autocomplete="new-password"
+                    class="form-input" style="width:9rem;font-size:0.75rem;padding:0.125rem 0.375rem;">
+                  <button type="submit" class="btn-link btn-link--xs">Set</button>
+                </form>
+                <form method="POST" action="/admin/users/{{this.id}}/delete"
+                  onsubmit="return confirm('Delete {{this.name}}? This cannot be undone.')">
+                  {{csrf_field}}
+                  <button type="submit" class="btn-link btn-link--danger btn-link--xs">Delete</button>
+                </form>
+              </div>
               {{/if}}
             </td>
           </tr>
