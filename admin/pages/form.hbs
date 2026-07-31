@@ -67,12 +67,17 @@
           </div>
         </div>
 
-        <!-- Empty state / legacy content editor -->
-        <div x-show="sections.length === 0">
-          <label class="form-label">Content <span class="form-optional">— shown when no sections are added. Accepts HTML.</span></label>
-          <textarea name="content" rows="16" class="form-textarea font-mono"
-            placeholder="<p>Page content here…</p>">{{page.content}}</textarea>
-        </div>
+        <!-- Empty state / legacy content editor. Uses x-if (not x-show) so the
+             textarea is removed from the DOM when sections exist — otherwise it
+             would stay hidden but still submit, sending `content` twice and
+             breaking the save (the value arrives as an array). -->
+        <template x-if="sections.length === 0">
+          <div>
+            <label class="form-label">Content <span class="form-optional">— shown when no sections are added. Accepts HTML.</span></label>
+            <textarea name="content" rows="16" class="form-textarea font-mono"
+              placeholder="<p>Page content here…</p>">{{page.content}}</textarea>
+          </div>
+        </template>
 
         <!-- When sections exist, preserve any legacy content as hidden so it isn't lost -->
         <template x-if="sections.length > 0">

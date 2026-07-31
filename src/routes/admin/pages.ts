@@ -40,6 +40,13 @@ function parseSections(raw: string | undefined): unknown[] {
   try { return JSON.parse(raw || '[]') ?? []; } catch { return []; }
 }
 
+// A form field can arrive as an array when the same name is submitted more than
+// once (e.g. two `content` inputs in the DOM at the same time). Collapse it to a
+// single string so it never breaks a SQL bind.
+function one(v: unknown): string | undefined {
+  return Array.isArray(v) ? (v[v.length - 1] as string) : (v as string | undefined);
+}
+
 function safeSectionsAttr(sections: unknown[]): string {
   return JSON.stringify(sections).replace(/'/g, '&#39;');
 }
@@ -80,7 +87,8 @@ async function createPage(
   req: FastifyRequest<{ Body: Record<string, string> }>,
   reply: FastifyReply,
 ) {
-  const { title, slug, content, excerpt, status, sections, seo_title, seo_description } = req.body;
+  const { title, slug, excerpt, status, sections, seo_title, seo_description } = req.body;
+  const content = one(req.body.content); // may arrive twice from the form
   const slugTrimmed = slug?.trim();
   const validationError = !title || !slugTrimmed
     ? 'Title and slug are required'
@@ -109,7 +117,8 @@ async function updatePage(
   req: FastifyRequest<{ Params: { id: string }; Body: Record<string, string> }>,
   reply: FastifyReply,
 ) {
-  const { title, slug, content, excerpt, status, sections, seo_title, seo_description } = req.body;
+  const { title, slug, excerpt, status, sections, seo_title, seo_description } = req.body;
+  const content = one(req.body.content); // may arrive twice from the form
   const slugTrimmed = slug?.trim();
   if (isReservedSlug(slugTrimmed)) {
     const page = queryOne<PageRow>('SELECT * FROM pages WHERE id = ?', [req.params.id]);
