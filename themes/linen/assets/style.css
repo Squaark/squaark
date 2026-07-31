@@ -701,3 +701,24 @@ main { display: block; }
 
 /* ── Smooth body transition (htmx navigation) ─────────────────────────────── */
 body { opacity: 1; transition: opacity 0.15s ease; }
+
+/* ── Add-to-cart toast ────────────────────────────────────────────────────── */
+.sq-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translate(-50%, 1rem);
+  background: var(--color-primary, #111827);
+  color: #fff;
+  padding: 0.7rem 1.1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 100;
+}
+.sq-toast--show { opacity: 1; transform: translate(-50%, 0); }
+.sq-toast::before { content: "✓ "; }

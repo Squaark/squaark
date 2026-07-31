@@ -108,7 +108,8 @@
         <form hx-post="/{{store.cartSlug}}/add"
               hx-target="#cart-count"
               hx-swap="outerHTML"
-              hx-indicator="#add-spinner">
+              hx-indicator="#add-spinner"
+              data-cart-add data-toast="Added to {{store.cartLabel}}">
           {{csrf_field}}
           <input type="hidden" name="variantId" value="{{product.variants.0.id}}">
 

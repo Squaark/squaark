@@ -35,6 +35,26 @@
   </div>
 </footer>
 
+<div id="sq-toast" class="sq-toast" role="status" aria-live="polite"></div>
+<script>
+  (function () {
+    var toast = document.getElementById('sq-toast');
+    var timer;
+    function show(msg) {
+      toast.textContent = msg;
+      toast.classList.add('sq-toast--show');
+      clearTimeout(timer);
+      timer = setTimeout(function () { toast.classList.remove('sq-toast--show'); }, 2500);
+    }
+    // Fired by any htmx add-to-cart control (marked data-cart-add) on success.
+    document.body.addEventListener('htmx:afterRequest', function (e) {
+      var el = e.detail && e.detail.elt;
+      if (e.detail.successful && el && el.matches && el.matches('[data-cart-add]')) {
+        show(el.getAttribute('data-toast') || 'Added to cart');
+      }
+    });
+  })();
+</script>
 <script src="{{asset 'main.js'}}"></script>
 </body>
 </html>
