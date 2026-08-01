@@ -9,6 +9,8 @@ import { findDiscountByCode } from '../../db/queries/discounts';
 import { validateDiscount, type DiscountValidation } from '../../commerce/discounts';
 import { findAllPages, findPageBySlug } from '../../db/queries/pages';
 import { getAllSettings } from '../../db/queries/admin';
+import { addSuppression } from '../../db/queries/suppressions';
+import { verifyUnsubscribeToken } from '../../email/unsubscribe';
 import { CURRENCY_SYMBOLS } from '../../theme/context';
 import { checkoutRoutes } from './checkout';
 import { accountRoutes } from './account';
@@ -103,6 +105,19 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
   await checkoutRoutes(fastify, registry);
   await accountRoutes(fastify, registry);
   await downloadRoutes(fastify);
+
+  // One-click opt-out from recovery emails (token-signed link in the email).
+  fastify.get('/unsubscribe', async (req: FastifyRequest<{ Querystring: { e?: string; t?: string } }>, reply: FastifyReply) => {
+    const email = (req.query.e ?? '').trim();
+    const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+    const storeName = esc(getAllSettings().store_name || 'the store');
+    const page = (msg: string) => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Unsubscribe</title></head><body style="font-family:system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1.5rem;line-height:1.6;color:#111827;"><h1 style="font-size:1.25rem;">${storeName}</h1><p>${msg}</p></body></html>`;
+    if (email && verifyUnsubscribeToken(email, req.query.t)) {
+      addSuppression(email);
+      return reply.type('text/html').send(page(`You've been unsubscribed. <strong>${esc(email)}</strong> will no longer receive cart reminders.`));
+    }
+    return reply.code(400).type('text/html').send(page('This unsubscribe link is invalid or has expired.'));
+  });
 
   // The cart word (Cart/Basket/Bag) is configurable, so its URL can be any of
   // these. We register all three up front and let the templates link to

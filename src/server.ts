@@ -20,6 +20,7 @@ import { writeLog } from './db/queries/system-log';
 import { recordPageView } from './db/queries/analytics';
 import { getSetting } from './db/queries/admin';
 import { refreshUpdateStatus } from './admin/updates';
+import { startAbandonedCartSweep } from './email/abandoned-cart';
 
 const BOT_UA = /bot|crawler|spider|scrapy|wget|curl|python|java|ruby|go-http|httpclient|libwww|okhttp|axios|node-fetch|facebookexternalhit|twitterbot|linkedinbot|slackbot|whatsapp|telegram|discord|pingdom|uptimerobot|datadog|statuscake|ahrefsbot|semrushbot|mj12bot|dotbot|petalbot|yandex|baidu|duckduck|bingpreview|gptbot|claudebot|chatgpt/i;
 const SKIP_PREFIX = ['/admin', '/public/', '/uploads/', '/webhooks', '/health'];
@@ -205,6 +206,8 @@ async function start() {
     // background. Best-effort — never blocks startup or serving.
     refreshUpdateStatus();
     setInterval(refreshUpdateStatus, 60 * 60 * 1000).unref();
+    // Recover abandoned checkouts in the background.
+    startAbandonedCartSweep();
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

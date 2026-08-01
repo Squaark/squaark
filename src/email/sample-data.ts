@@ -36,6 +36,12 @@ export function buildSampleContext(templateKey: string): Record<string, unknown>
         { product_title: 'Canvas Tote Bag', variant_title: 'Natural', sku: 'TOTE-NAT', remaining: 3 },
         { product_title: 'Linen Napkin Set', variant_title: '', sku: null, remaining: 0 },
       ] };
+    case 'abandoned_cart':
+      return {
+        store, customer_name: 'Alex', order: sampleOrder,
+        cart_url: `${store.url}/cart`,
+        unsubscribe_url: `${store.url}/unsubscribe?e=customer@example.com&t=sample`,
+      };
     default:
       return { store };
   }
