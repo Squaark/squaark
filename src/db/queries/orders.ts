@@ -94,6 +94,32 @@ export function countOrders(): number {
   return queryOne<{ n: number }>('SELECT COUNT(*) AS n FROM orders')?.n ?? 0;
 }
 
+/** All orders, newest first — for the admin CSV export (not paginated). */
+export function findAllOrders(): OrderRow[] {
+  return query<OrderRow>('SELECT * FROM orders ORDER BY created_at DESC');
+}
+
+export interface OrderStockLevel {
+  product_title: string;
+  variant_title: string;
+  sku: string | null;
+  remaining: number;  // current inventory (after this order's decrement)
+  ordered: number;    // quantity in this order
+}
+
+/** Current stock for the physical variants in an order — used to detect low-stock crossings. */
+export function findOrderStockLevels(orderId: string): OrderStockLevel[] {
+  return query<OrderStockLevel>(
+    `SELECT oi.product_title, oi.variant_title, oi.sku,
+            v.inventory_quantity AS remaining, oi.quantity AS ordered
+       FROM order_items oi
+       JOIN product_variants v ON v.id = oi.variant_id
+       JOIN products p ON p.id = v.product_id
+      WHERE oi.order_id = ? AND oi.variant_id IS NOT NULL AND p.is_digital = 0`,
+    [orderId],
+  );
+}
+
 export function findOrderById(id: string): OrderRow | null {
   return queryOne<OrderRow>('SELECT * FROM orders WHERE id = ?', [id]);
 }

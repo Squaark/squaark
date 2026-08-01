@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import '../../types';
 import { render } from '../../admin/render';
 import {
-  findOrders, countOrders, findOrderById, findOrderItems,
+  findOrders, countOrders, findAllOrders, findOrderById, findOrderItems,
   updateOrderStatus, updateOrderFulfillment,
   ORDER_STATUSES, FULFILLMENT_STATES,
   type OrderStatus, type FulfillmentState, type OrderRow,
@@ -15,6 +15,7 @@ import { refundOrder } from '../../commerce/refunds';
 
 export async function orderRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get('/orders', listOrders);
+  fastify.get('/orders/export.csv', exportOrdersCsv); // before /orders/:id so it isn't read as an id
   fastify.get('/orders/:id', viewOrder);
   fastify.post('/orders/:id/fulfillment', updateFulfillment);
   fastify.post('/orders/:id/status', updateStatus);
@@ -29,6 +30,43 @@ function customerFirstName(order: OrderRow): string | null {
   } catch {
     return null;
   }
+}
+
+/** Wraps a CSV cell only when it contains a comma, quote or newline; doubles quotes. */
+function csvCell(v: unknown): string {
+  const s = v == null ? '' : String(v);
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+async function exportOrdersCsv(req: FastifyRequest, reply: FastifyReply) {
+  const orders = findAllOrders();
+  const money = (pence: number) => (pence / 100).toFixed(2);
+
+  const header = [
+    'Order', 'Date', 'Status', 'Fulfillment', 'Email', 'Currency',
+    'Subtotal', 'Discount code', 'Discount', 'Shipping', 'Tax', 'Total',
+    'Shipping method', 'Tracking', 'Ship name', 'Ship city', 'Ship postcode', 'Ship country', 'Notes',
+  ];
+
+  const rows = orders.map((o) => {
+    let a: Record<string, string> = {};
+    try { a = JSON.parse(o.shipping_address || '{}') as Record<string, string>; } catch { /* leave blank */ }
+    const name = [a.firstName, a.lastName].filter(Boolean).join(' ');
+    return [
+      o.order_number, o.created_at, o.status, o.fulfillment, o.email, o.currency,
+      money(o.subtotal), o.discount_code ?? '', money(o.discount_amount), money(o.shipping),
+      money(o.tax_amount ?? 0), money(o.total), o.shipping_title ?? '', o.tracking_number ?? '',
+      name, a.city ?? '', a.postcode ?? '', a.country ?? '', o.notes ?? '',
+    ];
+  });
+
+  const csv = [header, ...rows].map((r) => r.map(csvCell).join(',')).join('\r\n');
+  const today = new Date().toISOString().slice(0, 10);
+  return reply
+    .header('Content-Type', 'text/csv; charset=utf-8')
+    .header('Content-Disposition', `attachment; filename="orders-${today}.csv"`)
+    // UTF-8 BOM so Excel renders £/€ and accented names correctly.
+    .send('\uFEFF' + csv);
 }
 
 async function listOrders(req: FastifyRequest<{ Querystring: { page?: string } }>, reply: FastifyReply) {

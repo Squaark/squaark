@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Low-stock alerts: emails the store owner when a product variant drops to/below a configurable threshold after a paid order (Settings → Store; blank to disable, 0 = only when sold out). Editable `low_stock` email template.
 - Promo banners: a scheduled, site-wide announcement bar managed under Promotions → Banners, with an optional link/CTA, a copy-to-clipboard discount-code pill, custom colours, visitor dismiss, and start/end dates (newest live banner wins).
 - Configurable cart word (Cart / Basket / Bag) that drives the label, URL and nav together, with no restart.
 - Zero-config "direct" email transport (MX delivery, best-effort) alongside SMTP and Resend.
