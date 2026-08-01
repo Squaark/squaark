@@ -19,6 +19,7 @@ import { shippingRoutes } from './shipping';
 import { taxRoutes } from './tax';
 import { discountRoutes } from './discounts';
 import { bannerRoutes } from './banners';
+import { reviewRoutes } from './reviews';
 import { countOrders } from '../../db/queries/orders';
 import { getAllSettings } from '../../db/queries/admin';
 import { queryOne } from '../../db/connection';
@@ -60,6 +61,7 @@ export async function adminRoutes(fastify: FastifyInstance): Promise<void> {
       await app.register(taxRoutes);
       await app.register(discountRoutes);
       await app.register(bannerRoutes);
+      await app.register(reviewRoutes);
       // Every signed-in user (admin or staff) can manage their own account.
       await app.register(accountRoutes);
 

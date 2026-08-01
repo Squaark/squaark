@@ -34,6 +34,7 @@ export interface ProductSummary {
   available: boolean;
   vendor: string | null;
   taxRate: string | null;
+  rating?: { average: number; count: number } | null;
 }
 
 export interface Variant {
