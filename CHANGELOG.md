@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Related & upsell products: the product-page "You may also like" is now genuinely related (products sharing a collection, topped up so the row is never thin) instead of random, with an optional manual per-product picker in the admin; plus a "You might also like" recommendations row on the cart page based on what's in the cart (AOV).
 - Product reviews: star ratings + reviews on product pages (open submission with an automatic "Verified purchase" badge when the email matches a paid order), average rating on product cards, admin moderation (approve/reject, delete, with a toggle between approve-first and publish-instantly), and schema.org Product/AggregateRating structured data for search rich results.
 - Abandoned-checkout recovery: emails customers who start checkout but don't pay, once, after a configurable delay (Settings → Store; blank/0 = off), with a token-signed one-click unsubscribe. Editable `abandoned_cart` template.
 - Order CSV export from the orders admin.

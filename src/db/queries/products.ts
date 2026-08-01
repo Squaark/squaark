@@ -1,4 +1,4 @@
-import { query, queryOne } from '../connection';
+import { query, queryOne, execute } from '../connection';
 
 export interface ProductRow {
   id: string;
@@ -153,11 +153,102 @@ export function findProductVariants(productId: string): VariantRow[] {
   `, [productId]);
 }
 
-export function findRelatedProducts(productId: string, limit = 4): ProductRow[] {
+/** Products sharing at least one collection with the given product (newest first). */
+export function findRelatedByCollection(productId: string, limit: number): ProductRow[] {
   return query<ProductRow>(
-    `${PRODUCT_SUMMARY_SQL} WHERE p.published = 1 AND p.id != ? ORDER BY RANDOM() LIMIT ?`,
-    [productId, limit],
+    `${PRODUCT_SUMMARY_SQL}
+     WHERE p.published = 1 AND p.id != ?
+       AND p.id IN (
+         SELECT DISTINCT cp2.product_id
+         FROM collection_products cp1
+         JOIN collection_products cp2 ON cp2.collection_id = cp1.collection_id
+         WHERE cp1.product_id = ? AND cp2.product_id != ?
+       )
+     ORDER BY p.created_at DESC
+     LIMIT ?`,
+    [productId, productId, productId, limit],
   );
+}
+
+/** Newest published products excluding the given ids — used to top up a thin related row. */
+export function findNewestExcluding(excludeIds: string[], limit: number): ProductRow[] {
+  const notIn = excludeIds.length ? `AND p.id NOT IN (${excludeIds.map(() => '?').join(',')})` : '';
+  return query<ProductRow>(
+    `${PRODUCT_SUMMARY_SQL} WHERE p.published = 1 ${notIn} ORDER BY p.created_at DESC LIMIT ?`,
+    [...excludeIds, limit],
+  );
+}
+
+/** The merchant-picked related product ids for a product, in display order. */
+export function findManualRelatedIds(productId: string): string[] {
+  return query<{ related_product_id: string }>(
+    'SELECT related_product_id FROM related_products WHERE product_id = ? ORDER BY position',
+    [productId],
+  ).map((r) => r.related_product_id);
+}
+
+/** Product summaries for a set of ids (published only); caller re-orders as needed. */
+export function findPublishedProductsByIds(ids: string[]): ProductRow[] {
+  if (ids.length === 0) return [];
+  const ph = ids.map(() => '?').join(',');
+  return query<ProductRow>(`${PRODUCT_SUMMARY_SQL} WHERE p.published = 1 AND p.id IN (${ph})`, ids);
+}
+
+/** Replaces a product's manual related list with the given ordered ids. */
+export function setRelatedProducts(productId: string, relatedIds: string[]): void {
+  execute('DELETE FROM related_products WHERE product_id = ?', [productId]);
+  relatedIds.forEach((rid, i) => {
+    if (rid && rid !== productId) {
+      execute(
+        'INSERT OR IGNORE INTO related_products (product_id, related_product_id, position) VALUES (?, ?, ?)',
+        [productId, rid, i],
+      );
+    }
+  });
+}
+
+/** Distinct product ids currently in a cart. */
+export function getCartProductIds(cartId: string): string[] {
+  return query<{ product_id: string }>(
+    `SELECT DISTINCT v.product_id FROM cart_items ci
+       JOIN product_variants v ON v.id = ci.variant_id
+      WHERE ci.cart_id = ?`,
+    [cartId],
+  ).map((r) => r.product_id);
+}
+
+/** Published products sharing a collection with anything in the cart, excluding cart products. */
+export function findCartRecommendations(cartProductIds: string[], limit: number): ProductRow[] {
+  if (cartProductIds.length === 0) return [];
+  const ph = cartProductIds.map(() => '?').join(',');
+  return query<ProductRow>(
+    `${PRODUCT_SUMMARY_SQL}
+     WHERE p.published = 1 AND p.id NOT IN (${ph})
+       AND p.id IN (
+         SELECT DISTINCT cp2.product_id
+         FROM collection_products cp1
+         JOIN collection_products cp2 ON cp2.collection_id = cp1.collection_id
+         WHERE cp1.product_id IN (${ph})
+       )
+     ORDER BY RANDOM()
+     LIMIT ?`,
+    [...cartProductIds, ...cartProductIds, limit],
+  );
+}
+
+/** Admin product search by title (includes unpublished). */
+export function searchProductsByTitle(q: string, limit = 10): { id: string; title: string }[] {
+  return query<{ id: string; title: string }>(
+    'SELECT id, title FROM products WHERE title LIKE ? ORDER BY title LIMIT ?',
+    [`%${q}%`, limit],
+  );
+}
+
+/** id + title for a set of product ids (any published state) — for the admin related picker. */
+export function getProductNamesByIds(ids: string[]): { id: string; title: string }[] {
+  if (ids.length === 0) return [];
+  const ph = ids.map(() => '?').join(',');
+  return query<{ id: string; title: string }>(`SELECT id, title FROM products WHERE id IN (${ph})`, ids);
 }
 
 export function findVariantById(variantId: string): VariantRow | null {
