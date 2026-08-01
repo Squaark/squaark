@@ -12,6 +12,15 @@ import {
 } from '../db/queries/products';
 import type { ProductSummary, Image, Variant } from '../theme/context';
 import { money } from '../theme/context';
+import { getRatingSummaries } from '../db/queries/reviews';
+
+/** Attaches published-review rating summaries to a set of product cards in one batch query. */
+function attachRatings(summaries: ProductSummary[]): ProductSummary[] {
+  if (summaries.length === 0) return summaries;
+  const ratings = getRatingSummaries(summaries.map((s) => s.id));
+  for (const s of summaries) s.rating = ratings.get(s.id) ?? null;
+  return summaries;
+}
 
 function rowToImage(row: {
   img_original: string | null; img_thumbnail: string | null;
@@ -61,15 +70,15 @@ export function rowToProductSummary(row: ProductRow): ProductSummary {
 }
 
 export async function listProducts(limit?: number): Promise<ProductSummary[]> {
-  return findAllProducts(limit).map(rowToProductSummary);
+  return attachRatings(findAllProducts(limit).map(rowToProductSummary));
 }
 
 export async function searchProducts(q: string): Promise<ProductSummary[]> {
-  return dbSearchProducts(q).map(rowToProductSummary);
+  return attachRatings(dbSearchProducts(q).map(rowToProductSummary));
 }
 
 export async function listCollectionProducts(collectionId: string, limit?: number, sort: 'featured' | 'newest' = 'featured'): Promise<ProductSummary[]> {
-  return findProductsByCollection(collectionId, limit, sort).map(rowToProductSummary);
+  return attachRatings(findProductsByCollection(collectionId, limit, sort).map(rowToProductSummary));
 }
 
 export interface FullProduct {
@@ -118,7 +127,7 @@ export async function getProduct(slug: string): Promise<FullProduct | null> {
     available:      row.available === 1,
     vendor:         row.vendor,
     tags:           row.tags_text ? row.tags_text.split(' ').filter(Boolean) : [],
-    relatedProducts: relatedRows.map(rowToProductSummary),
+    relatedProducts: attachRatings(relatedRows.map(rowToProductSummary)),
     seoTitle:       row.seo_title ?? null,
     seoDescription: row.seo_description ?? null,
     taxRate:        row.tax_rate ?? null,

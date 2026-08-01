@@ -1,0 +1,72 @@
+<div class="page-header">
+  <h1 class="page-title">Reviews</h1>
+</div>
+
+{{#if saved}}<div class="alert alert-success">Saved.</div>{{/if}}
+
+<div class="card card-body" style="margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+  <div>
+    <p class="text-sm font-medium">Require approval before reviews appear</p>
+    <p class="form-hint mt-0">
+      {{#if requireApproval}}On — new reviews wait in Pending until you approve them.{{else}}Off — new reviews publish instantly; moderate them here afterwards.{{/if}}
+    </p>
+  </div>
+  <form method="POST" action="/admin/reviews/settings">
+    {{csrf_field}}
+    <input type="hidden" name="require_approval" value="{{#if requireApproval}}0{{else}}1{{/if}}">
+    <button type="submit" class="btn btn-secondary">{{#if requireApproval}}Publish instantly instead{{else}}Require approval instead{{/if}}</button>
+  </form>
+</div>
+
+<nav class="sub-tabs">
+  <a href="/admin/reviews" class="sub-tab {{#if (eq filter 'all')}}active{{/if}}">All</a>
+  <a href="/admin/reviews?status=pending" class="sub-tab {{#if (eq filter 'pending')}}active{{/if}}">Pending ({{counts.pending}})</a>
+  <a href="/admin/reviews?status=published" class="sub-tab {{#if (eq filter 'published')}}active{{/if}}">Published ({{counts.published}})</a>
+  <a href="/admin/reviews?status=rejected" class="sub-tab {{#if (eq filter 'rejected')}}active{{/if}}">Rejected ({{counts.rejected}})</a>
+</nav>
+
+<div class="card">
+  {{#if reviews.length}}
+    <table class="data-table">
+      <thead>
+        <tr><th>Product</th><th>Rating</th><th>Review</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        {{#each reviews}}
+        <tr>
+          <td><a href="/products/{{this.product_slug}}" target="_blank" rel="noopener" class="cell-title">{{truncate this.product_title 30}}</a></td>
+          <td class="text-sm">{{stars this.rating}}</td>
+          <td class="text-sm">
+            {{#if this.title}}<strong>{{this.title}}</strong><br>{{/if}}
+            {{truncate this.body 90}}
+            <div class="text-muted" style="font-size:0.75rem;margin-top:0.25rem;">
+              {{this.author_name}}{{#if this.verified}} · ✓ verified{{/if}} · {{date_short this.created_at}}
+            </div>
+          </td>
+          <td>
+            {{#if (eq this.status 'published')}}<span class="badge badge-green">Published</span>
+            {{else if (eq this.status 'pending')}}<span class="badge badge-yellow">Pending</span>
+            {{else}}<span class="badge badge-gray">Rejected</span>{{/if}}
+          </td>
+          <td class="right">
+            <div style="display:flex;gap:0.375rem;justify-content:flex-end;flex-wrap:wrap;">
+              {{#unless (eq this.status 'published')}}
+              <form method="POST" action="/admin/reviews/{{this.id}}/status">{{csrf_field}}<input type="hidden" name="status" value="published"><input type="hidden" name="from" value="{{@root.filter}}"><button type="submit" class="btn-link btn-link--xs">Approve</button></form>
+              {{/unless}}
+              {{#unless (eq this.status 'rejected')}}
+              <form method="POST" action="/admin/reviews/{{this.id}}/status">{{csrf_field}}<input type="hidden" name="status" value="rejected"><input type="hidden" name="from" value="{{@root.filter}}"><button type="submit" class="btn-link btn-link--xs">Reject</button></form>
+              {{/unless}}
+              <form method="POST" action="/admin/reviews/{{this.id}}/delete" onsubmit="return confirm('Delete this review permanently?')">{{csrf_field}}<input type="hidden" name="from" value="{{@root.filter}}"><button type="submit" class="btn-link btn-link--xs btn-link--danger">Delete</button></form>
+            </div>
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  {{else}}
+    <div class="empty-state">
+      <p>No reviews{{#unless (eq filter 'all')}} in this state{{/unless}} yet.</p>
+      <p class="text-sm text-muted">Customer reviews submitted on product pages show up here{{#if requireApproval}} for approval{{/if}}.</p>
+    </div>
+  {{/if}}
+</div>

@@ -34,6 +34,9 @@
         <p class="product-card__vendor">{{this.vendor}}</p>
       {{/if}}
       <h3 class="product-card__title">{{this.title}}</h3>
+      {{#if this.rating.count}}
+        <div class="product-card__rating">{{stars this.rating.average}} <span class="product-card__rating-count">({{this.rating.count}})</span></div>
+      {{/if}}
       <div class="product-card__prices">
         {{#if (and @root.tax.enabled (eq @root.tax.displayMode 'ex'))}}
           <span class="product-card__price {{#if this.onSale}}product-card__price--sale{{/if}}">

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Product reviews: star ratings + reviews on product pages (open submission with an automatic "Verified purchase" badge when the email matches a paid order), average rating on product cards, admin moderation (approve/reject, delete, with a toggle between approve-first and publish-instantly), and schema.org Product/AggregateRating structured data for search rich results.
 - Abandoned-checkout recovery: emails customers who start checkout but don't pay, once, after a configurable delay (Settings → Store; blank/0 = off), with a token-signed one-click unsubscribe. Editable `abandoned_cart` template.
 - Order CSV export from the orders admin.
 - Low-stock alerts: emails the store owner when a product variant drops to/below a configurable threshold after a paid order (Settings → Store; blank to disable, 0 = only when sold out). Editable `low_stock` email template.

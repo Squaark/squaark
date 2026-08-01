@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { ThemeRegistry } from '../../theme/registry';
 import { buildGlobalContext } from '../../theme/context';
 import { getProduct, listProducts, searchProducts } from '../../commerce/products';
+import { listPublishedReviews, getRatingSummary, createReview } from '../../db/queries/reviews';
 import { getCollectionPage, listCollections, listFeaturedProducts } from '../../commerce/collections';
 import { getCartSummary, getCartPage, addToCart, updateCartItem, removeFromCart } from '../../commerce/cart';
 import { setCartDiscount, clearCartDiscount } from '../../db/queries/cart';
@@ -168,13 +169,71 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
         await registry.currentEngine.render('404', { ...ctx, pageTitle: 'Page Not Found' }),
       );
     }
+    const reviews = listPublishedReviews(product.id).map((r) => ({
+      rating: r.rating, title: r.title, body: r.body, author: r.author_name,
+      verified: r.verified === 1, date: r.created_at,
+    }));
+    const reviewSummary = getRatingSummary(product.id);
+    const flash = (req.query as { review?: string }).review ?? null;
+
+    // schema.org Product JSON-LD (with AggregateRating/Review) for search rich results.
+    const jsonLd: Record<string, unknown> = {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: product.title,
+      description: (product.seoDescription || product.description || '').replace(/<[^>]+>/g, '').trim().slice(0, 500),
+      image: product.images.map((i) => i.large),
+      offers: {
+        '@type': 'Offer',
+        price: (product.price.amount / 100).toFixed(2),
+        priceCurrency: ctx.store.currency.code,
+        availability: product.available ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      },
+    };
+    if (reviewSummary.count > 0) {
+      jsonLd.aggregateRating = { '@type': 'AggregateRating', ratingValue: reviewSummary.average, reviewCount: reviewSummary.count };
+      jsonLd.review = reviews.slice(0, 5).map((r) => ({
+        '@type': 'Review',
+        reviewRating: { '@type': 'Rating', ratingValue: r.rating, bestRating: 5 },
+        author: { '@type': 'Person', name: r.author },
+        ...(r.body ? { reviewBody: r.body } : {}),
+      }));
+    }
+    // Escape '<' so the JSON can't break out of the <script> block.
+    const productJsonLd = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
+
     await render(registry, reply, 'product', {
       ...ctx,
       pageTitle: product.seoTitle || product.title,
       metaDescription: product.seoDescription || product.description || '',
       ogImage: product.images[0]?.large ?? null,
       product,
+      reviews,
+      reviewSummary,
+      reviewFlash: flash,
+      productJsonLd,
     });
+  });
+
+  // Submit a product review (open submission; verified-purchase badge auto-applied).
+  fastify.post('/products/:slug/reviews', async (req: FastifyRequest<{ Params: { slug: string }; Body: Record<string, string> }>, reply: FastifyReply) => {
+    const { slug } = req.params;
+    const product = await getProduct(slug);
+    if (!product) return reply.code(404).type('text/html').send('Not found');
+
+    const b = req.body;
+    const rating = parseInt(b.rating ?? '', 10);
+    const authorName = (b.author_name ?? '').trim();
+    const email = (b.email ?? '').trim();
+    const body = (b.body ?? '').trim();
+    const title = (b.title ?? '').trim() || null;
+    if (!(rating >= 1 && rating <= 5) || !authorName || !/.+@.+\..+/.test(email) || !body) {
+      return reply.redirect(`/products/${slug}?review=error#reviews`);
+    }
+
+    const autoPublish = getAllSettings().reviews_require_approval !== '1';
+    const { status } = createReview({ productId: product.id, rating, title, body, authorName, email }, autoPublish);
+    return reply.redirect(`/products/${slug}?review=${status === 'published' ? 'thanks' : 'pending'}#reviews`);
   });
 
   fastify.get('/collections/:slug', async (req, reply) => {

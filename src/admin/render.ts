@@ -58,6 +58,10 @@ hbs.registerHelper('truncate', (text: string, length: number) => {
   if (!text || text.length <= length) return text;
   return text.slice(0, length).trimEnd() + '…';
 });
+hbs.registerHelper('stars', (rating: unknown) => {
+  const r = Math.max(0, Math.min(5, Math.round(Number(rating) || 0)));
+  return new Handlebars.SafeString(`<span style="color:#f59e0b;white-space:nowrap;">${'★'.repeat(r)}${'☆'.repeat(5 - r)}</span>`);
+});
 hbs.registerHelper('json_pretty', (v: unknown) =>
   new Handlebars.SafeString(`<pre>${JSON.stringify(v, null, 2)}</pre>`),
 );

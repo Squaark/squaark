@@ -61,6 +61,15 @@ export function registerHelpers(
     );
   });
 
+  // Renders a 1–5 star rating as filled/empty stars (rounds to the nearest whole star).
+  hbs.registerHelper('stars', (rating: unknown) => {
+    const r = Math.max(0, Math.min(5, Math.round(Number(rating) || 0)));
+    const label = `${Number(rating) || 0} out of 5 stars`;
+    return new Handlebars.SafeString(
+      `<span class="stars" role="img" aria-label="${label}">${'★'.repeat(r)}${'☆'.repeat(5 - r)}</span>`,
+    );
+  });
+
   hbs.registerHelper('stock_badge', (variant: { available: boolean } | null) => {
     if (!variant) return '';
     return variant.available ? 'In Stock' : 'Sold Out';

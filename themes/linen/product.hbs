@@ -1,5 +1,7 @@
 {{> header}}
 
+  {{#if productJsonLd}}<script type="application/ld+json">{{{productJsonLd}}}</script>{{/if}}
+
   <div class="container py-12">
 
     <!-- Breadcrumb -->
@@ -48,6 +50,10 @@
         {{/if}}
 
         <h1 class="product-title">{{product.title}}</h1>
+        {{#if reviewSummary.count}}
+          <a href="#reviews" class="product-rating-summary">{{stars reviewSummary.average}}
+            <span class="product-rating-count">{{reviewSummary.average}} · {{reviewSummary.count}} {{pluralize reviewSummary.count "review" "reviews"}}</span></a>
+        {{/if}}
 
         <!-- Price -->
         <div class="product-price-row">
@@ -157,6 +163,54 @@
         </div>
       </section>
     {{/if}}
+
+    <!-- Reviews -->
+    <section id="reviews" class="reviews">
+      <h2 class="reviews__heading">Reviews</h2>
+
+      {{#if (eq reviewFlash 'thanks')}}<div class="reviews__flash reviews__flash--ok">Thanks — your review has been posted.</div>{{/if}}
+      {{#if (eq reviewFlash 'pending')}}<div class="reviews__flash reviews__flash--ok">Thanks — your review will appear once it's approved.</div>{{/if}}
+      {{#if (eq reviewFlash 'error')}}<div class="reviews__flash reviews__flash--err">Please add a rating, your name, a valid email and a few words.</div>{{/if}}
+
+      {{#if reviewSummary.count}}
+        <div class="reviews__summary">{{stars reviewSummary.average}} <strong>{{reviewSummary.average}}</strong> · {{reviewSummary.count}} {{pluralize reviewSummary.count "review" "reviews"}}</div>
+        <ul class="reviews__list">
+          {{#each reviews}}
+          <li class="review">
+            <div class="review__head">
+              {{stars this.rating}}
+              <span class="review__author">{{this.author}}</span>
+              {{#if this.verified}}<span class="review__verified">✓ Verified purchase</span>{{/if}}
+              <span class="review__date">{{timestamp this.date}}</span>
+            </div>
+            {{#if this.title}}<p class="review__title">{{this.title}}</p>{{/if}}
+            <p class="review__body">{{this.body}}</p>
+          </li>
+          {{/each}}
+        </ul>
+      {{else}}
+        <p class="reviews__empty">No reviews yet — be the first to review {{product.title}}.</p>
+      {{/if}}
+
+      <form method="POST" action="/products/{{product.slug}}/reviews" class="review-form" x-data="{ rating: 0 }">
+        {{csrf_field}}
+        <h3 class="review-form__heading">Write a review</h3>
+        <div class="review-form__stars">
+          <template x-for="n in 5" :key="n">
+            <button type="button" @click="rating = n" x-text="'★'"
+                    :style="`color:${n <= rating ? '#f59e0b' : '#d1d5db'}`" class="review-form__star" aria-label="Set rating"></button>
+          </template>
+          <input type="hidden" name="rating" :value="rating">
+        </div>
+        <div class="review-form__row">
+          <input type="text" name="author_name" placeholder="Your name" required class="store-input">
+          <input type="email" name="email" placeholder="Your email (not shown)" required class="store-input">
+        </div>
+        <input type="text" name="title" placeholder="Title (optional)" class="store-input">
+        <textarea name="body" rows="4" placeholder="Share your thoughts…" required class="store-input"></textarea>
+        <button type="submit" class="btn" style="background:var(--color-primary);color:#fff;">Submit review</button>
+      </form>
+    </section>
 
   </div>
 
