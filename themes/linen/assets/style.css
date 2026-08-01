@@ -161,6 +161,8 @@ input, select, textarea { font-family: inherit; }
 @media (max-width: 640px) { .review-form__row { grid-template-columns: 1fr; } }
 .product-card__rating { font-size: 0.75rem; margin-bottom: 0.25rem; }
 .product-card__rating-count { color: #9ca3af; }
+.cart-recommendations { margin-top: 4rem; }
+.cart-recommendations__heading { font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 1.5rem; }
 
 /* ── Header ─────────────────────────────────────────────────────────────── */
 .site-header {

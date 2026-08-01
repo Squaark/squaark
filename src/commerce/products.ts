@@ -4,7 +4,12 @@ import {
   findProductBySlug,
   findProductImages,
   findProductVariants,
-  findRelatedProducts,
+  findRelatedByCollection,
+  findNewestExcluding,
+  findManualRelatedIds,
+  findPublishedProductsByIds,
+  getCartProductIds,
+  findCartRecommendations,
   searchProducts as dbSearchProducts,
   type ProductRow,
   type ProductImageRow,
@@ -107,7 +112,6 @@ export async function getProduct(slug: string): Promise<FullProduct | null> {
 
   const imageRows   = findProductImages(row.id);
   const variantRows = findProductVariants(row.id);
-  const relatedRows = findRelatedProducts(row.id);
 
   const images = imageRows.length
     ? imageRows.map(imageRowToImage)
@@ -127,9 +131,38 @@ export async function getProduct(slug: string): Promise<FullProduct | null> {
     available:      row.available === 1,
     vendor:         row.vendor,
     tags:           row.tags_text ? row.tags_text.split(' ').filter(Boolean) : [],
-    relatedProducts: attachRatings(relatedRows.map(rowToProductSummary)),
+    relatedProducts: getRelatedProducts(row.id),
     seoTitle:       row.seo_title ?? null,
     seoDescription: row.seo_description ?? null,
     taxRate:        row.tax_rate ?? null,
   };
+}
+
+/**
+ * Related products for a product page: the merchant's manual picks (in their
+ * order) if any, otherwise automatic shared-collection relatedness topped up
+ * with newest products so the row is never thin.
+ */
+export function getRelatedProducts(productId: string, limit = 4): ProductSummary[] {
+  const manualIds = findManualRelatedIds(productId);
+  if (manualIds.length > 0) {
+    const byId = new Map(findPublishedProductsByIds(manualIds).map((r) => [r.id, r]));
+    const ordered = manualIds
+      .map((id) => byId.get(id))
+      .filter((r): r is ProductRow => !!r)
+      .map(rowToProductSummary);
+    return attachRatings(ordered);
+  }
+
+  const related = findRelatedByCollection(productId, limit).map(rowToProductSummary);
+  if (related.length < limit) {
+    const excludeIds = [productId, ...related.map((p) => p.id)];
+    related.push(...findNewestExcluding(excludeIds, limit - related.length).map(rowToProductSummary));
+  }
+  return attachRatings(related);
+}
+
+/** "You might also like" for the cart: products sharing a collection with cart items. */
+export function getCartRecommendations(cartId: string, limit = 4): ProductSummary[] {
+  return attachRatings(findCartRecommendations(getCartProductIds(cartId), limit).map(rowToProductSummary));
 }

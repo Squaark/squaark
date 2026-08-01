@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { ThemeRegistry } from '../../theme/registry';
 import { buildGlobalContext } from '../../theme/context';
-import { getProduct, listProducts, searchProducts } from '../../commerce/products';
+import { getProduct, listProducts, searchProducts, getCartRecommendations } from '../../commerce/products';
 import { listPublishedReviews, getRatingSummary, createReview } from '../../db/queries/reviews';
 import { getCollectionPage, listCollections, listFeaturedProducts } from '../../commerce/collections';
 import { getCartSummary, getCartPage, addToCart, updateCartItem, removeFromCart } from '../../commerce/cart';
@@ -265,6 +265,7 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
     const q = req.query as { error?: string; discount_error?: string };
     await render(registry, reply, 'cart', {
       ...ctx, pageTitle: `Your ${ctx.store.cartLabel}`, cart,
+      recommendations: getCartRecommendations(req.cartId),
       outOfStock: q.error === 'out_of_stock',
       discountError: q.discount_error,
     });

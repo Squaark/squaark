@@ -9,6 +9,7 @@ import path from 'path';
 import { execute, query, queryOne } from '../../db/connection';
 import { findAllBands } from '../../db/queries/tax';
 import { saveProductFile, deleteProductFile, findFileForProduct } from '../../db/queries/downloads';
+import { findManualRelatedIds, getProductNamesByIds, setRelatedProducts, searchProductsByTitle } from '../../db/queries/products';
 import type { MultipartFile } from '@fastify/multipart';
 import config from '../../config';
 
@@ -29,6 +30,7 @@ interface ImageRow {
 
 export async function productRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get('/products', listProducts);
+  fastify.get('/products/search', productSearch); // before /:id so it isn't read as an id
   fastify.get('/products/new', newProductPage);
   fastify.post('/products/new', createProduct);
   fastify.get('/products/:id', editProductPage);
@@ -38,6 +40,20 @@ export async function productRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post('/products/:id/images/:imageId/delete', deleteImage);
   fastify.post('/products/:id/file', uploadDigitalFile);
   fastify.post('/products/:id/file/delete', deleteDigitalFile);
+}
+
+/** Current manual related products (id + title, in order) + a JSON seed for the picker. */
+function relatedFormData(productId: string | null): { related: { id: string; title: string }[]; relatedJson: string } {
+  if (!productId) return { related: [], relatedJson: '[]' };
+  const ids = findManualRelatedIds(productId);
+  const names = new Map(getProductNamesByIds(ids).map((r) => [r.id, r.title]));
+  const related = ids.map((id) => ({ id, title: names.get(id) ?? '(deleted product)' }));
+  return { related, relatedJson: JSON.stringify(related).replace(/</g, '\\u003c') };
+}
+
+async function productSearch(req: FastifyRequest<{ Querystring: { q?: string } }>, reply: FastifyReply) {
+  const q = (req.query.q ?? '').trim();
+  return reply.send(q.length < 2 ? [] : searchProductsByTitle(q, 10));
 }
 
 function adminCtx(req: FastifyRequest) {
@@ -67,7 +83,7 @@ async function listProducts(req: FastifyRequest<{ Querystring: { page?: string }
 
 async function newProductPage(req: FastifyRequest, reply: FastifyReply) {
   return reply.type('text/html').send(
-    await render('products/form', { ...adminCtx(req), product: null, variants: [], images: [], taxBands: findAllBands(), pageTitle: 'New product' }, reply),
+    await render('products/form', { ...adminCtx(req), product: null, variants: [], images: [], taxBands: findAllBands(), ...relatedFormData(null), pageTitle: 'New product' }, reply),
   );
 }
 
@@ -81,6 +97,7 @@ async function editProductPage(req: FastifyRequest<{ Params: { id: string } }>, 
   return reply.type('text/html').send(
     await render('products/form', {
       ...adminCtx(req), product, variants, images, taxBands: findAllBands(),
+      ...relatedFormData(product.id),
       digitalFile, pageTitle: product.title,
       saved: query_.saved === '1', created: query_.created === '1',
       uploaded: query_.uploaded === '1',
@@ -122,6 +139,7 @@ async function createProduct(
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [variantId, productId, variant_title || 'Default', priceInt, compareInt, sku || null, qty],
   );
+  setRelatedProducts(productId, (req.body.related_ids ?? '').split(',').filter(Boolean));
 
   return reply.redirect(`/admin/products/${productId}?created=1`);
 }
@@ -155,6 +173,8 @@ async function updateProduct(
       [req.body[`variant_title_${vid}`] || 'Default', vPrice, vCompare, req.body[`sku_${vid}`] || null, vQty, vid, id],
     );
   }
+
+  setRelatedProducts(id, (req.body.related_ids ?? '').split(',').filter(Boolean));
 
   return reply.redirect(`/admin/products/${id}?saved=1`);
 }

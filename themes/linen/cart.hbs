@@ -79,6 +79,17 @@
       </div>
     </div>
   {{/if}}
+
+  {{#if recommendations.length}}
+    <section class="cart-recommendations">
+      <h2 class="cart-recommendations__heading">You might also like</h2>
+      <div class="product-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">
+        {{#each recommendations}}
+          {{> product-card}}
+        {{/each}}
+      </div>
+    </section>
+  {{/if}}
 </div>
 
 {{> footer}}
