@@ -1,0 +1,116 @@
+<div class="page-header__left mb-6">
+  <a href="/admin/automatic" class="page-back">← Automatic discounts</a>
+  <h1 class="page-title">{{#if discount}}Edit automatic discount{{else}}New automatic discount{{/if}}</h1>
+</div>
+
+{{#if error}}<div class="alert alert-error mb-4">{{error}}</div>{{/if}}
+
+<form method="POST" action="{{#if discount}}/admin/automatic/{{discount.id}}{{else}}/admin/automatic{{/if}}"
+      x-data="{ kind: '{{#if form.kind}}{{form.kind}}{{else}}order{{/if}}', type: '{{#if form.type}}{{form.type}}{{else}}percentage{{/if}}', target: '{{#if form.target_type}}{{form.target_type}}{{else}}all{{/if}}' }">
+  {{csrf_field}}
+  <div class="grid-form">
+    <div class="stack">
+      <div class="card--no-overflow card-body stack-sm">
+        <div>
+          <label class="form-label">Name</label>
+          <input type="text" name="name" value="{{form.name}}" placeholder="e.g. Summer sale" class="form-input" required autofocus>
+          <p class="form-hint">Shown to the customer in the cart.</p>
+        </div>
+
+        <div>
+          <label class="form-label">Type</label>
+          <select name="kind" x-model="kind" class="form-select">
+            <option value="order" {{#if (eq form.kind 'order')}}selected{{/if}}>Order discount (% or amount off)</option>
+            <option value="bogo" {{#if (eq form.kind 'bogo')}}selected{{/if}}>Buy X, get Y</option>
+          </select>
+        </div>
+
+        <!-- Order discount -->
+        <div x-show="kind === 'order'" class="stack-sm">
+          <div class="form-row form-row--2">
+            <div>
+              <label class="form-label">Discount</label>
+              <select name="type" x-model="type" class="form-select">
+                <option value="percentage" {{#if (eq form.type 'percentage')}}selected{{/if}}>Percentage off</option>
+                <option value="fixed" {{#if (eq form.type 'fixed')}}selected{{/if}}>Fixed amount off</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label"><span x-show="type === 'percentage'">Percent (%)</span><span x-show="type === 'fixed'" x-cloak>Amount</span></label>
+              <input type="number" name="value" value="{{form.value}}" min="0" step="0.01" placeholder="10" class="form-input">
+            </div>
+          </div>
+          <div>
+            <label class="form-label">Minimum spend <span class="form-optional">(optional)</span></label>
+            <input type="number" name="min_subtotal" value="{{form.min_subtotal}}" min="0" step="0.01" placeholder="0.00" class="form-input" style="max-width:12rem;">
+            <p class="form-hint">Applies automatically once the cart subtotal reaches this.</p>
+          </div>
+        </div>
+
+        <!-- Buy X get Y -->
+        <div x-show="kind === 'bogo'" x-cloak class="stack-sm">
+          <div class="form-row form-row--2">
+            <div>
+              <label class="form-label">Buy quantity</label>
+              <input type="number" name="buy_quantity" value="{{form.buy_quantity}}" min="1" step="1" placeholder="2" class="form-input">
+            </div>
+            <div>
+              <label class="form-label">Get quantity</label>
+              <input type="number" name="get_quantity" value="{{form.get_quantity}}" min="1" step="1" placeholder="1" class="form-input">
+            </div>
+          </div>
+          <div>
+            <label class="form-label">Get discount (%)</label>
+            <input type="number" name="get_discount" value="{{form.get_discount}}" min="1" max="100" step="1" placeholder="100" class="form-input" style="max-width:10rem;">
+            <p class="form-hint">100% = the "get" items are free. Always discounts the cheapest qualifying items.</p>
+          </div>
+          <div>
+            <label class="form-label">Applies to</label>
+            <select name="target_type" x-model="target" class="form-select">
+              <option value="all" {{#if (eq form.target_type 'all')}}selected{{/if}}>Any product</option>
+              <option value="collection" {{#if (eq form.target_type 'collection')}}selected{{/if}}>A collection</option>
+            </select>
+          </div>
+          <div x-show="target === 'collection'" x-cloak>
+            <label class="form-label">Collection</label>
+            <select name="target_id" class="form-select">
+              {{#each collections}}
+                <option value="{{this.id}}" {{#if (eq ../form.target_id this.id)}}selected{{/if}}>{{this.title}}</option>
+              {{/each}}
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row form-row--2">
+          <div>
+            <label class="form-label">Starts <span class="form-optional">(optional)</span></label>
+            <input type="date" name="starts_at" value="{{form.starts_at}}" class="form-input">
+          </div>
+          <div>
+            <label class="form-label">Ends <span class="form-optional">(optional)</span></label>
+            <input type="date" name="ends_at" value="{{form.ends_at}}" class="form-input">
+          </div>
+        </div>
+
+        <label class="form-check">
+          <input type="checkbox" name="active" value="1" {{#if form.active}}checked{{/if}}>
+          <span class="text-sm">Active</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="stack-sm">
+      <div class="card--no-overflow card-body">
+        <button type="submit" class="btn btn-primary w-full">{{#if discount}}Save discount{{else}}Create discount{{/if}}</button>
+      </div>
+      {{#if discount}}
+      <div class="card--no-overflow card-body">
+        <form method="POST" action="/admin/automatic/{{discount.id}}/delete" onsubmit="return confirm('Delete this automatic discount?')">
+          {{csrf_field}}
+          <button type="submit" class="btn-link btn-link--danger btn-link--sm">Delete discount</button>
+        </form>
+      </div>
+      {{/if}}
+    </div>
+  </div>
+</form>

@@ -7,9 +7,11 @@ import {
   removeCartItem,
   type CartItemRow,
 } from '../db/queries/cart';
-import { findVariantById } from '../db/queries/products';
+import { findVariantById, getCollectionIdsForProducts } from '../db/queries/products';
 import { findDiscountByCode } from '../db/queries/discounts';
 import { validateDiscount } from './discounts';
+import { listActiveAutomaticDiscounts, rowToPromo } from '../db/queries/automatic-discounts';
+import { computeAutomaticDiscounts } from './automatic-discounts';
 import type { CartItem, Image } from '../theme/context';
 import { money } from '../theme/context';
 
@@ -24,6 +26,7 @@ export interface CartPage {
   subtotal: ReturnType<typeof money>;
   discountCode: string | null;
   discountAmount: ReturnType<typeof money> | null;
+  appliedDiscounts: { name: string; amount: ReturnType<typeof money> }[];
   total: ReturnType<typeof money>;
   empty: boolean;
   checkoutUrl: string;
@@ -69,31 +72,43 @@ export async function getCartSummary(cartId: string): Promise<CartSummary> {
 
 export async function getCartPage(cartId: string): Promise<CartPage> {
   const cart  = findCart(cartId);
-  const items = findCartItems(cartId).map(rowToCartItem);
+  const rows  = findCartItems(cartId);
+  const items = rows.map(rowToCartItem);
 
   const itemCount      = items.reduce((s, i) => s + i.quantity, 0);
   const subtotalAmount = items.reduce((s, i) => s + i.price.amount * i.quantity, 0);
 
-  // Recompute the discount from the stored code against the *current* subtotal,
-  // so it can never be stale. A code that's since become invalid (expired, cart
-  // now below its minimum) simply produces no discount — it stays on the cart
-  // and re-applies if the cart qualifies again.
-  let discountCode: string | null = null;
-  let discountAmount = 0;
+  // Recompute the entered code against the *current* subtotal so it's never
+  // stale — a code that no longer qualifies simply produces no discount but
+  // stays on the cart and re-applies if the cart qualifies again.
+  let codeDiscount: { code: string; amount: number } | null = null;
   if (cart?.discount_code) {
     const v = validateDiscount(findDiscountByCode(cart.discount_code), subtotalAmount);
-    if (v.ok) { discountCode = v.code; discountAmount = v.amount; }
+    if (v.ok) codeDiscount = { code: v.code, amount: v.amount };
   }
+
+  // Fold in automatic discounts (best order-level of code vs auto, plus BOGO).
+  const productIds = [...new Set(rows.map((r) => r.product_id))];
+  const collections = getCollectionIdsForProducts(productIds);
+  const dItems = rows.map((r) => ({
+    productId: r.product_id,
+    collectionIds: collections.get(r.product_id) ?? [],
+    unitPrice: r.price,
+    quantity: r.quantity,
+  }));
+  const promos = listActiveAutomaticDiscounts().map(rowToPromo);
+  const { applied, total: discountTotal } = computeAutomaticDiscounts(dItems, subtotalAmount, promos, codeDiscount);
 
   return {
     items,
     itemCount,
-    subtotal:       money(subtotalAmount),
-    discountCode,
-    discountAmount: discountAmount > 0 ? money(discountAmount) : null,
-    total:          money(Math.max(0, subtotalAmount - discountAmount)),
-    empty:          items.length === 0,
-    checkoutUrl:    '/checkout',
+    subtotal:         money(subtotalAmount),
+    discountCode:     cart?.discount_code ?? null,
+    discountAmount:   discountTotal > 0 ? money(discountTotal) : null,
+    appliedDiscounts: applied.map((a) => ({ name: a.name, amount: money(a.amount) })),
+    total:            money(Math.max(0, subtotalAmount - discountTotal)),
+    empty:            items.length === 0,
+    checkoutUrl:      '/checkout',
   };
 }
 

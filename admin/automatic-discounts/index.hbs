@@ -1,0 +1,42 @@
+<div class="page-header">
+  <h1 class="page-title">Promotions</h1>
+  <a href="/admin/automatic/new" class="btn btn-primary">Add automatic discount</a>
+</div>
+
+{{> promo-tabs}}
+
+{{#if saved}}<div class="alert alert-success">Saved.</div>{{/if}}
+
+<div class="card">
+  {{#if discounts.length}}
+    <table class="data-table">
+      <thead>
+        <tr><th>Name</th><th>Type</th><th>Offer</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        {{#each discounts}}
+        <tr>
+          <td><a href="/admin/automatic/{{this.id}}" class="cell-title">{{this.name}}</a></td>
+          <td class="text-sm">{{#if (eq this.kind 'order')}}Order discount{{else}}Buy X get Y{{/if}}</td>
+          <td class="text-sm text-muted">
+            {{#if (eq this.kind 'order')}}
+              {{#if (eq this.type 'percentage')}}{{this.value}}% off{{else}}{{money_pence this.value}} off{{/if}}
+              {{#if this.min_subtotal}} · over {{money_pence this.min_subtotal}}{{/if}}
+            {{else}}
+              Buy {{this.buy_quantity}}, get {{this.get_quantity}} at {{this.get_discount}}% off
+            {{/if}}
+          </td>
+          <td>{{#if this.active}}<span class="badge badge-green">Active</span>{{else}}<span class="badge badge-gray">Inactive</span>{{/if}}</td>
+          <td class="right"><a href="/admin/automatic/{{this.id}}" class="btn-link btn-link--xs">Edit</a></td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  {{else}}
+    <div class="empty-state">
+      <p>No automatic discounts yet.</p>
+      <p class="text-sm text-muted">Discounts that apply with no code — a % or fixed amount off over a spend threshold, or a buy-X-get-Y offer. They run automatically at the cart.</p>
+      <a href="/admin/automatic/new" class="btn btn-primary mt-4">Add first automatic discount</a>
+    </div>
+  {{/if}}
+</div>

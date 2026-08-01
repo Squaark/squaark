@@ -30,12 +30,12 @@
               <span>Subtotal ({{pluralize cart.itemCount "item" "items"}})</span>
               <span>{{money cart.subtotal}}</span>
             </div>
-            {{#if cart.discountAmount}}
+            {{#each cart.appliedDiscounts}}
               <div class="summary-row summary-row--discount">
-                <span>Discount ({{cart.discountCode}})</span>
-                <span>-{{money cart.discountAmount}}</span>
+                <span>{{this.name}}</span>
+                <span>-{{money this.amount}}</span>
               </div>
-            {{/if}}
+            {{/each}}
             <div class="summary-row summary-row--muted">
               <span>Shipping</span>
               <span>Calculated at checkout</span>
