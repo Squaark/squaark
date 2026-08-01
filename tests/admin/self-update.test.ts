@@ -69,4 +69,28 @@ describe('performUpdate', () => {
     expect(res.toSha).not.toBe(startSha);
     expect(head(work)).toBe(res.toSha);
   });
+
+  it('pulls cleanly even when package-lock.json was left modified by a prior npm install', async () => {
+    const remote = path.join(base, 'lock-remote.git');
+    execFileSync('git', ['init', '--bare', '--initial-branch=master', remote], { stdio: 'pipe' });
+
+    const work = path.join(base, 'lock-work');
+    execFileSync('git', ['clone', remote, work], { stdio: 'pipe' });
+    commit(work, 'package-lock.json', '{"version":"1"}', 'first');
+    git(work, 'push', 'origin', 'master');
+
+    // A newer commit bumps the lockfile on the remote (as the release workflow does).
+    const work2 = path.join(base, 'lock-work2');
+    execFileSync('git', ['clone', remote, work2], { stdio: 'pipe' });
+    commit(work2, 'package-lock.json', '{"version":"2"}', 'bump');
+    git(work2, 'push', 'origin', 'master');
+
+    // Simulate `npm install` churning the lockfile locally — this is what used to
+    // make `git pull --ff-only` abort.
+    fs.writeFileSync(path.join(work, 'package-lock.json'), '{"version":"local-churn"}');
+
+    const res = await performUpdate(work, { build: async () => { /* ok */ } });
+    expect(res.toSha).not.toBe(res.fromSha);            // advanced despite the dirty lockfile
+    expect(fs.readFileSync(path.join(work, 'package-lock.json'), 'utf-8')).toBe('{"version":"2"}');
+  });
 });

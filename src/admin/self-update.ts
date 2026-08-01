@@ -85,6 +85,14 @@ const defaultDeps: UpdateDeps = { build: defaultBuild };
 export async function performUpdate(cwd: string, deps: UpdateDeps = defaultDeps): Promise<{ fromSha: string; toSha: string }> {
   const fromSha = await git(cwd, ['rev-parse', 'HEAD']);
   await git(cwd, ['fetch', '--quiet', 'origin', 'master']);
+  // `npm install` (in the build step) rewrites package-lock.json, and the release
+  // workflow bumps package-lock.json + package.json on every version. Left
+  // together, the server's locally-churned lockfile makes `git pull --ff-only`
+  // abort with "local changes would be overwritten". Discard that churn first —
+  // the pulled + rebuilt versions are authoritative. Ignored if the files are
+  // absent/unchanged. Done per-file so a missing one can't block the other.
+  await git(cwd, ['checkout', '--', 'package-lock.json']).catch(() => { /* nothing to discard */ });
+  await git(cwd, ['checkout', '--', 'package.json']).catch(() => { /* nothing to discard */ });
   await git(cwd, ['pull', '--ff-only', 'origin', 'master']);
 
   try {
