@@ -79,6 +79,12 @@
               min="0" placeholder="5" class="form-input" style="max-width:8rem;">
             <p class="form-hint">Email {{#if settings.store_email}}{{settings.store_email}}{{else}}your store email{{/if}} when a product variant drops to this level or below after an order. Leave blank to turn off; 0 alerts only when a variant sells out.</p>
           </div>
+          <div style="padding-top:0.25rem;">
+            <label class="form-label">Abandoned-checkout reminder (hours)</label>
+            <input type="number" name="abandoned_cart_hours" value="{{settings.abandoned_cart_hours}}"
+              min="0" placeholder="1" class="form-input" style="max-width:8rem;">
+            <p class="form-hint">Email customers who start checkout but don't pay, this many hours later (once). Leave blank or 0 to turn off. Reaches card (Stripe) checkouts where an email was entered.</p>
+          </div>
         </div>
         <div class="mt-4">
           <button type="submit" class="btn btn-primary">Save settings</button>

@@ -11,6 +11,7 @@ function order(overrides: Partial<OrderRow> = {}): OrderRow {
     payment_provider: 'stripe', payment_reference: 'cs_1',
     shipping_rate_id: null, shipping_title: null, tax_amount: 0,
     tracking_number: null, tracking_url: null, shipped_at: null,
+    reminder_sent_at: null,
     created_at: '', updated_at: '',
     ...overrides,
   };

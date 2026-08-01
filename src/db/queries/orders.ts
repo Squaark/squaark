@@ -24,6 +24,7 @@ export interface OrderRow {
   tracking_number: string | null;
   tracking_url: string | null;
   shipped_at: string | null;
+  reminder_sent_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -105,6 +106,36 @@ export interface OrderStockLevel {
   sku: string | null;
   remaining: number;  // current inventory (after this order's decrement)
   ordered: number;    // quantity in this order
+}
+
+/**
+ * Pending orders ripe for an abandoned-checkout reminder: older than `delayHours`
+ * but newer than `maxAgeDays`, never reminded, with an email, where that email has
+ * no completed order and hasn't opted out. One row per email (the newest pending).
+ */
+export function findAbandonedOrders(delayHours: number, maxAgeDays: number): OrderRow[] {
+  return query<OrderRow>(
+    `SELECT o.* FROM orders o
+      WHERE o.status = 'pending'
+        AND o.reminder_sent_at IS NULL
+        AND o.email <> ''
+        AND o.created_at <= datetime('now', ?)
+        AND o.created_at >= datetime('now', ?)
+        AND NOT EXISTS (SELECT 1 FROM orders p WHERE p.email = o.email AND p.status = 'paid')
+        AND o.email NOT IN (SELECT email FROM email_suppressions)
+        AND o.id = (SELECT id FROM orders o2 WHERE o2.email = o.email AND o2.status = 'pending'
+                     ORDER BY o2.created_at DESC LIMIT 1)
+      ORDER BY o.created_at DESC`,
+    [`-${delayHours} hours`, `-${maxAgeDays} days`],
+  );
+}
+
+/** Flags every pending order for this email as reminded, so siblings don't re-trigger. */
+export function markAbandonedReminderSent(email: string): void {
+  execute(
+    "UPDATE orders SET reminder_sent_at = datetime('now') WHERE email = ? AND status = 'pending' AND reminder_sent_at IS NULL",
+    [email],
+  );
 }
 
 /** Current stock for the physical variants in an order — used to detect low-stock crossings. */
