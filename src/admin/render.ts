@@ -54,6 +54,10 @@ hbs.registerHelper('isSelected', (code: string, selected: string[]) =>
 hbs.registerHelper('date_short', (d: string) =>
   new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
 );
+hbs.registerHelper('truncate', (text: string, length: number) => {
+  if (!text || text.length <= length) return text;
+  return text.slice(0, length).trimEnd() + '…';
+});
 hbs.registerHelper('json_pretty', (v: unknown) =>
   new Handlebars.SafeString(`<pre>${JSON.stringify(v, null, 2)}</pre>`),
 );

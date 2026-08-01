@@ -20,6 +20,50 @@
 </head>
 <body>
 
+{{#if banner}}
+<div class="promo-banner" id="promo-banner" data-banner-id="{{banner.id}}"
+     style="background:{{#if banner.bg}}{{banner.bg}}{{else}}var(--color-accent){{/if}};color:{{banner.text}};">
+  <div class="promo-banner__inner">
+    <span class="promo-banner__msg">{{banner.message}}</span>
+    {{#if banner.code}}
+      <button type="button" class="promo-banner__code" data-code="{{banner.code}}" title="Copy code">{{banner.code}}</button>
+    {{/if}}
+    {{#if banner.linkUrl}}
+      <a class="promo-banner__cta" href="{{banner.linkUrl}}">{{banner.linkLabel}} →</a>
+    {{/if}}
+  </div>
+  {{#if banner.dismissible}}
+    <button type="button" class="promo-banner__close" aria-label="Dismiss" data-banner-close>&times;</button>
+  {{/if}}
+</div>
+<script>
+  (function () {
+    var el = document.getElementById('promo-banner');
+    if (!el) return;
+    var id = el.getAttribute('data-banner-id');
+    // Stay dismissed until the banner changes (new id).
+    try { if (localStorage.getItem('sq-banner-dismissed') === id) { el.remove(); return; } } catch (e) {}
+    var close = el.querySelector('[data-banner-close]');
+    if (close) close.addEventListener('click', function () {
+      try { localStorage.setItem('sq-banner-dismissed', id); } catch (e) {}
+      el.remove();
+    });
+    var codeBtn = el.querySelector('.promo-banner__code');
+    if (codeBtn) codeBtn.addEventListener('click', function () {
+      var code = codeBtn.getAttribute('data-code');
+      var flash = function () {
+        var prev = codeBtn.textContent;
+        codeBtn.textContent = 'Copied!';
+        setTimeout(function () { codeBtn.textContent = prev; }, 1500);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(flash, flash);
+      } else { flash(); }
+    });
+  })();
+</script>
+{{/if}}
+
 <header class="site-header">
   <div class="site-header__inner">
 

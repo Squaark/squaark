@@ -1,0 +1,140 @@
+<div class="page-header__left mb-6">
+  <a href="/admin/banners" class="page-back">← Banners</a>
+  <h1 class="page-title">{{#if banner}}Edit banner{{else}}New banner{{/if}}</h1>
+</div>
+
+{{#if error}}<div class="alert alert-error mb-4">{{error}}</div>{{/if}}
+
+{{!-- The preview is driven by @input events (not x-model) so the server-rendered
+     field values are never clobbered on load. useAccent is a safe boolean literal. --}}
+<form method="POST" action="{{#if banner}}/admin/banners/{{banner.id}}{{else}}/admin/banners{{/if}}"
+      x-data="{ message: '', code: '', linkLabel: '', bg: '#1a1a2e', text: '#ffffff', useAccent: {{#if form.bg_color}}false{{else}}true{{/if}} }"
+      x-init="$nextTick(() => {
+        message   = $refs.message.value;
+        code      = $refs.code.value;
+        linkLabel = $refs.linkLabel.value;
+        text      = $refs.textColor.value || '#ffffff';
+        bg        = $refs.bgColor.value || '#1a1a2e';
+      })">
+  {{csrf_field}}
+
+  <!-- Live preview -->
+  <div class="mb-4">
+    <p class="form-label">Preview</p>
+    <div style="border-radius:0.5rem;overflow:hidden;border:1px solid #e5e7eb;">
+      <div style="padding:0.625rem 1rem;display:flex;align-items:center;justify-content:center;gap:0.75rem;flex-wrap:wrap;font-size:0.875rem;text-align:center;"
+           :style="`background:${useAccent ? '#1a1a2e' : bg};color:${text};`">
+        <span x-text="message || 'Your banner message shows here'"></span>
+        <span x-show="code" x-cloak x-text="code"
+              style="font-weight:600;padding:0.1rem 0.5rem;border-radius:0.25rem;background:rgba(255,255,255,0.18);"></span>
+        <span x-show="linkLabel" x-cloak x-text="linkLabel"
+              style="text-decoration:underline;font-weight:600;"></span>
+      </div>
+    </div>
+    <p class="form-hint" x-show="useAccent">Background follows your theme's accent colour on the live site (shown dark here).</p>
+  </div>
+
+  <div class="grid-form">
+    <div class="stack">
+      <div class="card--no-overflow card-body stack-sm">
+        <div>
+          <label class="form-label">Message</label>
+          <textarea name="message" x-ref="message" @input="message = $event.target.value" rows="2"
+            placeholder="e.g. Free UK delivery on orders over £50" class="form-textarea" required autofocus>{{form.message}}</textarea>
+        </div>
+
+        <div class="form-row form-row--2">
+          <div>
+            <label class="form-label">Link URL <span class="form-optional">(optional)</span></label>
+            <input type="text" name="link_url" value="{{form.link_url}}"
+              placeholder="/collections/sale" class="form-input">
+            <p class="form-hint">Makes the banner clickable — a path or full URL.</p>
+          </div>
+          <div>
+            <label class="form-label">Button label <span class="form-optional">(optional)</span></label>
+            <input type="text" name="link_label" x-ref="linkLabel" @input="linkLabel = $event.target.value"
+              value="{{form.link_label}}" placeholder="Shop now" class="form-input">
+          </div>
+        </div>
+
+        <div>
+          <label class="form-label">Discount code <span class="form-optional">(optional)</span></label>
+          <input type="text" name="code" x-ref="code" @input="code = $event.target.value" value="{{form.code}}"
+            placeholder="e.g. SAVE10" class="form-input font-mono" style="max-width:14rem;">
+          <p class="form-hint">Shown as a pill that copies to the clipboard when clicked.</p>
+        </div>
+
+        <div class="form-row form-row--2">
+          <div>
+            <label class="form-label">Starts <span class="form-optional">(optional)</span></label>
+            <input type="date" name="starts_at" value="{{form.starts_at}}" class="form-input">
+            <p class="form-hint">Leave blank to start immediately.</p>
+          </div>
+          <div>
+            <label class="form-label">Ends <span class="form-optional">(optional)</span></label>
+            <input type="date" name="ends_at" value="{{form.ends_at}}" class="form-input">
+            <p class="form-hint">Shown through the end of this day.</p>
+          </div>
+        </div>
+
+        <div>
+          <label class="form-label">Colours</label>
+          <label class="form-check">
+            <input type="checkbox" @change="useAccent = $event.target.checked" {{#unless form.bg_color}}checked{{/unless}}>
+            <span class="text-sm">Use theme accent colour for the background</span>
+          </label>
+          <div class="form-row form-row--2" style="margin-top:0.5rem;">
+            <div x-show="!useAccent" x-cloak>
+              <label class="form-label-xs">Background</label>
+              <input type="color" x-ref="bgColor" @input="bg = $event.target.value"
+                value="{{#if form.bg_color}}{{form.bg_color}}{{else}}#1a1a2e{{/if}}" class="form-input" style="height:2.5rem;padding:0.25rem;">
+            </div>
+            <div>
+              <label class="form-label-xs">Text</label>
+              <input type="color" name="text_color" x-ref="textColor" @input="text = $event.target.value"
+                value="{{#if form.text_color}}{{form.text_color}}{{else}}#ffffff{{/if}}" class="form-input" style="height:2.5rem;padding:0.25rem;">
+            </div>
+          </div>
+          <!-- Carries '' when following the theme accent, so the storefront uses var(--color-accent). -->
+          <input type="hidden" name="bg_color" :value="useAccent ? '' : bg">
+        </div>
+
+        <label class="form-check">
+          <input type="checkbox" name="dismissible" value="1" {{#if form.dismissible}}checked{{/if}}>
+          <span class="text-sm">Let visitors dismiss it (remembered in their browser)</span>
+        </label>
+
+        <label class="form-check">
+          <input type="checkbox" name="active" value="1" {{#if form.active}}checked{{/if}}>
+          <span class="text-sm">Active</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="stack-sm">
+      <div class="card--no-overflow card-body">
+        <button type="submit" class="btn btn-primary w-full">
+          {{#if banner}}Save banner{{else}}Create banner{{/if}}
+        </button>
+      </div>
+
+      {{#if banner}}
+      <div class="card--no-overflow card-body text-xs text-muted">
+        <p>Status:
+          {{#if (eq status 'live')}}<span class="badge badge-green">Live</span>
+          {{else if (eq status 'scheduled')}}<span class="badge badge-blue">Scheduled</span>
+          {{else if (eq status 'expired')}}<span class="badge badge-gray">Expired</span>
+          {{else}}<span class="badge badge-gray">Off</span>{{/if}}
+        </p>
+        <p class="mt-2">Only one banner shows at a time — if several are live, the newest wins.</p>
+      </div>
+      <div class="card--no-overflow card-body">
+        <form method="POST" action="/admin/banners/{{banner.id}}/delete" onsubmit="return confirm('Delete this banner?')">
+          {{csrf_field}}
+          <button type="submit" class="btn-link btn-link--danger btn-link--sm">Delete banner</button>
+        </form>
+      </div>
+      {{/if}}
+    </div>
+  </div>
+</form>

@@ -1,5 +1,6 @@
 import { getAllSettings } from '../db/queries/admin';
 import { getNav } from '../routes/admin/navigation';
+import { getActiveBanner } from '../db/queries/banners';
 
 export interface Money {
   amount: number;      // Minor units (cents)
@@ -82,6 +83,16 @@ export interface GlobalContext {
   };
   customer: { loggedIn: boolean; firstName: string | null } | null;
   navigation: { main: NavItem[]; footer: NavItem[] };
+  banner: {
+    id: string;
+    message: string;
+    linkUrl: string | null;
+    linkLabel: string | null;
+    code: string | null;
+    bg: string;          // '' → fall back to the theme accent
+    text: string;
+    dismissible: boolean;
+  } | null;
   currentPath: string;
   pageTitle?: string;
   metaDescription?: string;
@@ -178,6 +189,7 @@ export function buildGlobalContext(
 ): GlobalContext {
   const settings = getAllSettings();
   const currencyCode = settings.store_currency ?? 'GBP';
+  const activeBanner = getActiveBanner();
   return {
     store: {
       name: settings.store_name ?? 'My Store',
@@ -210,6 +222,16 @@ export function buildGlobalContext(
         children: [],
       })),
     },
+    banner: activeBanner ? {
+      id: activeBanner.id,
+      message: activeBanner.message,
+      linkUrl: activeBanner.link_url,
+      linkLabel: activeBanner.link_label,
+      code: activeBanner.code,
+      bg: activeBanner.bg_color,
+      text: activeBanner.text_color,
+      dismissible: activeBanner.dismissible === 1,
+    } : null,
     currentPath,
     tax: {
       enabled: settings.tax_enabled === '1',

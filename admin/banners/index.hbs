@@ -1,0 +1,51 @@
+<div class="page-header">
+  <h1 class="page-title">Promotions</h1>
+  <a href="/admin/banners/new" class="btn btn-primary">Add banner</a>
+</div>
+
+{{> promo-tabs}}
+
+{{#if saved}}<div class="alert alert-success">Saved.</div>{{/if}}
+
+<div class="card">
+  {{#if banners.length}}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Message</th>
+          <th>Schedule</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each banners}}
+        <tr>
+          <td>
+            <a href="/admin/banners/{{this.id}}" class="cell-title">{{truncate this.message 60}}</a>
+            {{#if this.code}}<span class="badge badge-gray font-mono" style="margin-left:0.375rem;">{{this.code}}</span>{{/if}}
+          </td>
+          <td class="text-sm text-muted">
+            {{#if (or this.starts_at this.ends_at)}}
+              {{#if this.starts_at}}{{date_short this.starts_at}}{{else}}Now{{/if}} – {{#if this.ends_at}}{{date_short this.ends_at}}{{else}}Ongoing{{/if}}
+            {{else}}Always{{/if}}
+          </td>
+          <td>
+            {{#if (eq this.status 'live')}}<span class="badge badge-green">Live</span>
+            {{else if (eq this.status 'scheduled')}}<span class="badge badge-blue">Scheduled</span>
+            {{else if (eq this.status 'expired')}}<span class="badge badge-gray">Expired</span>
+            {{else}}<span class="badge badge-gray">Off</span>{{/if}}
+          </td>
+          <td class="right"><a href="/admin/banners/{{this.id}}" class="btn-link btn-link--xs">Edit</a></td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  {{else}}
+    <div class="empty-state">
+      <p>No banners yet.</p>
+      <p class="text-sm text-muted">Add an announcement bar to the top of your store — a sale, free delivery, a new arrival — with an optional link, discount code and a start/end date.</p>
+      <a href="/admin/banners/new" class="btn btn-primary mt-4">Add first banner</a>
+    </div>
+  {{/if}}
+</div>
