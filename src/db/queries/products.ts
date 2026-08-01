@@ -244,6 +244,23 @@ export function searchProductsByTitle(q: string, limit = 10): { id: string; titl
   );
 }
 
+/** Map of product id → the collection ids it belongs to (for discount targeting). */
+export function getCollectionIdsForProducts(productIds: string[]): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  if (productIds.length === 0) return out;
+  const ph = productIds.map(() => '?').join(',');
+  const rows = query<{ product_id: string; collection_id: string }>(
+    `SELECT product_id, collection_id FROM collection_products WHERE product_id IN (${ph})`,
+    productIds,
+  );
+  for (const r of rows) {
+    const list = out.get(r.product_id) ?? [];
+    list.push(r.collection_id);
+    out.set(r.product_id, list);
+  }
+  return out;
+}
+
 /** id + title for a set of product ids (any published state) — for the admin related picker. */
 export function getProductNamesByIds(ids: string[]): { id: string; title: string }[] {
   if (ids.length === 0) return [];
