@@ -31,6 +31,11 @@ export function buildSampleContext(templateKey: string): Record<string, unknown>
       return { store, customer_name: 'Alex', reset_url: `${store.url}/account/reset?token=sample` };
     case 'email_verification':
       return { store, customer_name: 'Alex', verify_url: `${store.url}/account/verify?token=sample` };
+    case 'low_stock':
+      return { store, threshold: 5, items: [
+        { product_title: 'Canvas Tote Bag', variant_title: 'Natural', sku: 'TOTE-NAT', remaining: 3 },
+        { product_title: 'Linen Napkin Set', variant_title: '', sku: null, remaining: 0 },
+      ] };
     default:
       return { store };
   }

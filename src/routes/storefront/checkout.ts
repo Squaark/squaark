@@ -9,7 +9,7 @@ import { createOrder, markOrderPaid, findOrderById, findOrderByPaymentReference,
 import { createOrderDownloads, findDownloadsForOrder } from '../../db/queries/downloads';
 import { sendTemplatedEmail } from '../../email/send';
 import { buildOrderEmailContext } from '../../email/order-context';
-import { sendMerchantNewOrderEmail } from '../../email/order-notifications';
+import { sendMerchantNewOrderEmail, notifyLowStock } from '../../email/order-notifications';
 import config from '../../config';
 import { writeLog } from '../../db/queries/system-log';
 import { findCustomerByEmail, createCustomer, deleteCustomer } from '../../db/queries/customers';
@@ -288,7 +288,8 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       const orderId = (session.metadata?.orderId as string) || req.session.pendingOrderId;
       if (!orderId) return reply.redirect('/checkout');
 
-      markOrderPaid(orderId, session_id);
+      const freshPaid = markOrderPaid(orderId, session_id);
+      if (freshPaid) notifyLowStock(orderId).catch(() => {});
       clearCart(req.cartId);
       delete req.session.pendingOrderId;
 
@@ -350,7 +351,8 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
         if (!existing) {
           const orderId = session.metadata?.orderId as string;
           if (orderId) {
-            markOrderPaid(orderId, session.id);
+            const freshPaid = markOrderPaid(orderId, session.id);
+            if (freshPaid) notifyLowStock(orderId).catch(() => {});
             const order = findOrderById(orderId);
             writeLog('payment', 'info', 'Stripe payment confirmed via webhook', {
               orderId, orderNumber: order?.order_number, email: order?.email,
@@ -541,7 +543,8 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
         })),
       });
 
-      markOrderPaid(order.id, data.id);
+      const freshPaid = markOrderPaid(order.id, data.id);
+      if (freshPaid) notifyLowStock(order.id).catch(() => {});
       clearCart(req.cartId);
       delete req.session.pendingPaypalOrder;
 
