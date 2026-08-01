@@ -8,10 +8,11 @@
 {{!-- The preview is driven by @input events (not x-model) so the server-rendered
      field values are never clobbered on load. useAccent is a safe boolean literal. --}}
 <form method="POST" action="{{#if banner}}/admin/banners/{{banner.id}}{{else}}/admin/banners{{/if}}"
-      x-data="{ message: '', code: '', linkLabel: '', bg: '#1a1a2e', text: '#ffffff', useAccent: {{#if form.bg_color}}false{{else}}true{{/if}} }"
+      x-data="{ message: '', code: '', linkUrl: '', linkLabel: '', bg: '#1a1a2e', text: '#ffffff', accent: '{{accentColor}}', useAccent: {{#if form.bg_color}}false{{else}}true{{/if}}, dismissible: {{#if form.dismissible}}true{{else}}false{{/if}} }"
       x-init="$nextTick(() => {
         message   = $refs.message.value;
         code      = $refs.code.value;
+        linkUrl   = $refs.linkUrlInput.value;
         linkLabel = $refs.linkLabel.value;
         text      = $refs.textColor.value || '#ffffff';
         bg        = $refs.bgColor.value || '#1a1a2e';
@@ -22,16 +23,19 @@
   <div class="mb-4">
     <p class="form-label">Preview</p>
     <div style="border-radius:0.5rem;overflow:hidden;border:1px solid #e5e7eb;">
-      <div style="padding:0.625rem 1rem;display:flex;align-items:center;justify-content:center;gap:0.75rem;flex-wrap:wrap;font-size:0.875rem;text-align:center;"
-           :style="`background:${useAccent ? '#1a1a2e' : bg};color:${text};`">
-        <span x-text="message || 'Your banner message shows here'"></span>
+      <div style="position:relative;padding:0.625rem 2.5rem;display:flex;align-items:center;justify-content:center;gap:0.75rem;flex-wrap:wrap;font-size:0.875rem;line-height:1.4;text-align:center;"
+           :style="`background:${useAccent ? accent : bg};color:${text};`">
+        <span style="font-weight:500;" x-text="message || 'Your banner message shows here'"></span>
         <span x-show="code" x-cloak x-text="code"
-              style="font-weight:600;padding:0.1rem 0.5rem;border-radius:0.25rem;background:rgba(255,255,255,0.18);"></span>
-        <span x-show="linkLabel" x-cloak x-text="linkLabel"
-              style="text-decoration:underline;font-weight:600;"></span>
+              style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;letter-spacing:0.03em;padding:0.15rem 0.5rem;border-radius:0.25rem;border:1px dashed currentColor;background:rgba(255,255,255,0.16);"></span>
+        <span x-show="linkUrl" x-cloak
+              style="font-weight:600;text-decoration:underline;text-underline-offset:2px;white-space:nowrap;"
+              x-text="(linkLabel || 'Shop now') + ' →'"></span>
+        <span x-show="dismissible" x-cloak
+              style="position:absolute;top:50%;right:0.75rem;transform:translateY(-50%);font-size:1.25rem;line-height:1;opacity:0.7;">&times;</span>
       </div>
     </div>
-    <p class="form-hint" x-show="useAccent">Background follows your theme's accent colour on the live site (shown dark here).</p>
+    <p class="form-hint" x-show="useAccent" x-cloak>Background follows your theme's accent colour on the live site.</p>
   </div>
 
   <div class="grid-form">
@@ -46,8 +50,8 @@
         <div class="form-row form-row--2">
           <div>
             <label class="form-label">Link URL <span class="form-optional">(optional)</span></label>
-            <input type="text" name="link_url" value="{{form.link_url}}"
-              placeholder="/collections/sale" class="form-input">
+            <input type="text" name="link_url" x-ref="linkUrlInput" @input="linkUrl = $event.target.value"
+              value="{{form.link_url}}" placeholder="/collections/sale" class="form-input">
             <p class="form-hint">Makes the banner clickable — a path or full URL.</p>
           </div>
           <div>
@@ -100,7 +104,7 @@
         </div>
 
         <label class="form-check">
-          <input type="checkbox" name="dismissible" value="1" {{#if form.dismissible}}checked{{/if}}>
+          <input type="checkbox" name="dismissible" value="1" @change="dismissible = $event.target.checked" {{#if form.dismissible}}checked{{/if}}>
           <span class="text-sm">Let visitors dismiss it (remembered in their browser)</span>
         </label>
 

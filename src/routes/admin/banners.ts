@@ -3,6 +3,7 @@ import '../../types';
 import { render } from '../../admin/render';
 import { getAdminById } from '../../admin/auth';
 import { getAllSettings } from '../../db/queries/admin';
+import { themeRegistry } from '../../theme/registry';
 import {
   listBanners, findBannerById, createBanner, updateBanner, deleteBanner,
   type BannerInput, type BannerRow,
@@ -18,7 +19,10 @@ export async function bannerRoutes(fastify: FastifyInstance): Promise<void> {
 }
 
 function ctx(req: FastifyRequest) {
-  return { admin: getAdminById(req.session.adminId!)!, settings: getAllSettings() };
+  // The live accent colour so the form preview matches a banner that "follows
+  // the theme accent" — the storefront renders those with var(--color-accent).
+  const accentColor = (themeRegistry.currentThemeConfig?.colors?.accent as string) || '#E94560';
+  return { admin: getAdminById(req.session.adminId!)!, settings: getAllSettings(), accentColor };
 }
 
 /** Local today as YYYY-MM-DD, to compare against the date-only schedule bounds. */
