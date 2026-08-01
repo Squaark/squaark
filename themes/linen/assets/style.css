@@ -80,6 +80,59 @@ input, select, textarea { font-family: inherit; }
 .section-image img { width: 100%; border-radius: 0.75rem; object-fit: cover; }
 .section-image figcaption { margin-top: 0.75rem; font-size: 0.875rem; text-align: center; color: #9ca3af; }
 
+/* ── Promo banner ───────────────────────────────────────────────────────── */
+.promo-banner {
+  position: relative;
+  background: var(--color-accent);
+  color: #fff;
+}
+.promo-banner__inner {
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 0.625rem 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  text-align: center;
+}
+.promo-banner__msg { font-weight: 500; }
+.promo-banner__code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.25rem;
+  border: 1px dashed currentColor;
+  background: rgba(255, 255, 255, 0.16);
+  color: inherit;
+  cursor: pointer;
+}
+.promo-banner__code:hover { background: rgba(255, 255, 255, 0.28); }
+.promo-banner__cta {
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+.promo-banner__close {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  opacity: 0.7;
+  padding: 0.25rem;
+}
+.promo-banner__close:hover { opacity: 1; }
+
 /* ── Header ─────────────────────────────────────────────────────────────── */
 .site-header {
   border-bottom: 1px solid #f3f4f6;

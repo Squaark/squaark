@@ -66,7 +66,7 @@ async function list(req: FastifyRequest, reply: FastifyReply) {
   return reply.type('text/html').send(
     await render('discounts/index', {
       ...ctx(req), discounts: listDiscounts(),
-      pageTitle: 'Discounts', pageSection: 'discounts',
+      pageTitle: 'Discounts', pageSection: 'promotions', promoTab: 'codes',
       saved: 'saved' in (req.query as Record<string, string>),
     }, reply),
   );
@@ -76,7 +76,7 @@ async function newPage(req: FastifyRequest, reply: FastifyReply) {
   return reply.type('text/html').send(
     await render('discounts/form', {
       ...ctx(req), discount: null, form: { type: 'percentage', active: true },
-      pageTitle: 'New discount', pageSection: 'discounts',
+      pageTitle: 'New discount', pageSection: 'promotions', promoTab: 'codes',
     }, reply),
   );
 }
@@ -85,14 +85,14 @@ async function create(req: FastifyRequest<{ Body: Record<string, string> }>, rep
   const { input, error } = parseBody(req.body);
   if (error || !input) {
     return reply.type('text/html').send(
-      await render('discounts/form', { ...ctx(req), discount: null, form: req.body, error, pageTitle: 'New discount', pageSection: 'discounts' }, reply),
+      await render('discounts/form', { ...ctx(req), discount: null, form: req.body, error, pageTitle: 'New discount', pageSection: 'promotions', promoTab: 'codes' }, reply),
     );
   }
   try {
     createDiscount(input);
   } catch {
     return reply.type('text/html').send(
-      await render('discounts/form', { ...ctx(req), discount: null, form: req.body, error: 'A discount with that code already exists.', pageTitle: 'New discount', pageSection: 'discounts' }, reply),
+      await render('discounts/form', { ...ctx(req), discount: null, form: req.body, error: 'A discount with that code already exists.', pageTitle: 'New discount', pageSection: 'promotions', promoTab: 'codes' }, reply),
     );
   }
   return reply.redirect('/admin/discounts?saved=1');
@@ -104,7 +104,7 @@ async function editPage(req: FastifyRequest<{ Params: { id: string } }>, reply: 
   return reply.type('text/html').send(
     await render('discounts/form', {
       ...ctx(req), discount, form: toForm(discount),
-      pageTitle: discount.code, pageSection: 'discounts',
+      pageTitle: discount.code, pageSection: 'promotions', promoTab: 'codes',
     }, reply),
   );
 }
@@ -115,14 +115,14 @@ async function update(req: FastifyRequest<{ Params: { id: string }; Body: Record
   const { input, error } = parseBody(req.body);
   if (error || !input) {
     return reply.type('text/html').send(
-      await render('discounts/form', { ...ctx(req), discount, form: req.body, error, pageTitle: discount.code, pageSection: 'discounts' }, reply),
+      await render('discounts/form', { ...ctx(req), discount, form: req.body, error, pageTitle: discount.code, pageSection: 'promotions', promoTab: 'codes' }, reply),
     );
   }
   try {
     updateDiscount(discount.id, input);
   } catch {
     return reply.type('text/html').send(
-      await render('discounts/form', { ...ctx(req), discount, form: req.body, error: 'A discount with that code already exists.', pageTitle: discount.code, pageSection: 'discounts' }, reply),
+      await render('discounts/form', { ...ctx(req), discount, form: req.body, error: 'A discount with that code already exists.', pageTitle: discount.code, pageSection: 'promotions', promoTab: 'codes' }, reply),
     );
   }
   return reply.redirect('/admin/discounts?saved=1');
