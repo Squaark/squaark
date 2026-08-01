@@ -44,21 +44,41 @@ JSON
 
 ## Versioning & releases
 
-[Semantic Versioning](https://semver.org). Pre-1.0, treat **minor** as features and
-**patch** as fixes. To cut a release from a green `master`:
+Versioning is **automated** — do **not** run `npm version` by hand. On every merge
+to `master`, [`.github/workflows/version-bump.yml`](.github/workflows/version-bump.yml)
+bumps `package.json` + `package-lock.json`, commits `chore(release): vX.Y.Z`, creates
+the `vX.Y.Z` tag, and pushes it all back. Follows
+[Semantic Versioning](https://semver.org) (pre-1.0: minor = features, patch = fixes).
 
-```bash
-git switch master && git pull
+The bump **size** comes from the merged branch's prefix. Merge-commit merges (the
+default here) carry the branch name in the commit message, so this just works — name
+the branch accordingly:
 
-# 1. Move the Unreleased notes in CHANGELOG.md under a new version heading, commit.
-# 2. Bump the version + create the tag (updates package.json, makes an annotated tag):
-npm version minor          # 0.1.0 -> 0.2.0   (use `patch` for a fix-only release)
+| Merged branch                              | Bump  |
+| ------------------------------------------ | ----- |
+| `feat/*`, `feature/*`                      | minor |
+| `fix/*`, `chore/*`, `docs/*`, other        | patch |
+| `feat!/*`, or `BREAKING CHANGE` in the body | major |
 
-# 3. Push the commit and the tag:
-git push --follow-tags
+If you switch to **Squash and merge**, the classifier falls back to the squash
+commit's subject, so keep PR titles in `type: summary` form (`feat: …`, `fix: …`).
 
-# 4. Publish the GitHub release with the changelog section as the notes:
-gh release create "v$(node -p "require('./package.json').version")" --notes-from-tag
-```
+**CHANGELOG.md is still updated by hand** — move the `[Unreleased]` notes under a new
+version heading as part of the PR (the workflow only touches the version + tag).
 
-CI runs on every push to `master` and every PR, so a tagged commit is already tested.
+### One-time setup
+
+The workflow pushes the release commit to `master`, so:
+
+1. **Settings → Actions → General → Workflow permissions** must be **Read and write
+   permissions** (so `GITHUB_TOKEN` can push).
+2. If `master` is protected with *Require a pull request before merging* (as
+   recommended above), `GITHUB_TOKEN` can't push directly. Either add a **bypass
+   actor** for the `github-actions` bot in the branch ruleset, or run the workflow's
+   checkout with a fine-grained PAT / GitHub App token that's on the bypass list
+   (set it as the `token:` on `actions/checkout`). A PAT push *does* re-trigger
+   workflows, which is why the release commit carries `[skip ci]` and the job skips
+   its own `chore(release):` commits.
+
+CI runs on every push to `master` and every PR, so each release commit is built on
+already-tested code.
