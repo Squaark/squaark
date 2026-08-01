@@ -1,0 +1,74 @@
+name: Version bump
+
+# Auto-increments the version on every merge to master.
+#
+# The bump size is read from the merged branch's prefix, taken from the merge
+# commit message ("Merge pull request #N from OWNER/<branch>"):
+#   feat/*  or feature/*        -> minor
+#   a "!" type or BREAKING CHANGE -> major   (e.g. feat!/… or "feat!: …")
+#   anything else (fix/chore/…)  -> patch    (safe default)
+# Squash/direct commits fall back to the conventional-commit subject itself.
+#
+# The push back to master uses the built-in GITHUB_TOKEN, which by design does
+# NOT trigger another workflow run, so this can never loop. The `if` guard and
+# the [skip ci] tag are belt-and-braces (they only matter if you later swap in
+# a personal access token, which DOES re-trigger).
+
+on:
+  push:
+    branches: [master]
+
+# Serialise runs so two quick merges can't race on the push back to master.
+concurrency: version-bump
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    # Don't react to our own release commit.
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Decide bump size from the merged branch
+        id: bump
+        run: |
+          set -euo pipefail
+          subject="$(git log -1 --pretty=%s)"
+          body="$(git log -1 --pretty=%B)"
+
+          # Prefer the merged branch name; fall back to the subject line.
+          token="$subject"
+          if [[ "$subject" =~ Merge\ pull\ request\ #[0-9]+\ from\ [^/]+/(.+)$ ]]; then
+            token="${BASH_REMATCH[1]}"
+          fi
+
+          shopt -s nocasematch
+          if [[ "$body" == *"BREAKING CHANGE"* ]] || [[ "$token" =~ ^[a-z]+! ]] || [[ "$token" =~ ^(major|breaking)(/|:) ]]; then
+            level=major
+          elif [[ "$token" =~ ^(feat|feature)(/|:|$) ]] || [[ "$token" =~ ^minor(/|:) ]]; then
+            level=minor
+          else
+            level=patch
+          fi
+
+          echo "level=$level" >> "$GITHUB_OUTPUT"
+          echo "Bump level: $level  (derived from: $token)"
+
+      - name: Bump, commit, tag and push
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          new="$(npm version "${{ steps.bump.outputs.level }}" -m 'chore(release): v%s [skip ci]')"
+          echo "Released $new"
+          git push --follow-tags origin master
