@@ -94,6 +94,11 @@ export function countOrders(): number {
   return queryOne<{ n: number }>('SELECT COUNT(*) AS n FROM orders')?.n ?? 0;
 }
 
+/** All orders, newest first — for the admin CSV export (not paginated). */
+export function findAllOrders(): OrderRow[] {
+  return query<OrderRow>('SELECT * FROM orders ORDER BY created_at DESC');
+}
+
 export function findOrderById(id: string): OrderRow | null {
   return queryOne<OrderRow>('SELECT * FROM orders WHERE id = ?', [id]);
 }
