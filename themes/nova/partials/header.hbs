@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {{meta_title}}
+  {{meta_description}}
+  {{canonical_url}}
+  {{og_tags}}
+  {{#if store.icon}}
+  <link rel="icon" href="{{store.icon}}">
+  {{else}}
+  <link rel="icon" href="data:,">
+  {{/if}}
+  <link rel="stylesheet" href="{{asset 'fonts.css'}}">
+  <link rel="stylesheet" href="{{asset 'style.css'}}">
+  {{{cssVars}}}
+  <script src="/public/vendor/htmx-2.0.3.min.js" defer></script>
+  <script src="/public/vendor/alpine-3.15.12.min.js" defer></script>
+  {{{marketing.pixelHead}}}
+</head>
+<body>
+{{{marketing.pixelNoscript}}}
+
+{{#if banner}}
+<div class="promo-banner" id="promo-banner" data-banner-id="{{banner.id}}"
+     style="background:{{#if banner.bg}}{{banner.bg}}{{else}}var(--color-accent){{/if}};color:{{banner.text}};">
+  <div class="promo-banner__inner">
+    <span class="promo-banner__msg">{{banner.message}}</span>
+    {{#if banner.code}}
+      <button type="button" class="promo-banner__code" data-code="{{banner.code}}" title="Copy code">{{banner.code}}</button>
+    {{/if}}
+    {{#if banner.linkUrl}}
+      <a class="promo-banner__cta" href="{{banner.linkUrl}}">{{banner.linkLabel}} →</a>
+    {{/if}}
+  </div>
+  {{#if banner.dismissible}}
+    <button type="button" class="promo-banner__close" aria-label="Dismiss" data-banner-close>&times;</button>
+  {{/if}}
+</div>
+<script>
+  (function () {
+    var el = document.getElementById('promo-banner');
+    if (!el) return;
+    var id = el.getAttribute('data-banner-id');
+    // Stay dismissed until the banner changes (new id).
+    try { if (localStorage.getItem('sq-banner-dismissed') === id) { el.remove(); return; } } catch (e) {}
+    var close = el.querySelector('[data-banner-close]');
+    if (close) close.addEventListener('click', function () {
+      try { localStorage.setItem('sq-banner-dismissed', id); } catch (e) {}
+      el.remove();
+    });
+    var codeBtn = el.querySelector('.promo-banner__code');
+    if (codeBtn) codeBtn.addEventListener('click', function () {
+      var code = codeBtn.getAttribute('data-code');
+      var flash = function () {
+        var prev = codeBtn.textContent;
+        codeBtn.textContent = 'Copied!';
+        setTimeout(function () { codeBtn.textContent = prev; }, 1500);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(flash, flash);
+      } else { flash(); }
+    });
+  })();
+</script>
+{{/if}}
+
+<header class="site-header">
+  <div class="site-header__inner">
+
+    <!-- Logo / Store name -->
+    <a href="/" class="site-header__logo">
+      {{#if store.logo}}
+        <img src="{{store.logo}}" alt="{{store.name}}" style="height:2rem;width:auto;">
+      {{else}}
+        <span>{{store.name}}</span>
+      {{/if}}
+    </a>
+
+    <!-- Main navigation -->
+    <nav class="header-nav">
+      {{#each navigation.main}}
+        <a href="{{this.url}}" class="{{#is this.url ../currentPath}}active{{/is}}">{{this.label}}</a>
+      {{/each}}
+    </nav>
+
+    <!-- Right actions -->
+    <div class="header-actions">
+
+      <!-- Account -->
+      {{#if store.customerAccountsEnabled}}
+      <a href="/account" class="header-icon" aria-label="{{#if customer.loggedIn}}My account{{else}}Sign in{{/if}}">
+        {{#if customer.loggedIn}}
+        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-5.33 0-8 2.67-8 4v1h16v-1c0-1.33-2.67-4-8-4z"/>
+        </svg>
+        {{else}}
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM12 14a7 7 0 0 0-7 7h14a7 7 0 0 0-7-7z"/>
+        </svg>
+        {{/if}}
+      </a>
+      {{/if}}
+
+      <!-- Search -->
+      <a href="/search" class="header-icon" aria-label="Search">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
+        </svg>
+      </a>
+
+      <!-- Cart -->
+      <a href="/{{store.cartSlug}}" class="header-icon" style="position:relative;" aria-label="{{store.cartLabel}}">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M16 11V7a4 4 0 0 0-8 0v4M5 9h14l1 12H4L5 9z"/>
+        </svg>
+        <span id="cart-count" class="cart-badge"
+              style="{{#unless cart.itemCount}}display:none{{/unless}}">
+          {{cart.itemCount}}
+        </span>
+      </a>
+
+      <!-- Mobile menu toggle -->
+      <button class="mobile-menu-btn" x-data @click="$dispatch('toggle-menu')" aria-label="Menu">
+        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+      </button>
+
+    </div>
+  </div>
+
+  <!-- Mobile nav -->
+  <div class="mobile-nav" x-data="{ open: false }" @toggle-menu.window="open = !open" x-show="open" x-cloak>
+    <div class="mobile-nav__inner">
+      {{#each navigation.main}}
+        <a href="{{this.url}}">{{this.label}}</a>
+      {{/each}}
+    </div>
+  </div>
+</header>
+
+<main>

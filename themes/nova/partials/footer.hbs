@@ -1,0 +1,60 @@
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="site-footer__grid">
+
+      <!-- Brand -->
+      <div class="footer-brand">
+        <p class="footer-brand__name">{{store.name}}</p>
+        {{#if store.tagline}}<p class="footer-tagline">{{store.tagline}}</p>{{/if}}
+      </div>
+
+      <!-- Links -->
+      <div>
+        <p class="footer-col-heading">Info</p>
+        <ul class="footer-links">
+          {{#each navigation.footer}}
+            <li><a href="{{this.url}}">{{this.label}}</a></li>
+          {{/each}}
+        </ul>
+      </div>
+
+      <!-- Currency -->
+      <div>
+        <p class="footer-col-heading">Currency</p>
+        <p class="footer-links__item">{{store.currency.code}} ({{store.currency.symbol}})</p>
+      </div>
+
+    </div>
+
+    <div class="site-footer__bottom">
+      <p class="footer-copy">© {{store.name}}. All rights reserved.</p>
+      <p class="footer-copy">Powered by Squaark</p>
+    </div>
+  </div>
+</footer>
+
+<div id="sq-toast" class="sq-toast" role="status" aria-live="polite"></div>
+<script>
+  (function () {
+    var toast = document.getElementById('sq-toast');
+    var timer;
+    function show(msg) {
+      toast.textContent = msg;
+      toast.classList.add('sq-toast--show');
+      clearTimeout(timer);
+      timer = setTimeout(function () { toast.classList.remove('sq-toast--show'); }, 2500);
+    }
+    // Fired by any htmx add-to-cart control (marked data-cart-add) on success.
+    document.body.addEventListener('htmx:afterRequest', function (e) {
+      var el = e.detail && e.detail.elt;
+      if (e.detail.successful && el && el.matches && el.matches('[data-cart-add]')) {
+        show(el.getAttribute('data-toast') || 'Added to cart');
+      }
+    });
+  })();
+</script>
+<script src="{{asset 'main.js'}}"></script>
+</body>
+</html>

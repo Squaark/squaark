@@ -1,0 +1,36 @@
+{{> header}}
+
+<div class="container--narrow auth-page">
+  <h1 class="auth-title">Sign in</h1>
+  <p style="font-size:0.875rem;color:#6b7280;margin-bottom:2rem;">Access your orders and account details.</p>
+
+  {{#if error}}
+  <div class="auth-error">
+    {{#if (eq error 'invalid')}}Email or password is incorrect.{{/if}}
+    {{#if (eq error 'missing_fields')}}Please enter your email and password.{{/if}}
+  </div>
+  {{/if}}
+
+  <form method="POST" action="/account/login" class="auth-form">
+    {{csrf_field}}
+    <div>
+      <label class="store-label">Email</label>
+      <input type="email" name="email" required autocomplete="email" class="store-input">
+    </div>
+    <div>
+      <label class="store-label">Password</label>
+      <input type="password" name="password" required autocomplete="current-password" class="store-input">
+      <p style="font-size:0.75rem;margin-top:0.5rem;text-align:right;"><a href="/account/forgot" style="color:#6b7280;">Forgot your password?</a></p>
+    </div>
+    <button type="submit" class="btn btn-block" style="background:var(--color-primary);color:#fff;justify-content:center;">
+      Sign in
+    </button>
+  </form>
+
+  <p style="font-size:0.875rem;color:#6b7280;text-align:center;margin-top:1.5rem;">
+    Don't have an account?
+    <a href="/account/register" style="font-weight:500;color:#111827;">Create one</a>
+  </p>
+</div>
+
+{{> footer}}

@@ -1,0 +1,47 @@
+{{> header}}
+
+<div class="container--narrow auth-page">
+  <h1 class="auth-title">Create account</h1>
+  <p style="font-size:0.875rem;color:#6b7280;margin-bottom:2rem;">Track your orders and save your details.</p>
+
+  {{#if error}}
+  <div class="auth-error">
+    {{#if (eq error 'email_taken')}}An account with that email already exists. <a href="/account/login">Sign in instead.</a>{{/if}}
+    {{#if (eq error 'missing_fields')}}Please fill in all required fields.{{/if}}
+    {{#if (eq error 'password_too_short')}}Password must be at least 8 characters.{{/if}}
+  </div>
+  {{/if}}
+
+  <form method="POST" action="/account/register" class="auth-form">
+    {{csrf_field}}
+    <div class="auth-form-row">
+      <div>
+        <label class="store-label">First name</label>
+        <input type="text" name="first_name" required autocomplete="given-name" class="store-input">
+      </div>
+      <div>
+        <label class="store-label">Last name</label>
+        <input type="text" name="last_name" autocomplete="family-name" class="store-input">
+      </div>
+    </div>
+    <div>
+      <label class="store-label">Email</label>
+      <input type="email" name="email" required autocomplete="email" class="store-input">
+    </div>
+    <div>
+      <label class="store-label">Password</label>
+      <input type="password" name="password" required minlength="8" autocomplete="new-password" class="store-input">
+      <p style="font-size:0.75rem;color:#9ca3af;margin-top:0.25rem;">Minimum 8 characters</p>
+    </div>
+    <button type="submit" class="btn btn-block" style="background:var(--color-primary);color:#fff;justify-content:center;">
+      Create account
+    </button>
+  </form>
+
+  <p style="font-size:0.875rem;color:#6b7280;text-align:center;margin-top:1.5rem;">
+    Already have an account?
+    <a href="/account/login" style="font-weight:500;color:#111827;">Sign in</a>
+  </p>
+</div>
+
+{{> footer}}

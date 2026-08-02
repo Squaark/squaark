@@ -1,0 +1,89 @@
+{{> header}}
+
+<div class="container--md account-page">
+
+  <div style="margin-bottom:2rem;">
+    <a href="/account/orders" style="font-size:0.875rem;color:#6b7280;">← My orders</a>
+  </div>
+
+  <h1 style="font-size:1.5rem;font-weight:700;color:#111827;margin-bottom:0.25rem;">Order #{{order.order_number}}</h1>
+  <p style="font-size:0.875rem;color:#6b7280;margin-bottom:2rem;">Placed {{timestamp order.created_at}}</p>
+
+  <!-- Status + total -->
+  <div class="order-detail-meta">
+    <div>
+      <p style="font-size:0.75rem;color:#9ca3af;margin-bottom:0.25rem;">Status</p>
+      <span class="order-status order-status--{{order.status}}">{{order.status}}</span>
+    </div>
+    <div style="text-align:right;">
+      <p style="font-size:0.75rem;color:#9ca3af;margin-bottom:0.25rem;">Total</p>
+      <p class="order-detail-total">{{pence order.total}}</p>
+    </div>
+  </div>
+
+  {{#if (ne order.fulfillment 'unfulfilled')}}
+  <div class="order-detail-card">
+    <div class="order-detail-card__head">Shipping</div>
+    <div style="padding:1.25rem;font-size:0.875rem;color:#4b5563;">
+      <p style="text-transform:capitalize;">{{order.fulfillment}}{{#if order.shipped_at}} · {{timestamp order.shipped_at}}{{/if}}</p>
+      {{#if order.tracking_number}}<p style="margin-top:0.5rem;">Tracking: {{order.tracking_number}}</p>{{/if}}
+      {{#if order.tracking_url}}<p style="margin-top:0.5rem;"><a href="{{order.tracking_url}}" style="color:var(--color-primary);font-weight:500;">Track your package →</a></p>{{/if}}
+    </div>
+  </div>
+  {{/if}}
+
+  <!-- Items -->
+  <div class="order-detail-card">
+    <div class="order-detail-card__head">Items</div>
+    <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
+      <tbody>
+        {{#each items}}
+        <tr style="border-bottom:1px solid #f3f4f6;">
+          <td style="padding:1rem 1.25rem;">
+            <p style="font-weight:500;">{{this.product_title}}</p>
+            {{#if (ne this.variant_title 'Default')}}<p style="font-size:0.75rem;color:#6b7280;margin-top:0.125rem;">{{this.variant_title}}</p>{{/if}}
+          </td>
+          <td style="padding:1rem 1.25rem;color:#6b7280;text-align:center;">×{{this.quantity}}</td>
+          <td style="padding:1rem 1.25rem;text-align:right;font-weight:500;">{{pence this.line_total}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    <div class="order-totals-section">
+      <div class="totals-row">
+        <span>Subtotal</span><span>{{pence order.subtotal}}</span>
+      </div>
+      {{#if order.shipping}}
+      <div class="totals-row">
+        <span>Shipping</span><span>{{pence order.shipping}}</span>
+      </div>
+      {{/if}}
+      {{#if order.discount_amount}}
+      <div class="totals-row totals-row--discount">
+        <span>Discount</span><span>−{{pence order.discount_amount}}</span>
+      </div>
+      {{/if}}
+      <div class="totals-row totals-row--total">
+        <span>Total</span><span>{{pence order.total}}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Addresses -->
+  {{#with (parseJson order.shipping_address)}}
+  {{#if first_name}}
+  <div class="order-detail-card">
+    <div class="order-detail-card__head">Shipping address</div>
+    <div style="padding:1.25rem;font-size:0.875rem;color:#4b5563;">
+      <p>{{first_name}} {{last_name}}</p>
+      <p>{{address_1}}{{#if address_2}}, {{address_2}}{{/if}}</p>
+      <p>{{city}}{{#if postcode}}, {{postcode}}{{/if}}</p>
+      {{#if country}}<p>{{country}}</p>{{/if}}
+    </div>
+  </div>
+  {{/if}}
+  {{/with}}
+
+</div>
+
+{{> footer}}

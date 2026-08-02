@@ -1,0 +1,62 @@
+<div id="cart-contents">
+  {{#unless cart.empty}}
+    <div class="cart-items">
+      {{#each cart.items}}
+        <div class="cart-item">
+
+          <!-- Image -->
+          <a href="{{url 'product' this.productSlug}}" class="cart-item__img-link">
+            <div class="cart-item__img">
+              <img src="{{this.image.thumbnail}}" alt="{{this.productTitle}}">
+            </div>
+          </a>
+
+          <!-- Details -->
+          <div class="cart-item__body">
+            <a href="{{url 'product' this.productSlug}}" class="cart-item__title">
+              {{this.productTitle}}
+            </a>
+            {{#unless (is this.variantTitle "Default")}}
+              <p class="cart-item__variant">{{this.variantTitle}}</p>
+            {{/unless}}
+            <p class="cart-item__price">{{money this.lineTotal}}</p>
+
+            <div class="cart-item__controls">
+              <div class="qty-control">
+                <button type="button" onclick="stepQty(this, -1)" class="qty-btn">−</button>
+                <input type="number" value="{{this.quantity}}" min="1"
+                       hx-post="/{{../store.cartSlug}}/update"
+                       hx-target="#cart-contents"
+                       hx-swap="outerHTML"
+                       hx-vals='{"itemId": "{{this.id}}"}'
+                       hx-headers='{"X-CSRF-Token": "{{../csrfToken}}"}'
+                       hx-trigger="change"
+                       name="quantity"
+                       class="qty-num">
+                <button type="button" onclick="stepQty(this, 1)" class="qty-btn">+</button>
+              </div>
+
+              <button hx-delete="/{{../store.cartSlug}}/remove/{{this.id}}"
+                      hx-target="#cart-contents"
+                      hx-swap="outerHTML"
+                      hx-headers='{"X-CSRF-Token": "{{../csrfToken}}"}'
+                      class="remove-btn">
+                Remove
+              </button>
+            </div>
+          </div>
+
+        </div>
+      {{/each}}
+    </div>
+  {{/unless}}
+</div>
+
+<script>
+function stepQty(btn, delta) {
+  const input = btn.parentElement.querySelector('input[type=number]');
+  const next = Math.max(1, parseInt(input.value || '1') + delta);
+  input.value = next;
+  input.dispatchEvent(new Event('change'));
+}
+</script>

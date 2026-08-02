@@ -1,0 +1,32 @@
+{{> header}}
+
+<div class="container search-page">
+  <h1 class="search-page__title">Search</h1>
+
+  <form action="/search" method="GET" class="search-form">
+    <input type="text" name="q" value="{{query}}" placeholder="Search products…"
+           autofocus class="store-input" style="flex:1;">
+    <button type="submit" class="btn btn-primary">Search</button>
+  </form>
+
+  {{#if query}}
+    {{#if products.length}}
+      <p class="search-results-count">
+        <strong>{{products.length}}</strong> results for "{{query}}"
+      </p>
+      <div class="product-grid" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+        {{#each products}}
+          {{> product-card}}
+        {{/each}}
+      </div>
+    {{else}}
+      <div class="search-no-results">
+        <p>No products found for "<strong>{{query}}</strong>".</p>
+        <p class="search-no-results__hint">Try different keywords or browse all products.</p>
+        <a href="/collections/all" class="search-browse-link">Browse all products →</a>
+      </div>
+    {{/if}}
+  {{/if}}
+</div>
+
+{{> footer}}

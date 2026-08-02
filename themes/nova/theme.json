@@ -1,0 +1,63 @@
+{
+  "name": "nova",
+  "version": "1.0.0",
+  "engine": ">=1.0.0",
+  "description": "Bold, modern storefront with a hero product slider",
+  "author": "Core Team",
+
+  "config": {
+    "colors": {
+      "primary":          { "type": "color", "default": "#0F0F1A", "label": "Primary (text / buttons)" },
+      "accent":           { "type": "color", "default": "#6C5CE7", "label": "Accent (links / buttons / highlights)" },
+      "background":       { "type": "color", "default": "#FFFFFF", "label": "Page background" },
+      "headerBackground": { "type": "color", "default": "#FFFFFF", "label": "Header background" },
+      "headerText":       { "type": "color", "default": "#0F0F1A", "label": "Header link colour" },
+      "heroBackground":   { "type": "color", "default": "#0F0F1A", "label": "Hero background" }
+    },
+    "typography": {
+      "headingFont": {
+        "type": "select",
+        "default": "Space Grotesk",
+        "options": ["Space Grotesk", "Inter", "Playfair Display"],
+        "label": "Heading font"
+      }
+    },
+    "layout": {
+      "productsPerRow":    { "type": "select",  "default": "4", "options": ["2", "3", "4"], "label": "Products per row" },
+      "showHero":          { "type": "boolean", "default": true,  "label": "Show homepage hero slider" },
+      "heroEyebrow":       { "type": "text",    "default": "New in",                 "label": "Hero eyebrow text" },
+      "heroHeading":       { "type": "text",    "default": "Gear that moves with you", "label": "Hero heading" },
+      "heroSubheading":    { "type": "text",    "default": "Shop the drop everyone's talking about.", "label": "Hero subheading" },
+      "heroButtonLabel":   { "type": "text",    "default": "Shop the collection",    "label": "Hero button label" },
+      "heroButtonUrl":     { "type": "text",    "default": "/collections/all",       "label": "Hero button URL" },
+      "heroAutoplay":      { "type": "boolean", "default": true,  "label": "Auto-advance the hero slider" },
+      "heroInterval":      { "type": "select",  "default": "5", "options": ["4", "5", "7", "10"], "label": "Slide interval (seconds)" },
+      "featuredSections": {
+        "type": "repeater",
+        "default": [ { "title": "Trending now", "collection": "", "count": "8", "sort": "featured" } ],
+        "label": "Featured sections (the FIRST one also powers the hero slider)",
+        "itemFields": {
+          "title":      { "type": "text",   "default": "Featured Products", "label": "Section title" },
+          "collection": { "type": "collection", "default": "",              "label": "Collection" },
+          "sort":       { "type": "select", "default": "featured", "options": ["featured", "newest"], "label": "Sort order" },
+          "count":      { "type": "select", "default": "8", "options": ["4", "6", "8", "12", "16"], "label": "Number of products" }
+        }
+      },
+      "showValueProps": { "type": "boolean", "default": true, "label": "Show homepage value props (trust badges)" },
+      "valueProps": {
+        "type": "repeater",
+        "default": [
+          { "title": "Free shipping",   "body": "On orders over $50",     "icon": "truck" },
+          { "title": "30-day returns",  "body": "No-hassle, no questions", "icon": "returns" },
+          { "title": "Secure checkout", "body": "Encrypted payments",      "icon": "lock" }
+        ],
+        "label": "Value props (homepage badges)",
+        "itemFields": {
+          "title": { "type": "text",   "default": "Free shipping",   "label": "Title" },
+          "body":  { "type": "text",   "default": "On orders over $50", "label": "Subtext" },
+          "icon":  { "type": "select", "default": "truck", "options": ["check", "truck", "returns", "lock", "shield", "star", "heart", "gift"], "label": "Icon" }
+        }
+      }
+    }
+  }
+}

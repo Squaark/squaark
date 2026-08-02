@@ -1,0 +1,32 @@
+{{> header}}
+
+<div class="container--narrow auth-page">
+  <h1 class="auth-title">Choose a new password</h1>
+
+  {{#if invalid}}
+  <div class="auth-error">This password reset link is invalid or has expired. <a href="/account/forgot">Request a new one.</a></div>
+  <p style="font-size:0.875rem;color:#6b7280;text-align:center;margin-top:1.5rem;">
+    <a href="/account/login" style="font-weight:500;color:#111827;">Back to sign in</a>
+  </p>
+  {{else}}
+  {{#if error}}
+  <div class="auth-error">
+    {{#if (eq error 'password_too_short')}}Password must be at least 8 characters.{{/if}}
+  </div>
+  {{/if}}
+  <form method="POST" action="/account/reset" class="auth-form">
+    {{csrf_field}}
+    <input type="hidden" name="token" value="{{token}}">
+    <div>
+      <label class="store-label">New password</label>
+      <input type="password" name="password" required minlength="8" autocomplete="new-password" class="store-input">
+      <p style="font-size:0.75rem;color:#9ca3af;margin-top:0.25rem;">Minimum 8 characters</p>
+    </div>
+    <button type="submit" class="btn btn-block" style="background:var(--color-primary);color:#fff;justify-content:center;">
+      Set new password
+    </button>
+  </form>
+  {{/if}}
+</div>
+
+{{> footer}}

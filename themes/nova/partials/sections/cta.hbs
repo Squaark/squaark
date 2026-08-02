@@ -1,0 +1,14 @@
+<div class="section-cta" style="background:var(--color-primary)">
+  <div class="section-cta__inner {{#if (eq align 'center')}}section-cta--center{{/if}}">
+    {{#if heading}}<h2 class="section-cta__heading">{{heading}}</h2>{{/if}}
+    {{#if body}}<p class="section-cta__body">{{body}}</p>{{/if}}
+    {{#if buttonLabel}}
+    <a href="{{buttonUrl}}" class="section-cta__btn">
+      {{buttonLabel}}
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+      </svg>
+    </a>
+    {{/if}}
+  </div>
+</div>

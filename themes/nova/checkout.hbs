@@ -1,0 +1,321 @@
+{{> header}}
+
+<div class="container py-12" x-data="checkoutApp({{cart.subtotal.amount}}, {{#if cart.discountAmount}}{{cart.discountAmount.amount}}{{else}}0{{/if}}, '{{store.currency.symbol}}', {{#if tax.enabled}}true{{else}}false{{/if}}, {{itemsTaxAmount}}, '{{tax.label}}')">
+  <h1 style="font-size:1.5rem;font-weight:700;color:#111827;margin-bottom:2rem;">Checkout</h1>
+
+  <div class="checkout-layout">
+
+    <!-- Address + payment form -->
+    <div class="checkout-fields">
+
+      <!-- Contact -->
+      <div>
+        <h2 class="checkout-section-title">Contact</h2>
+        <div>
+          <label class="store-label">Email address</label>
+          <input type="email" id="email" name="email" required autocomplete="email" class="store-input">
+        </div>
+      </div>
+
+      <!-- Shipping address -->
+      <div>
+        <h2 class="checkout-section-title">Shipping address</h2>
+        <div class="checkout-fields">
+          <div class="checkout-2col">
+            <div>
+              <label class="store-label">First name</label>
+              <input type="text" id="firstName" name="firstName" required autocomplete="given-name" class="store-input">
+            </div>
+            <div>
+              <label class="store-label">Last name</label>
+              <input type="text" id="lastName" name="lastName" required autocomplete="family-name" class="store-input">
+            </div>
+          </div>
+          <div>
+            <label class="store-label">Address line 1</label>
+            <input type="text" id="line1" name="line1" required autocomplete="address-line1" class="store-input">
+          </div>
+          <div>
+            <label class="store-label">Address line 2 <span style="color:#9ca3af;">(optional)</span></label>
+            <input type="text" id="line2" name="line2" autocomplete="address-line2" class="store-input">
+          </div>
+          <div class="checkout-2col">
+            <div>
+              <label class="store-label">Town / City</label>
+              <input type="text" id="city" name="city" required autocomplete="address-level2" class="store-input">
+            </div>
+            <div>
+              <label class="store-label">County <span style="color:#9ca3af;">(optional)</span></label>
+              <input type="text" id="county" name="county" autocomplete="address-level1" class="store-input">
+            </div>
+          </div>
+          <div class="checkout-2col">
+            <div>
+              <label class="store-label">Postcode</label>
+              <input type="text" id="postcode" name="postcode" required autocomplete="postal-code" class="store-input">
+            </div>
+            <div>
+              <label class="store-label">Country</label>
+              <select id="country" name="country" required autocomplete="country" class="store-select"
+                hx-get="/checkout/shipping-rates"
+                hx-trigger="change, load"
+                hx-target="#shipping-rate-options"
+                hx-include="#country"
+                @htmx:after-settle="$dispatch('shipping-rates-loaded')">
+                <option value="GB" selected>United Kingdom</option>
+                <option value="US">United States</option>
+                <option value="AU">Australia</option>
+                <option value="CA">Canada</option>
+                <option value="IE">Ireland</option>
+                <option value="NZ">New Zealand</option>
+                <option value="FR">France</option>
+                <option value="DE">Germany</option>
+                <option value="NL">Netherlands</option>
+                <option value="SE">Sweden</option>
+                <option value="NO">Norway</option>
+                <option value="DK">Denmark</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="store-label">Phone <span style="color:#9ca3af;">(optional)</span></label>
+            <input type="tel" id="phone" name="phone" autocomplete="tel" class="store-input">
+          </div>
+        </div>
+      </div>
+
+      <!-- Shipping method -->
+      <div id="shipping-section">
+        <div id="shipping-rate-options"
+             @shipping-rate-changed.document="selectRate($event.detail.id, $event.detail.amount, $event.detail.label)"
+             @htmx:after-settle.document="autoSelectFirst()">
+        </div>
+      </div>
+
+      <!-- Payment -->
+      <div>
+        <h2 class="checkout-section-title">Payment</h2>
+
+        <div id="payment-error" style="display:none;margin-bottom:1rem;" class="alert alert-error"></div>
+
+        {{#if stripeEnabled}}
+          <form method="POST" action="/checkout" id="stripe-form">
+            {{csrf_field}}
+            <input type="hidden" name="email" id="stripe-email">
+            <input type="hidden" name="firstName" id="stripe-firstName">
+            <input type="hidden" name="lastName" id="stripe-lastName">
+            <input type="hidden" name="line1" id="stripe-line1">
+            <input type="hidden" name="line2" id="stripe-line2">
+            <input type="hidden" name="city" id="stripe-city">
+            <input type="hidden" name="county" id="stripe-county">
+            <input type="hidden" name="postcode" id="stripe-postcode">
+            <input type="hidden" name="country" id="stripe-country">
+            <input type="hidden" name="phone" id="stripe-phone">
+            <input type="hidden" name="shippingRateId" id="stripe-shippingRateId">
+            <button type="button" onclick="submitStripe()"
+              class="btn btn-block"
+              style="background:var(--color-accent);color:#fff;margin-bottom:0.75rem;justify-content:center;">
+              Pay by Card
+            </button>
+          </form>
+        {{/if}}
+
+        {{#if paypalEnabled}}
+          <div id="paypal-button-container"></div>
+        {{/if}}
+
+        {{#unless stripeEnabled}}{{#unless paypalEnabled}}
+          <div class="alert alert-warning">
+            No payment methods are configured yet. Add Stripe or PayPal keys in
+            <a href="/admin/settings#payments">Settings → Payments</a>.
+          </div>
+        {{/unless}}{{/unless}}
+      </div>
+
+    </div>
+
+    <!-- Order summary -->
+    <div>
+      <div class="checkout-summary">
+        <h2 class="checkout-summary__title">Order summary</h2>
+
+        <div class="checkout-items">
+          {{#each cart.items}}
+            <div class="checkout-item">
+              <div class="checkout-item__img">
+                <img src="{{this.image.thumbnail}}" alt="{{this.productTitle}}">
+              </div>
+              <div class="checkout-item__info">
+                <p class="checkout-item__title">{{this.productTitle}}</p>
+                {{#unless (is this.variantTitle "Default")}}
+                  <p class="checkout-item__variant">{{this.variantTitle}}</p>
+                {{/unless}}
+                <p class="checkout-item__qty">Qty {{this.quantity}}</p>
+              </div>
+              <p class="checkout-item__price">{{money this.lineTotal}}</p>
+            </div>
+          {{/each}}
+        </div>
+
+        <div class="summary-rows">
+          <div class="summary-row">
+            <span>Subtotal</span>
+            <span>{{money cart.subtotal}}</span>
+          </div>
+          {{#each cart.appliedDiscounts}}
+            <div class="summary-row summary-row--discount">
+              <span>{{this.name}}</span>
+              <span>-{{money this.amount}}</span>
+            </div>
+          {{/each}}
+          <div class="summary-row summary-row--muted" x-show="shippingLabel !== null">
+            <span>Shipping</span>
+            <span x-text="shippingLabel || 'Calculated at checkout'">Calculated at checkout</span>
+          </div>
+        </div>
+
+        <div class="summary-total">
+          <span>Total</span>
+          <span x-text="totalFormatted">{{money cart.total}}</span>
+        </div>
+
+        <div class="summary-tax" x-show="taxEnabled && taxAmountFormatted" x-cloak>
+          <span x-text="taxLabel + ' included'">VAT included</span>
+          <span x-text="taxAmountFormatted"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var CSRF_TOKEN = '{{csrfToken}}';
+
+function checkoutApp(subtotal, discount, currencySymbol, taxEnabled, itemsTaxAmount, taxLabel) {
+  return {
+    subtotalAmount: subtotal,
+    discountAmount: discount,
+    shippingAmount: 0,
+    shippingLabel: 'Calculated at checkout',
+    selectedRateId: '',
+    taxEnabled: taxEnabled || false,
+    itemsTaxAmount: itemsTaxAmount || 0,
+    taxLabel: taxLabel || 'VAT',
+    get orderTotal() {
+      return this.subtotalAmount - this.discountAmount + this.shippingAmount;
+    },
+    get totalFormatted() {
+      return currencySymbol + (this.orderTotal / 100).toFixed(2);
+    },
+    get taxAmountFormatted() {
+      if (!this.taxEnabled || this.itemsTaxAmount <= 0) return '';
+      return currencySymbol + (this.itemsTaxAmount / 100).toFixed(2);
+    },
+    selectRate(id, amount, label) {
+      this.selectedRateId = id;
+      this.shippingAmount = amount;
+      this.shippingLabel = label;
+      const el = document.getElementById('stripe-shippingRateId');
+      if (el) el.value = id;
+    },
+    autoSelectFirst() {
+      const first = document.querySelector('#shipping-rate-options input[type="radio"]');
+      if (first) {
+        first.checked = true;
+        first.dispatchEvent(new Event('change'));
+      } else {
+        this.shippingLabel = 'Free';
+        this.shippingAmount = 0;
+      }
+    },
+  };
+}
+
+function getFormData() {
+  const rateInput = document.querySelector('#shipping-rate-options input[type="radio"]:checked');
+  return {
+    email:          document.getElementById('email').value.trim(),
+    firstName:      document.getElementById('firstName').value.trim(),
+    lastName:       document.getElementById('lastName').value.trim(),
+    line1:          document.getElementById('line1').value.trim(),
+    line2:          document.getElementById('line2').value.trim(),
+    city:           document.getElementById('city').value.trim(),
+    county:         document.getElementById('county').value.trim(),
+    postcode:       document.getElementById('postcode').value.trim(),
+    country:        document.getElementById('country').value,
+    phone:          document.getElementById('phone').value.trim(),
+    shippingRateId: rateInput ? rateInput.value : '',
+  };
+}
+
+function validateForm() {
+  const d = getFormData();
+  if (!d.email || !d.firstName || !d.lastName || !d.line1 || !d.city || !d.postcode || !d.country) {
+    const el = document.getElementById('payment-error');
+    el.textContent = 'Please fill in all required fields.';
+    el.style.display = 'block';
+    return false;
+  }
+  document.getElementById('payment-error').style.display = 'none';
+  return true;
+}
+
+function submitStripe() {
+  if (!validateForm()) return;
+  const d = getFormData();
+  Object.keys(d).forEach(k => {
+    const el = document.getElementById('stripe-' + k);
+    if (el) el.value = d[k];
+  });
+  document.getElementById('stripe-form').submit();
+}
+
+{{#if paypalEnabled}}
+function initPayPal() {
+  paypal.Buttons({
+    createOrder: async () => {
+      if (!validateForm()) throw new Error('Validation failed');
+      const d = getFormData();
+      const res = await fetch('/checkout/paypal/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+        body: JSON.stringify(d),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      return data.id;
+    },
+    onApprove: async (data) => {
+      const res = await fetch('/checkout/paypal/capture', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+        body: JSON.stringify({ paypalOrderId: data.orderID }),
+      });
+      const result = await res.json();
+      if (result.error) {
+        const el = document.getElementById('payment-error');
+        el.textContent = result.error;
+        el.style.display = 'block';
+        return;
+      }
+      window.location.href = '/checkout/success/' + result.orderId;
+    },
+    onError: (err) => {
+      const el = document.getElementById('payment-error');
+      el.textContent = 'PayPal error — please try again or pay by card.';
+      el.style.display = 'block';
+      console.error(err);
+    },
+  }).render('#paypal-button-container');
+}
+
+(function() {
+  const s = document.createElement('script');
+  s.src = 'https://www.paypal.com/sdk/js?client-id={{paypalClientId}}&currency={{store.currency}}&intent=capture{{#if (eq paypalMode "sandbox")}}&buyer-country=GB{{/if}}';
+  s.onload = initPayPal;
+  document.head.appendChild(s);
+})();
+{{/if}}
+</script>
+
+{{> footer}}

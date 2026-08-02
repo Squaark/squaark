@@ -1,0 +1,113 @@
+{{> header}}
+
+{{{purchasePixel}}}
+
+<div class="container--narrow success-page">
+
+  <div class="success-icon">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+    </svg>
+  </div>
+
+  <h1 style="font-size:1.5rem;font-weight:700;color:#111827;margin-bottom:0.5rem;">Order confirmed</h1>
+  <p style="color:#6b7280;margin-bottom:0.25rem;">Order <span style="font-weight:500;color:#374151;">#{{order.order_number}}</span></p>
+  <p style="font-size:0.875rem;color:#9ca3af;margin-bottom:2.5rem;">A confirmation has been sent to <span style="color:#4b5563;">{{order.email}}</span></p>
+
+  <!-- Items -->
+  <div class="success-card">
+    <h2 class="success-card__title">Items ordered</h2>
+    <div class="success-items">
+      {{#each order.items}}
+        <div class="success-item">
+          <div>
+            <p class="success-item__title">{{this.product_title}}</p>
+            {{#unless (is this.variant_title "Default")}}
+              <p class="success-item__variant">{{this.variant_title}}</p>
+            {{/unless}}
+            <p class="success-item__qty">Qty {{this.quantity}}</p>
+          </div>
+          <p class="success-item__price">{{pence this.line_total}}</p>
+        </div>
+      {{/each}}
+    </div>
+    <div class="success-total">
+      <span>Total</span>
+      <span>{{pence order.total}}</span>
+    </div>
+    {{#if taxEnabled}}
+      {{#if order.tax_amount}}
+        <div class="success-tax">
+          <span>{{taxLabel}} included</span>
+          <span>{{pence order.tax_amount}}</span>
+        </div>
+        {{#if taxNumber}}
+          <p class="success-tax-number">{{taxLabel}} No. {{taxNumber}}</p>
+        {{/if}}
+      {{/if}}
+    {{/if}}
+  </div>
+
+  <!-- Downloads -->
+  {{#if downloads}}
+  <div class="success-card">
+    <h2 class="success-card__title">Your downloads</h2>
+    <p style="font-size:0.875rem;color:#6b7280;margin-bottom:1rem;">Your download links are also included in your confirmation email. Links are valid for 30 days.</p>
+    <div class="success-items">
+      {{#each downloads}}
+      <div class="success-item">
+        <div>
+          <p class="success-item__title">{{this.productTitle}}</p>
+          <p class="success-item__variant">{{this.originalName}}</p>
+        </div>
+        {{#unless this.expired}}
+        <a href="{{this.url}}" class="btn btn-primary btn-sm" style="background:var(--color-primary);">Download</a>
+        {{else}}
+        <span style="font-size:0.75rem;color:#9ca3af;">Expired</span>
+        {{/unless}}
+      </div>
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  <!-- Shipping address -->
+  {{#if order.shippingAddress.line1}}
+    <div class="success-card">
+      <h2 class="success-card__title">Shipping to</h2>
+      <address class="success-address">
+        {{order.shippingAddress.firstName}} {{order.shippingAddress.lastName}}<br>
+        {{order.shippingAddress.line1}}<br>
+        {{#if order.shippingAddress.line2}}{{order.shippingAddress.line2}}<br>{{/if}}
+        {{order.shippingAddress.city}}{{#if order.shippingAddress.county}}, {{order.shippingAddress.county}}{{/if}}<br>
+        {{order.shippingAddress.postcode}}<br>
+        {{order.shippingAddress.country}}
+      </address>
+    </div>
+  {{/if}}
+
+  {{#if canCreateAccount}}
+  <div class="success-card">
+    <h2 class="success-card__title">Save your details</h2>
+    <p style="font-size:0.875rem;color:#6b7280;margin-bottom:1rem;">Set a password to track this order and any future purchases from your account.</p>
+    <form method="POST" action="/checkout/create-account" class="account-prompt-form">
+      {{csrf_field}}
+      <input type="hidden" name="orderId" value="{{orderId}}">
+      <input type="password" name="password" placeholder="Choose a password (8+ chars)" minlength="8" required class="store-input" style="flex:1;">
+      <button type="submit" class="btn btn-primary shrink-0" style="background:var(--color-primary);">Create account</button>
+    </form>
+  </div>
+  {{/if}}
+
+  {{#if accountCreated}}
+  <div class="account-created-notice">
+    Account created — you can now <a href="/account/orders">view your orders</a>.
+  </div>
+  {{/if}}
+
+  <a href="/collections/all" class="btn btn-primary" style="display:inline-block;background:var(--color-primary);">
+    Continue Shopping
+  </a>
+</div>
+
+{{> footer}}
