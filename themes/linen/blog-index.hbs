@@ -1,0 +1,37 @@
+{{> header}}
+
+<div class="container blog-index">
+  <h1 class="blog-index-title">Blog</h1>
+
+  {{#if posts.length}}
+    <div class="blog-grid">
+      {{#each posts}}
+      <article class="blog-card">
+        <a href="/blog/{{this.slug}}" class="blog-card-image-link">
+          {{#if this.image}}
+            <img class="blog-card-image" src="{{this.image}}" alt="{{this.title}}" loading="lazy">
+          {{else}}
+            <div class="blog-card-image blog-card-image--placeholder"></div>
+          {{/if}}
+        </a>
+        <p class="blog-card-meta">{{#if this.date}}{{timestamp this.date}}{{/if}}{{#if this.author}} · {{this.author}}{{/if}}</p>
+        <h2 class="blog-card-title"><a href="/blog/{{this.slug}}">{{this.title}}</a></h2>
+        {{#if this.excerpt}}<p class="blog-card-excerpt">{{this.excerpt}}</p>{{/if}}
+        <a href="/blog/{{this.slug}}" class="blog-card-link">Read more →</a>
+      </article>
+      {{/each}}
+    </div>
+
+    {{#if (or hasPrev hasNext)}}
+    <nav class="blog-pagination">
+      {{#if hasPrev}}<a href="{{prevUrl}}">← Newer</a>{{else}}<span></span>{{/if}}
+      <span class="blog-pagination-info">Page {{page}} of {{totalPages}}</span>
+      {{#if hasNext}}<a href="{{nextUrl}}">Older →</a>{{else}}<span></span>{{/if}}
+    </nav>
+    {{/if}}
+  {{else}}
+    <p class="blog-index-empty">No posts yet — check back soon.</p>
+  {{/if}}
+</div>
+
+{{> footer}}

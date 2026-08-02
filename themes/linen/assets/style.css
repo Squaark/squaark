@@ -164,6 +164,31 @@ input, select, textarea { font-family: inherit; }
 .cart-recommendations { margin-top: 4rem; }
 .cart-recommendations__heading { font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 1.5rem; }
 
+/* ── Blog ───────────────────────────────────────────────────────────────── */
+.blog-index { padding: 3rem 1rem 5rem; }
+.blog-index-title { font-size: 2rem; font-weight: 700; color: #111827; margin-bottom: 2rem; }
+.blog-index-empty { color: #6b7280; }
+.blog-grid { display: grid; grid-template-columns: 1fr; gap: 2.5rem; }
+@media (min-width: 640px)  { .blog-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .blog-grid { grid-template-columns: repeat(3, 1fr); } }
+.blog-card-image { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 0.75rem; }
+.blog-card-image--placeholder { background: #f3f4f6; }
+.blog-card-meta { font-size: 0.75rem; color: #9ca3af; margin: 0.75rem 0 0.25rem; }
+.blog-card-title { font-size: 1.125rem; font-weight: 600; line-height: 1.35; margin: 0 0 0.5rem; }
+.blog-card-title a { color: #111827; }
+.blog-card-title a:hover { color: var(--color-accent); }
+.blog-card-excerpt { font-size: 0.875rem; color: #6b7280; line-height: 1.6; margin: 0 0 0.5rem; }
+.blog-card-link { font-size: 0.875rem; font-weight: 600; color: var(--color-accent); }
+.blog-pagination { display: flex; align-items: center; justify-content: space-between; margin-top: 3.5rem; font-size: 0.875rem; }
+.blog-pagination a { font-weight: 600; color: var(--color-accent); }
+.blog-pagination-info { color: #9ca3af; }
+.blog-post-head { padding: 3rem 1rem 1.5rem; }
+.blog-back { font-size: 0.875rem; color: #6b7280; }
+.blog-back:hover { color: var(--color-accent); }
+.blog-post-title { font-size: 2.25rem; font-weight: 700; color: #111827; line-height: 1.2; margin: 1rem 0 0.5rem; }
+.blog-post-meta { font-size: 0.875rem; color: #9ca3af; }
+.blog-post-hero { width: 100%; max-height: 28rem; object-fit: cover; border-radius: 0.75rem; margin-bottom: 1rem; }
+
 /* ── Header ─────────────────────────────────────────────────────────────── */
 .site-header {
   border-bottom: 1px solid #f3f4f6;
