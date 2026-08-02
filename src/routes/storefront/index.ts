@@ -9,13 +9,16 @@ import { setCartDiscount, clearCartDiscount } from '../../db/queries/cart';
 import { findDiscountByCode } from '../../db/queries/discounts';
 import { validateDiscount, type DiscountValidation } from '../../commerce/discounts';
 import { findAllPages, findPageBySlug } from '../../db/queries/pages';
+import { findPublishedPosts, countPublishedPosts, findPublishedPostBySlug } from '../../db/queries/posts';
 import { getAllSettings } from '../../db/queries/admin';
 import { addSuppression } from '../../db/queries/suppressions';
 import { verifyUnsubscribeToken } from '../../email/unsubscribe';
+import { addSubscriber, unsubscribeEmail } from '../../db/queries/newsletter';
 import { CURRENCY_SYMBOLS } from '../../theme/context';
 import { checkoutRoutes } from './checkout';
 import { accountRoutes } from './account';
 import { downloadRoutes } from './downloads';
+import { feedRoutes } from './feed';
 import { findCustomerById } from '../../db/queries/customers';
 
 // Shown on the homepage when the theme's value-props haven't been customised.
@@ -106,6 +109,7 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
   await checkoutRoutes(fastify, registry);
   await accountRoutes(fastify, registry);
   await downloadRoutes(fastify);
+  await feedRoutes(fastify);
 
   // One-click opt-out from recovery emails (token-signed link in the email).
   fastify.get('/unsubscribe', async (req: FastifyRequest<{ Querystring: { e?: string; t?: string } }>, reply: FastifyReply) => {
@@ -116,6 +120,39 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
     if (email && verifyUnsubscribeToken(email, req.query.t)) {
       addSuppression(email);
       return reply.type('text/html').send(page(`You've been unsubscribed. <strong>${esc(email)}</strong> will no longer receive cart reminders.`));
+    }
+    return reply.code(400).type('text/html').send(page('This unsubscribe link is invalid or has expired.'));
+  });
+
+  // ── Newsletter ───────────────────────────────────────────────────────────────
+  // Storefront footer signup. Rate-limited to blunt abuse of the open form.
+  fastify.post('/newsletter/subscribe', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (req: FastifyRequest<{ Body: { email?: string } }>, reply: FastifyReply) => {
+      const email = (req.body?.email ?? '').trim();
+      const valid = /.+@.+\..+/.test(email);
+      if (valid) addSubscriber(email, 'footer');
+
+      // htmx swaps the form out for an inline confirmation; a plain POST just
+      // returns to the page the shopper came from.
+      if (req.headers['hx-request']) {
+        reply.type('text/html');
+        return valid
+          ? `<p class="newsletter-signup__done">Thanks for subscribing! You're on the list.</p>`
+          : `<p class="newsletter-signup__error">Please enter a valid email address.</p>`;
+      }
+      const referer = (req.headers['referer'] as string | undefined) ?? '/';
+      return reply.redirect(referer);
+    });
+
+  // Token-signed opt-out from newsletter broadcasts (link in every broadcast).
+  fastify.get('/newsletter/unsubscribe', async (req: FastifyRequest<{ Querystring: { e?: string; t?: string } }>, reply: FastifyReply) => {
+    const email = (req.query.e ?? '').trim();
+    const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+    const storeName = esc(getAllSettings().store_name || 'the store');
+    const page = (msg: string) => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Unsubscribe</title></head><body style="font-family:system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1.5rem;line-height:1.6;color:#111827;"><h1 style="font-size:1.25rem;">${storeName}</h1><p>${msg}</p></body></html>`;
+    if (email && verifyUnsubscribeToken(email, req.query.t)) {
+      unsubscribeEmail(email);
+      return reply.type('text/html').send(page(`You've been unsubscribed. <strong>${esc(email)}</strong> will no longer receive our newsletter.`));
     }
     return reply.code(400).type('text/html').send(page('This unsubscribe link is invalid or has expired.'));
   });
@@ -340,6 +377,73 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
   });
 
   // Catch-all page lookup — registered last so all specific routes take priority
+  // ── Blog ────────────────────────────────────────────────────────────────────
+  // Registered before the '/*' page catch-all (Fastify prioritises these anyway).
+  fastify.get('/blog', async (req, reply) => {
+    const pageNum = Math.max(1, parseInt((req.query as { page?: string }).page ?? '1', 10));
+    const limit = 9;
+    const ctx = await base(req, reply, '/blog', registry);
+    const posts = findPublishedPosts(limit, (pageNum - 1) * limit).map((p) => ({
+      title: p.title, slug: p.slug, excerpt: p.excerpt, image: p.featured_image, author: p.author, date: p.published_at,
+    }));
+    const totalPages = Math.ceil(countPublishedPosts() / limit);
+    await render(registry, reply, 'blog-index', {
+      ...ctx, pageTitle: 'Blog', posts,
+      page: pageNum, totalPages, hasPrev: pageNum > 1, hasNext: pageNum < totalPages,
+      prevUrl: `/blog?page=${pageNum - 1}`, nextUrl: `/blog?page=${pageNum + 1}`,
+    });
+  });
+
+  fastify.get('/blog/rss.xml', async (_req, reply) => {
+    const settings = getAllSettings();
+    const storeUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+    const esc = (s: string | null) => (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const items = findPublishedPosts(50, 0).map((p) => {
+      const pub = p.published_at ? `<pubDate>${new Date(p.published_at).toUTCString()}</pubDate>` : '';
+      return `<item><title>${esc(p.title)}</title><link>${storeUrl}/blog/${esc(p.slug)}</link>` +
+             `<guid>${storeUrl}/blog/${esc(p.slug)}</guid>${pub}<description>${esc(p.excerpt)}</description></item>`;
+    }).join('');
+    reply.type('application/rss+xml').send(
+      `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel>` +
+      `<title>${esc(settings.store_name ?? 'Blog')}</title><link>${storeUrl}/blog</link>` +
+      `<description>${esc(settings.store_tagline ?? '')}</description>${items}</channel></rss>`,
+    );
+  });
+
+  fastify.get('/blog/:slug', async (req, reply) => {
+    const { slug } = req.params as { slug: string };
+    const ctx = await base(req, reply, `/blog/${slug}`, registry);
+    const post = findPublishedPostBySlug(slug);
+    if (!post) {
+      return reply.code(404).type('text/html').send(
+        await registry.currentEngine.render('404', { ...ctx, pageTitle: 'Page Not Found' }),
+      );
+    }
+    let sections: unknown[] = [];
+    try { sections = JSON.parse(post.sections || '[]'); } catch { /* fallback */ }
+
+    const storeUrl = (getAllSettings().store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+    const jsonLd: Record<string, unknown> = {
+      '@context': 'https://schema.org', '@type': 'BlogPosting',
+      headline: post.title,
+      description: (post.seo_description || post.excerpt || '').slice(0, 500),
+      ...(post.featured_image ? { image: post.featured_image } : {}),
+      ...(post.published_at ? { datePublished: post.published_at } : {}),
+      ...(post.author ? { author: { '@type': 'Person', name: post.author } } : {}),
+      mainEntityOfPage: `${storeUrl}/blog/${post.slug}`,
+    };
+    const postJsonLd = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
+
+    await render(registry, reply, 'blog-post', {
+      ...ctx,
+      pageTitle: post.seo_title || post.title,
+      metaDescription: post.seo_description || post.excerpt || '',
+      ogImage: post.featured_image ?? null,
+      post: { ...post, sections },
+      postJsonLd,
+    });
+  });
+
   fastify.get('/*', async (req, reply) => {
     const slug = (req.params as { '*': string })['*'];
     const ctx = await base(req, reply, `/${slug}`, registry);
@@ -373,6 +477,7 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
       listCollections(),
       Promise.resolve(findAllPages().filter(p => p.status === 'published')),
     ]);
+    const posts = findPublishedPosts(1000, 0);
 
     const urls: string[] = [
       `<url><loc>${esc(storeUrl)}/</loc></url>`,
@@ -380,9 +485,11 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
       ...products.map(p => `<url><loc>${esc(storeUrl)}/products/${esc(p.slug)}</loc></url>`),
       ...collections.map(c => `<url><loc>${esc(storeUrl)}/collections/${esc(c.slug)}</loc></url>`),
       ...pages.map(p => `<url><loc>${esc(storeUrl)}/${esc(p.slug)}</loc></url>`),
+      ...(posts.length ? [`<url><loc>${esc(storeUrl)}/blog</loc></url>`] : []),
+      ...posts.map(p => `<url><loc>${esc(storeUrl)}/blog/${esc(p.slug)}</loc></url>`),
     ];
 
-    reply.type('application/xml').send(
+    return reply.type('application/xml').send(
       `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  ${urls.join('\n  ')}\n</urlset>`,
     );
   });

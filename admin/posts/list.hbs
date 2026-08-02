@@ -1,0 +1,43 @@
+<div class="page-header">
+  <h1 class="page-title">Blog</h1>
+  <a href="/admin/posts/new" class="btn btn-primary btn-sm">Add post</a>
+</div>
+
+<div class="card">
+  {{#if posts.length}}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Post</th>
+        <th>Date</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each posts}}
+      <tr>
+        <td>
+          <a href="/admin/posts/{{this.id}}" class="cell-title">{{this.title}}</a>
+          <p class="cell-hint">/blog/{{this.slug}}{{#if this.author}} · {{this.author}}{{/if}}</p>
+        </td>
+        <td class="text-sm text-muted">{{#if this.published_at}}{{date_short this.published_at}}{{else}}—{{/if}}</td>
+        <td>
+          {{#if (eq this.status 'published')}}
+          <span class="badge badge-green">Published</span>
+          {{else}}
+          <span class="badge badge-gray">Draft</span>
+          {{/if}}
+        </td>
+        <td class="right"><a href="/admin/posts/{{this.id}}" class="cell-action">Edit →</a></td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state">
+    <p>No blog posts yet.</p>
+    <a href="/admin/posts/new">Write your first post</a>
+  </div>
+  {{/if}}
+</div>
