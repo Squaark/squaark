@@ -1,0 +1,83 @@
+{{> header}}
+
+  {{#if showHero}}
+  <section class="nova-hero">
+    <div class="nova-hero__intro">
+      {{#if heroEyebrow}}<p class="nova-hero__eyebrow">{{heroEyebrow}}</p>{{/if}}
+      <h1 class="nova-hero__title">{{heroHeading}}</h1>
+      {{#if heroSubheading}}<p class="nova-hero__sub">{{heroSubheading}}</p>{{/if}}
+      {{#if theme.config.layout.heroButtonLabel}}
+        <a class="btn btn-primary btn-lg nova-hero__cta"
+           href="{{#if theme.config.layout.heroButtonUrl}}{{theme.config.layout.heroButtonUrl}}{{else}}/collections/all{{/if}}">{{theme.config.layout.heroButtonLabel}}</a>
+      {{/if}}
+    </div>
+
+    {{#if featuredSections.0.products.length}}
+    <div class="nova-hero__slider" data-slider
+         data-autoplay="{{#if theme.config.layout.heroAutoplay}}1{{else}}0{{/if}}"
+         data-interval="{{theme.config.layout.heroInterval}}">
+      <button type="button" class="nova-slider__arrow nova-slider__arrow--prev" data-prev aria-label="Previous">&lsaquo;</button>
+      <div class="nova-hero__track" data-track>
+        {{#each featuredSections.0.products}}
+          <a class="nova-slide" href="{{url 'product' this.slug}}">
+            {{#if this.image}}
+              <img class="nova-slide__img" src="{{this.image.medium}}" srcset="{{this.image.thumbnail}} 300w, {{this.image.medium}} 600w"
+                   sizes="(max-width:640px) 80vw, 340px" alt="{{this.image.alt}}" loading="lazy">
+            {{else}}
+              <div class="nova-slide__img" style="background:#f3f4f6;"></div>
+            {{/if}}
+            <span class="nova-slide__title">{{this.title}}</span>
+            <span class="nova-slide__price">{{money this.price}}</span>
+          </a>
+        {{/each}}
+      </div>
+      <button type="button" class="nova-slider__arrow nova-slider__arrow--next" data-next aria-label="Next">&rsaquo;</button>
+      <div class="nova-slider__dots" data-dots></div>
+    </div>
+    {{/if}}
+  </section>
+  {{/if}}
+
+  <!-- Featured sections (the first one powers the hero slider above, so skip it here) -->
+  {{#each featuredSections}}
+  {{#unless @first}}
+  {{#if this.products.length}}
+  <section class="featured-section">
+    <div class="container">
+      <div class="featured-section__head">
+        <h2 class="featured-section__title">{{this.title}}</h2>
+        <a href="{{#if this.collectionSlug}}/collections/{{this.collectionSlug}}{{else}}/collections/all{{/if}}"
+           class="featured-section__link">View all →</a>
+      </div>
+      <div class="product-grid"
+           style="grid-template-columns: repeat({{../theme.config.layout.productsPerRow}}, minmax(0, 1fr))">
+        {{#each this.products}}
+          {{> product-card}}
+        {{/each}}
+      </div>
+    </div>
+  </section>
+  {{/if}}
+  {{/unless}}
+  {{/each}}
+
+  <!-- Value props -->
+  {{#if showValueProps}}
+  {{#if valueProps.length}}
+  <section class="value-props">
+    <div class="container">
+      <div class="value-props__grid">
+        {{#each valueProps}}
+        <div>
+          <div class="value-prop__icon">{{value_prop_icon this.icon}}</div>
+          <h3 class="value-prop__title">{{this.title}}</h3>
+          <p class="value-prop__body">{{this.body}}</p>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+  </section>
+  {{/if}}
+  {{/if}}
+
+{{> footer}}

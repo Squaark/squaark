@@ -1,0 +1,59 @@
+{{> header}}
+
+  <div class="container py-12">
+
+    <!-- Collection header -->
+    <div class="collection-head">
+      {{#if collection.image}}
+        <div style="aspect-ratio:3/1;border-radius:1rem;overflow:hidden;background:#f3f4f6;margin-bottom:2rem;">
+          <img src="{{collection.image.large}}" alt="{{collection.title}}" style="width:100%;height:100%;object-fit:cover;">
+        </div>
+      {{/if}}
+      <div style="display:flex;flex-direction:column;gap:1rem;">
+        <div>
+          <h1 class="collection-title">{{collection.title}}</h1>
+          {{#if collection.description}}
+            <p style="color:#6b7280;margin-top:0.5rem;max-width:36rem;">{{collection.description}}</p>
+          {{/if}}
+          <p class="text-sm" style="color:#9ca3af;margin-top:0.25rem;">{{collection.products.length}} products</p>
+        </div>
+
+        <!-- Sort -->
+        <div style="display:flex;align-items:center;gap:0.5rem;align-self:flex-start;">
+          <label class="text-sm" style="color:#6b7280;white-space:nowrap;">Sort by</label>
+          <select class="sort-select"
+                  hx-get="/collections/{{collection.slug}}"
+                  hx-target="body"
+                  hx-push-url="true"
+                  name="sort">
+            {{#each collection.sort.options}}
+              <option value="{{this.value}}" {{#if_eq this.value ../collection.sort.current}}selected{{/if_eq}}>
+                {{this.label}}
+              </option>
+            {{/each}}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Product grid -->
+    {{#if collection.products.length}}
+      <div class="product-grid"
+           style="grid-template-columns: repeat({{theme.config.layout.productsPerRow}}, minmax(0, 1fr))">
+        {{#each collection.products}}
+          {{> product-card}}
+        {{/each}}
+      </div>
+
+      {{> pagination pagination=collection.pagination}}
+
+    {{else}}
+      <div class="collection-empty">
+        <p>No products found.</p>
+        <a href="/collections/all" style="color:var(--color-accent)">View all products →</a>
+      </div>
+    {{/if}}
+
+  </div>
+
+{{> footer}}

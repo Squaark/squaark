@@ -1,0 +1,217 @@
+{{> header}}
+
+  {{#if productJsonLd}}<script type="application/ld+json">{{{productJsonLd}}}</script>{{/if}}
+
+  <div class="container py-12">
+
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb">
+      <a href="/">Home</a>
+      <span>/</span>
+      <a href="/collections/all">Shop</a>
+      <span>/</span>
+      <span>{{product.title}}</span>
+    </nav>
+
+    <div class="product-layout">
+
+      <!-- Images -->
+      <div class="product-images">
+        {{#if product.images.length}}
+          <div class="product-main-image">
+            <img id="main-image"
+                 src="{{product.images.0.large}}"
+                 alt="{{product.images.0.alt}}">
+          </div>
+          {{#if (gt product.images.length 1)}}
+            <div class="product-thumbs">
+              {{#each product.images}}
+                <button onclick="document.getElementById('main-image').src='{{this.large}}'"
+                        class="product-thumb">
+                  <img src="{{this.thumbnail}}" alt="{{this.alt}}">
+                </button>
+              {{/each}}
+            </div>
+          {{/if}}
+        {{else}}
+          <div class="product-no-image">
+            <svg width="96" height="96" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M14 8h.01"/>
+            </svg>
+          </div>
+        {{/if}}
+      </div>
+
+      <!-- Product info -->
+      <div class="product-info">
+        {{#if product.vendor}}
+          <p class="product-vendor-label">{{product.vendor}}</p>
+        {{/if}}
+
+        <h1 class="product-title">{{product.title}}</h1>
+        {{#if reviewSummary.count}}
+          <a href="#reviews" class="product-rating-summary">{{stars reviewSummary.average}}
+            <span class="product-rating-count">{{reviewSummary.average}} · {{reviewSummary.count}} {{pluralize reviewSummary.count "review" "reviews"}}</span></a>
+        {{/if}}
+
+        <!-- Price -->
+        <div class="product-price-row">
+          {{#if (and tax.enabled (eq tax.displayMode 'ex'))}}
+            <span id="product-price" class="product-price {{#if product.onSale}}product-price--sale{{/if}}">
+              {{ex_tax_price product.price.amount product.taxRate}}
+            </span>
+            {{#if product.compareAtPrice}}
+              <span class="product-compare-price">{{ex_tax_price product.compareAtPrice.amount product.taxRate}}</span>
+              <span class="badge-sale">Sale</span>
+            {{/if}}
+            <span class="product-tax-note">ex. {{tax.label}}</span>
+          {{else}}
+            <span id="product-price" class="product-price {{#if product.onSale}}product-price--sale{{/if}}">
+              {{money product.price}}
+            </span>
+            {{#if product.compareAtPrice}}
+              <span class="product-compare-price">{{money product.compareAtPrice}}</span>
+              <span class="badge-sale">Sale</span>
+            {{/if}}
+            {{#if (and tax.enabled product.taxRate)}}
+              {{#unless (eq product.taxRate '0')}}
+                {{#if (eq tax.displayMode 'inc')}}
+                  <span class="product-tax-note">inc. {{tax.label}}</span>
+                {{else if (eq tax.displayMode 'both')}}
+                  <span class="product-tax-note">inc. {{tax.label}} ({{ex_tax_price product.price.amount product.taxRate}} ex.)</span>
+                {{/if}}
+              {{/unless}}
+            {{/if}}
+          {{/if}}
+        </div>
+
+        <!-- Description -->
+        <div class="product-description">
+          {{sanitized_html product.description}}
+        </div>
+
+        <!-- Variants (if multiple) -->
+        {{#if product.variants.length}}
+          {{#if (gt product.variants.length 1)}}
+            <div style="margin-bottom:1.5rem;">
+              <label style="display:block;font-size:0.875rem;font-weight:500;color:#374151;margin-bottom:0.5rem;">Options</label>
+              <select id="variant-select" name="variantId" class="variant-select">
+                {{#each product.variants}}
+                  <option value="{{this.id}}"
+                          data-price="{{money this.price}}"
+                          {{#unless this.available}}disabled{{/unless}}>
+                    {{this.title}} – {{money this.price}}
+                    {{#unless this.available}} (Sold out){{/unless}}
+                  </option>
+                {{/each}}
+              </select>
+            </div>
+          {{/if}}
+        {{/if}}
+
+        <!-- Add to cart form -->
+        <form hx-post="/{{store.cartSlug}}/add"
+              hx-target="#cart-count"
+              hx-swap="outerHTML"
+              hx-indicator="#add-spinner"
+              data-cart-add data-toast="Added to {{store.cartLabel}}">
+          {{csrf_field}}
+          <input type="hidden" name="variantId" value="{{product.variants.0.id}}">
+
+          <div class="add-to-cart">
+            <label class="sr-only">Quantity</label>
+            <input type="number" name="quantity" value="1" min="1" class="qty-input">
+            <button type="submit"
+                    {{#unless product.available}}disabled{{/unless}}
+                    class="btn btn-block"
+                    style="{{#if product.available}}background:var(--color-primary);color:#fff;{{else}}background:#f3f4f6;color:#9ca3af;cursor:not-allowed;{{/if}}">
+              <span id="add-spinner" class="htmx-indicator">
+                <svg style="width:1rem;height:1rem;animation:spin 1s linear infinite;" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="32" stroke-dashoffset="12"/>
+                </svg>
+              </span>
+              {{#if product.available}}Add to {{store.cartLabel}}{{else}}Sold Out{{/if}}
+            </button>
+          </div>
+        </form>
+
+        <!-- Meta -->
+        <div class="product-meta-section">
+          {{#if product.vendor}}
+            <p>Vendor: <span style="color:#374151;">{{product.vendor}}</span></p>
+          {{/if}}
+          {{#if product.tags.length}}
+            <p>Tags:
+              {{#each product.tags}}
+                <span class="product-tag">{{this}}</span>
+              {{/each}}
+            </p>
+          {{/if}}
+        </div>
+      </div>
+    </div>
+
+    <!-- Related products -->
+    {{#if product.relatedProducts.length}}
+      <section style="margin-top:6rem;">
+        <h2 style="font-size:1.25rem;font-weight:700;color:#111827;margin-bottom:2rem;">You may also like</h2>
+        <div class="product-grid" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+          {{#each product.relatedProducts}}
+            {{> product-card}}
+          {{/each}}
+        </div>
+      </section>
+    {{/if}}
+
+    <!-- Reviews -->
+    <section id="reviews" class="reviews">
+      <h2 class="reviews__heading">Reviews</h2>
+
+      {{#if (eq reviewFlash 'thanks')}}<div class="reviews__flash reviews__flash--ok">Thanks — your review has been posted.</div>{{/if}}
+      {{#if (eq reviewFlash 'pending')}}<div class="reviews__flash reviews__flash--ok">Thanks — your review will appear once it's approved.</div>{{/if}}
+      {{#if (eq reviewFlash 'error')}}<div class="reviews__flash reviews__flash--err">Please add a rating, your name, a valid email and a few words.</div>{{/if}}
+
+      {{#if reviewSummary.count}}
+        <div class="reviews__summary">{{stars reviewSummary.average}} <strong>{{reviewSummary.average}}</strong> · {{reviewSummary.count}} {{pluralize reviewSummary.count "review" "reviews"}}</div>
+        <ul class="reviews__list">
+          {{#each reviews}}
+          <li class="review">
+            <div class="review__head">
+              {{stars this.rating}}
+              <span class="review__author">{{this.author}}</span>
+              {{#if this.verified}}<span class="review__verified">✓ Verified purchase</span>{{/if}}
+              <span class="review__date">{{timestamp this.date}}</span>
+            </div>
+            {{#if this.title}}<p class="review__title">{{this.title}}</p>{{/if}}
+            <p class="review__body">{{this.body}}</p>
+          </li>
+          {{/each}}
+        </ul>
+      {{else}}
+        <p class="reviews__empty">No reviews yet — be the first to review {{product.title}}.</p>
+      {{/if}}
+
+      <form method="POST" action="/products/{{product.slug}}/reviews" class="review-form" x-data="{ rating: 0 }">
+        {{csrf_field}}
+        <h3 class="review-form__heading">Write a review</h3>
+        <div class="review-form__stars">
+          <template x-for="n in 5" :key="n">
+            <button type="button" @click="rating = n" x-text="'★'"
+                    :style="`color:${n <= rating ? '#f59e0b' : '#d1d5db'}`" class="review-form__star" aria-label="Set rating"></button>
+          </template>
+          <input type="hidden" name="rating" :value="rating">
+        </div>
+        <div class="review-form__row">
+          <input type="text" name="author_name" placeholder="Your name" required class="store-input">
+          <input type="email" name="email" placeholder="Your email (not shown)" required class="store-input">
+        </div>
+        <input type="text" name="title" placeholder="Title (optional)" class="store-input">
+        <textarea name="body" rows="4" placeholder="Share your thoughts…" required class="store-input"></textarea>
+        <button type="submit" class="btn" style="background:var(--color-primary);color:#fff;">Submit review</button>
+      </form>
+    </section>
+
+  </div>
+
+{{> footer}}

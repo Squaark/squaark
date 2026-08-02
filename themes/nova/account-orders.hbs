@@ -1,0 +1,77 @@
+{{> header}}
+
+<div class="container--md account-page">
+
+  <div class="account-header">
+    <div>
+      <h1 class="account-header__title">My orders</h1>
+      <p class="account-header__greeting">Hi {{customer.first_name}}{{#if customer.last_name}} {{customer.last_name}}{{/if}}</p>
+    </div>
+    <form method="POST" action="/account/logout">
+      {{csrf_field}}
+      <button type="submit" style="font-size:0.875rem;color:#6b7280;background:none;border:none;cursor:pointer;">Sign out</button>
+    </form>
+  </div>
+
+  {{#if verified}}
+  <div class="auth-success">Your email has been verified.</div>
+  {{/if}}
+  {{#if passwordReset}}
+  <div class="auth-success">Your password has been updated.</div>
+  {{/if}}
+  {{#if resent}}
+  <div class="auth-success">Verification email resent — check your inbox.</div>
+  {{/if}}
+  {{#if verifyError}}
+  <div class="auth-error">That verification link is invalid or has expired. Request a new one below.</div>
+  {{/if}}
+
+  {{#unless emailVerified}}
+  <div class="order-table-empty">
+    <p style="margin-bottom:1rem;">Please verify your email address to view your order history. Check your inbox — and your spam or junk folder — for a verification link.</p>
+    <form method="POST" action="/account/verify/resend">
+      {{csrf_field}}
+      <button type="submit" class="btn">Resend verification email</button>
+    </form>
+  </div>
+  {{else}}
+  {{#if orders.length}}
+  <div class="order-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Order</th>
+          <th>Date</th>
+          <th>Status</th>
+          <th class="right">Total</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each orders}}
+        <tr>
+          <td style="font-weight:500;">#{{this.order_number}}</td>
+          <td style="color:#6b7280;">{{timestamp this.created_at}}</td>
+          <td>
+            <span class="order-status order-status--{{this.status}}">{{this.status}}</span>
+          </td>
+          <td class="right" style="font-weight:500;">{{pence this.total}}</td>
+          <td class="right">
+            <a href="/account/orders/{{this.id}}" style="font-size:0.875rem;font-weight:500;color:var(--color-primary);">View</a>
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+  {{else}}
+  <div class="order-table-empty">
+    <p style="margin-bottom:1rem;">You haven't placed any orders yet.</p>
+    <a href="/collections/all">Browse products</a>
+  </div>
+  {{/if}}
+  {{/unless}}
+
+</div>
+
+{{> footer}}
