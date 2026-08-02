@@ -21,10 +21,12 @@ import { discountRoutes } from './discounts';
 import { automaticDiscountRoutes } from './automatic-discounts';
 import { bannerRoutes } from './banners';
 import { reviewRoutes } from './reviews';
+import { analyticsRoutes } from './analytics';
 import { countOrders } from '../../db/queries/orders';
 import { getAllSettings } from '../../db/queries/admin';
 import { queryOne } from '../../db/connection';
 import { getAnalyticsSummary } from '../../db/queries/analytics';
+import { getRevenueSnapshot } from '../../db/queries/sales-analytics';
 
 export async function adminRoutes(fastify: FastifyInstance): Promise<void> {
   // Auth routes don't need the guard
@@ -64,6 +66,7 @@ export async function adminRoutes(fastify: FastifyInstance): Promise<void> {
       await app.register(automaticDiscountRoutes);
       await app.register(bannerRoutes);
       await app.register(reviewRoutes);
+      await app.register(analyticsRoutes);
       // Every signed-in user (admin or staff) can manage their own account.
       await app.register(accountRoutes);
 
@@ -94,6 +97,7 @@ async function dashboardHandler(req: FastifyRequest, reply: FastifyReply) {
   const orderCount = countOrders();
   const productCount = queryOne<{ n: number }>('SELECT COUNT(*) AS n FROM products')?.n ?? 0;
   const analytics = getAnalyticsSummary();
+  const revenue = getRevenueSnapshot(30);
 
   return reply.type('text/html').send(
     await render(
@@ -101,7 +105,7 @@ async function dashboardHandler(req: FastifyRequest, reply: FastifyReply) {
       {
         admin,
         settings,
-        stats: { orderCount, productCount },
+        stats: { orderCount, productCount, revenue30d: revenue.revenue, orders30d: revenue.orders },
         isEmpty: productCount === 0,
         analytics,
         pageTitle: 'Dashboard',

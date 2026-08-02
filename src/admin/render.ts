@@ -108,6 +108,55 @@ hbs.registerHelper('sparkline_bars', (daily: Array<{ date: string; views: number
   return new Handlebars.SafeString(`<div style="display:flex;align-items:flex-end;gap:0.25rem;width:100%;height:80px;">${bars}</div>`);
 });
 
+/** Formats integer pence with the store's currency symbol; short form (£1.2k)
+ *  for the compact bar-chart labels, full (£1,234.50) otherwise. */
+function formatMoney(pence: number, settings: Record<string, string> | undefined, short: boolean): string {
+  const symbols: Record<string, string> = { GBP: '£', USD: '$', EUR: '€' };
+  const code = settings?.store_currency ?? 'GBP';
+  const sym = symbols[code] ?? `${code} `;
+  const value = pence / 100;
+  if (short) {
+    if (value >= 1000) return `${sym}${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k`;
+    return `${sym}${value < 10 && value > 0 ? value.toFixed(2) : Math.round(value)}`;
+  }
+  return `${sym}${value.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** A revenue bar chart from a [{ label, revenue, orders }] series. Mirrors the
+ *  sparkline_bars pattern but scales by money and labels each bar with its take. */
+hbs.registerHelper('revenue_bars', function (points: Array<{ label: string; revenue: number; orders: number }>, options: Handlebars.HelperOptions) {
+  if (!Array.isArray(points) || points.length === 0) {
+    return new Handlebars.SafeString('<p class="text-sm text-muted">No sales in this period yet.</p>');
+  }
+  const settings = (options?.data?.root as Record<string, unknown>)?.settings as Record<string, string> | undefined;
+  const esc = Handlebars.Utils.escapeExpression;
+  const max = Math.max(...points.map((p) => p.revenue), 1);
+  // Thin the x-axis labels so a dense (e.g. 30-bar) chart stays legible: show
+  // roughly 8 of them, evenly spaced, always including the last.
+  const step = Math.max(1, Math.ceil(points.length / 8));
+  const bars = points.map((p, i) => {
+    const pct = p.revenue > 0 ? Math.max(4, Math.round((p.revenue / max) * 100)) : 0;
+    const tip = `${esc(p.label)}: ${formatMoney(p.revenue, settings, false)} · ${p.orders} order${p.orders === 1 ? '' : 's'}`;
+    const cap = p.revenue > 0 ? formatMoney(p.revenue, settings, true) : '';
+    const label = i % step === 0 || i === points.length - 1 ? esc(p.label) : '';
+    return `<div class="rev-bar" title="${tip}">
+      <span class="rev-bar__val">${esc(cap)}</span>
+      <div class="rev-bar__track"><div class="rev-bar__fill" style="height:${pct}%"></div></div>
+      <span class="rev-bar__label">${label}</span>
+    </div>`;
+  }).join('');
+  return new Handlebars.SafeString(`<div class="rev-chart">${bars}</div>`);
+});
+
+/** A coloured period-over-period delta pill. null (no prior baseline) renders a
+ *  neutral dash rather than a misleading 0%. */
+hbs.registerHelper('delta_badge', (pct: number | null | undefined) => {
+  if (pct == null) return new Handlebars.SafeString('<span class="delta delta--flat">— no prior data</span>');
+  const cls = pct > 0 ? 'delta--up' : pct < 0 ? 'delta--down' : 'delta--flat';
+  const arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '•';
+  return new Handlebars.SafeString(`<span class="delta ${cls}">${arrow} ${Math.abs(pct)}%</span>`);
+});
+
 hbs.registerHelper('status_badge', (status: string) => {
   const colour: Record<string, string> = {
     pending: 'badge-yellow',

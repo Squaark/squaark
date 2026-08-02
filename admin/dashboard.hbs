@@ -30,10 +30,11 @@
     <p class="stat-card__label">Products</p>
     <p class="stat-card__value">{{stats.productCount}}</p>
   </div>
-  <div class="stat-card">
-    <p class="stat-card__label">Revenue</p>
-    <p class="stat-card__value">—</p>
-  </div>
+  <a href="/admin/analytics" class="stat-card stat-card--link">
+    <p class="stat-card__label">Revenue <span class="text-muted text-xs font-normal">(30 days)</span></p>
+    <p class="stat-card__value">{{pence stats.revenue30d}}</p>
+    <p class="stat-card__sub">{{stats.orders30d}} paid order{{#unless (eq stats.orders30d 1)}}s{{/unless}} · view analytics →</p>
+  </a>
 </div>
 
 <div class="quick-actions mb-8">
