@@ -1,0 +1,269 @@
+<div class="page-header">
+  <div class="page-header__left">
+    <a href="/admin/posts" class="page-back">← Blog</a>
+    <h1 class="page-title">{{#if post}}{{post.title}}{{else}}New post{{/if}}</h1>
+  </div>
+  {{#if post}}
+  <form method="POST" action="/admin/posts/{{post.id}}/delete" onsubmit="return confirm('Delete this post?')">
+    {{csrf_field}}
+    <button type="submit" class="btn-link btn-link--danger btn-link--sm">Delete</button>
+  </form>
+  {{/if}}
+</div>
+
+{{#if error}}<div class="alert alert-error">{{error}}</div>{{/if}}
+{{#if saved}}<div class="alert alert-success">Saved.</div>{{/if}}
+{{#if created}}<div class="alert alert-success">Post created.</div>{{/if}}
+
+<form method="POST" action="/admin/posts/{{#if post}}{{post.id}}{{else}}new{{/if}}">
+  {{csrf_field}}
+
+  <div class="grid-form">
+    <div class="stack">
+
+      <!-- Details -->
+      <div class="card--no-overflow card-body stack-sm">
+        <h2 class="font-semibold">Details</h2>
+        <div>
+          <label class="form-label">Title <span class="form-required">*</span></label>
+          <input type="text" name="title" value="{{post.title}}" required class="form-input">
+        </div>
+        <div>
+          <label class="form-label">Slug <span class="form-required">*</span></label>
+          <div class="form-prefix">
+            <span class="form-prefix-text">/blog/</span>
+            <input type="text" name="slug" value="{{post.slug}}" required class="form-input flex-1">
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Author <span class="form-optional">(optional)</span></label>
+          <input type="text" name="author" value="{{post.author}}" placeholder="e.g. Jane Smith" class="form-input">
+        </div>
+        <div>
+          <label class="form-label">Excerpt <span class="form-optional">— teaser on the blog index and in search results</span></label>
+          <textarea name="excerpt" rows="2" class="form-textarea">{{post.excerpt}}</textarea>
+        </div>
+      </div>
+
+      <!-- Section builder -->
+      <div class="card--no-overflow card-body"
+           x-data="sectionBuilder('{{post.id}}')"
+           x-init="init($el.dataset.sections)"
+           data-sections='{{sectionsSafe}}'>
+
+        <div class="row-between mb-4">
+          <h2 class="font-semibold">Post content</h2>
+          <div style="position:relative;" x-data="{ open: false }">
+            <button type="button" @click="open = !open" class="btn btn-primary btn-sm">
+              + Add section
+              <svg style="width:0.75rem;height:0.75rem;margin-left:0.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+            <div x-show="open" @click.outside="open = false" x-cloak
+              style="position:absolute;right:0;margin-top:0.25rem;width:11rem;background:#fff;border:1px solid #e5e7eb;border-radius:0.75rem;box-shadow:0 4px 12px rgba(0,0,0,.08);z-index:10;padding:0.25rem 0;font-size:0.875rem;">
+              <button type="button" @click="add('text'); open = false" style="width:100%;text-align:left;padding:0.5rem 1rem;" class="dropdown-item">Text</button>
+              <button type="button" @click="add('image'); open = false" style="width:100%;text-align:left;padding:0.5rem 1rem;" class="dropdown-item">Image</button>
+              <button type="button" @click="add('image_text'); open = false" style="width:100%;text-align:left;padding:0.5rem 1rem;" class="dropdown-item">Image + Text</button>
+              <button type="button" @click="add('cta'); open = false" style="width:100%;text-align:left;padding:0.5rem 1rem;" class="dropdown-item">Call to Action</button>
+              <button type="button" @click="add('columns'); open = false" style="width:100%;text-align:left;padding:0.5rem 1rem;" class="dropdown-item">Two Columns</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty state / legacy content editor. x-if (not x-show) so the textarea
+             is removed from the DOM when sections exist — otherwise it submits a
+             second `content` value and breaks the save. -->
+        <template x-if="sections.length === 0">
+          <div>
+            <label class="form-label">Content <span class="form-optional">— shown when no sections are added. Accepts HTML.</span></label>
+            <textarea name="content" rows="16" class="form-textarea font-mono"
+              placeholder="<p>Write your post here…</p>">{{post.content}}</textarea>
+          </div>
+        </template>
+        <template x-if="sections.length > 0">
+          <input type="hidden" name="content" value="{{post.content}}">
+        </template>
+
+        <!-- Section cards -->
+        <template x-for="(s, i) in sections" :key="s.id">
+          <div style="border:1px solid #e5e7eb;border-radius:0.75rem;margin-bottom:0.75rem;overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:0.5rem;padding:0.625rem 1rem;background:#f9fafb;border-bottom:1px solid #f3f4f6;">
+              <span class="text-sm font-medium" x-text="LABELS[s.type]"></span>
+              <div style="margin-left:auto;display:flex;align-items:center;gap:0.25rem;">
+                <button type="button" @click="moveUp(i)" :disabled="i === 0" style="padding:0.25rem;border-radius:0.25rem;color:#9ca3af;" title="Move up">↑</button>
+                <button type="button" @click="moveDown(i)" :disabled="i === sections.length - 1" style="padding:0.25rem;border-radius:0.25rem;color:#9ca3af;" title="Move down">↓</button>
+                <button type="button" @click="remove(i)" style="padding:0.25rem;border-radius:0.25rem;color:#9ca3af;margin-left:0.25rem;" title="Remove">
+                  <svg style="width:1rem;height:1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+                <button type="button" @click="s._open = !s._open" style="padding:0.25rem;border-radius:0.25rem;color:#9ca3af;margin-left:0.25rem;">
+                  <svg style="width:1rem;height:1rem;transition:transform 0.15s;" :style="s._open ? 'transform:rotate(180deg)' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+              </div>
+            </div>
+            <div x-show="s._open" class="card-body stack-sm">
+              <template x-if="s.type === 'text'">
+                <div>
+                  <label class="form-label-xs">Content <span class="form-optional">(HTML)</span></label>
+                  <textarea x-model="s.content" rows="8" class="form-textarea font-mono" placeholder="<p>Your text here...</p>"></textarea>
+                </div>
+              </template>
+              <template x-if="s.type === 'image'">
+                <div class="stack-sm">
+                  <div x-show="s.src" style="display:flex;align-items:flex-start;gap:0.75rem;">
+                    <img :src="s.src" style="height:6rem;border-radius:0.5rem;object-fit:contain;border:1px solid #e5e7eb;background:#f9fafb;padding:0.25rem;">
+                    <button type="button" @click="s.src = ''" class="btn-link btn-link--danger btn-link--xs" style="margin-top:0.25rem;">Remove</button>
+                  </div>
+                  <div>
+                    <label class="form-label-xs">Upload image</label>
+                    <template x-if="!pageId"><p class="alert alert-warning" style="font-size:0.75rem;">Save the post first to enable image uploads.</p></template>
+                    <template x-if="pageId"><input type="file" accept="image/*" @change="uploadImage(i, $event)" class="form-file"></template>
+                  </div>
+                  <div><label class="form-label-xs">Alt text</label><input x-model="s.alt" type="text" placeholder="Describe the image" class="form-input"></div>
+                  <div><label class="form-label-xs">Caption <span class="form-optional">(optional)</span></label><input x-model="s.caption" type="text" placeholder="Optional caption" class="form-input"></div>
+                </div>
+              </template>
+              <template x-if="s.type === 'image_text'">
+                <div class="stack-sm">
+                  <div x-show="s.src" style="display:flex;align-items:flex-start;gap:0.75rem;">
+                    <img :src="s.src" style="height:6rem;border-radius:0.5rem;object-fit:contain;border:1px solid #e5e7eb;background:#f9fafb;padding:0.25rem;">
+                    <button type="button" @click="s.src = ''" class="btn-link btn-link--danger btn-link--xs" style="margin-top:0.25rem;">Remove</button>
+                  </div>
+                  <div>
+                    <label class="form-label-xs">Upload image</label>
+                    <template x-if="!pageId"><p class="alert alert-warning" style="font-size:0.75rem;">Save the post first to enable image uploads.</p></template>
+                    <template x-if="pageId"><input type="file" accept="image/*" @change="uploadImage(i, $event)" class="form-file"></template>
+                  </div>
+                  <div><label class="form-label-xs">Alt text</label><input x-model="s.alt" type="text" class="form-input"></div>
+                  <div><label class="form-label-xs">Image position</label>
+                    <select x-model="s.imagePosition" class="form-select"><option value="left">Left</option><option value="right">Right</option></select>
+                  </div>
+                  <div><label class="form-label-xs">Text content <span class="form-optional">(HTML)</span></label>
+                    <textarea x-model="s.content" rows="6" class="form-textarea font-mono" placeholder="<p>Your text here...</p>"></textarea>
+                  </div>
+                </div>
+              </template>
+              <template x-if="s.type === 'cta'">
+                <div class="stack-sm">
+                  <div><label class="form-label-xs">Heading</label><input x-model="s.heading" type="text" placeholder="Ready to get started?" class="form-input"></div>
+                  <div><label class="form-label-xs">Body text</label><textarea x-model="s.body" rows="3" placeholder="Supporting paragraph..." class="form-textarea"></textarea></div>
+                  <div class="form-row form-row--2">
+                    <div><label class="form-label-xs">Button label</label><input x-model="s.buttonLabel" type="text" placeholder="Shop Now" class="form-input"></div>
+                    <div><label class="form-label-xs">Button URL</label><input x-model="s.buttonUrl" type="text" placeholder="/collections/all" class="form-input"></div>
+                  </div>
+                  <div><label class="form-label-xs">Alignment</label>
+                    <select x-model="s.align" class="form-select"><option value="center">Center</option><option value="left">Left</option></select>
+                  </div>
+                </div>
+              </template>
+              <template x-if="s.type === 'columns'">
+                <div class="form-row form-row--2">
+                  <div><label class="form-label-xs">Left column <span class="form-optional">(HTML)</span></label><textarea x-model="s.leftContent" rows="8" class="form-textarea font-mono" placeholder="<p>Left column...</p>"></textarea></div>
+                  <div><label class="form-label-xs">Right column <span class="form-optional">(HTML)</span></label><textarea x-model="s.rightContent" rows="8" class="form-textarea font-mono" placeholder="<p>Right column...</p>"></textarea></div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+
+        <input type="hidden" name="sections" :value="JSON.stringify(sections.map(({_open, ...rest}) => rest))">
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="stack-sm">
+      <!-- Featured image -->
+      <div class="card--no-overflow card-body stack-sm" x-data="featuredImage('{{post.id}}', '{{post.featured_image}}')">
+        <h2 class="font-semibold text-sm">Featured image</h2>
+        <div x-show="src" x-cloak>
+          <img :src="src" style="width:100%;border-radius:0.5rem;border:1px solid #e5e7eb;">
+          <button type="button" @click="src = ''" class="btn-link btn-link--danger btn-link--xs" style="margin-top:0.5rem;">Remove</button>
+        </div>
+        <template x-if="!postId"><p class="alert alert-warning" style="font-size:0.75rem;">Save the post first to upload an image.</p></template>
+        <template x-if="postId"><input type="file" accept="image/*" @change="upload($event)" class="form-file"></template>
+        <input type="hidden" name="featured_image" :value="src">
+      </div>
+
+      <!-- SEO -->
+      <div class="card--no-overflow card-body stack-sm">
+        <h2 class="font-semibold text-sm">SEO</h2>
+        <div>
+          <label class="form-label">Meta title <span class="form-optional">50–60 chars</span></label>
+          <input type="text" name="seo_title" value="{{post.seo_title}}" class="form-input" maxlength="120" placeholder="{{post.title}}">
+        </div>
+        <div>
+          <label class="form-label">Meta description <span class="form-optional">150–160 chars</span></label>
+          <textarea name="seo_description" rows="3" class="form-textarea" maxlength="320" placeholder="Describe this post for search engines…">{{post.seo_description}}</textarea>
+        </div>
+      </div>
+
+      <!-- Publish -->
+      <div class="card--no-overflow card-body stack-sm">
+        <h2 class="font-semibold text-sm">Publish</h2>
+        <label class="form-check">
+          <input type="checkbox" name="status" value="published" {{#if (eq post.status 'published')}}checked{{/if}}>
+          Published
+        </label>
+        <div>
+          <label class="form-label">Publish date <span class="form-optional">(optional)</span></label>
+          <input type="date" name="published_at" value="{{post.published_at}}" class="form-input">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">{{#if post}}Save changes{{else}}Create post{{/if}}</button>
+        {{#if post}}
+        <a href="/blog/{{post.slug}}" target="_blank" class="text-xs text-muted" style="display:block;text-align:center;">View post ↗</a>
+        {{/if}}
+      </div>
+
+      {{#if post}}
+      <div class="card--no-overflow card-body text-xs text-muted stack-xs">
+        <p>Created {{date_short post.created_at}}</p>
+        <p>Updated {{date_short post.updated_at}}</p>
+      </div>
+      {{/if}}
+    </div>
+  </div>
+</form>
+
+<script>
+function sectionBuilder(pageId) {
+  return {
+    pageId: pageId || '',
+    sections: [],
+    LABELS: { text: 'Text', image: 'Image', image_text: 'Image + Text', cta: 'Call to Action', columns: 'Two Columns' },
+    DEFAULTS: {
+      text:       { content: '' },
+      image:      { src: '', alt: '', caption: '' },
+      image_text: { src: '', alt: '', content: '', imagePosition: 'left' },
+      cta:        { heading: '', body: '', buttonLabel: 'Shop Now', buttonUrl: '/collections/all', align: 'center' },
+      columns:    { leftContent: '', rightContent: '' }
+    },
+    init(sectionsJson) {
+      try { this.sections = JSON.parse(sectionsJson || '[]').map(s => ({ ...s, _open: true })); }
+      catch { this.sections = []; }
+    },
+    add(type) { this.sections.push({ id: crypto.randomUUID(), type, _open: true, ...(this.DEFAULTS[type] || {}) }); },
+    remove(index) { if (confirm('Remove this section?')) this.sections.splice(index, 1); },
+    moveUp(index) { if (index === 0) return; [this.sections[index-1], this.sections[index]] = [this.sections[index], this.sections[index-1]]; this.sections = [...this.sections]; },
+    moveDown(index) { if (index === this.sections.length-1) return; [this.sections[index], this.sections[index+1]] = [this.sections[index+1], this.sections[index]]; this.sections = [...this.sections]; },
+    async uploadImage(index, event) {
+      const file = event.target.files[0];
+      if (!file || !this.pageId) return;
+      const fd = new FormData(); fd.append('file', file);
+      const res = await fetch('/admin/posts/' + this.pageId + '/sections/image', { method: 'POST', body: fd });
+      if (res.ok) { this.sections[index].src = (await res.json()).url; this.sections = [...this.sections]; }
+    }
+  };
+}
+function featuredImage(postId, initial) {
+  return {
+    postId: postId || '', src: initial || '',
+    async upload(event) {
+      const file = event.target.files[0];
+      if (!file || !this.postId) return;
+      const fd = new FormData(); fd.append('file', file);
+      const res = await fetch('/admin/posts/' + this.postId + '/featured-image', { method: 'POST', body: fd });
+      if (res.ok) this.src = (await res.json()).url;
+    }
+  };
+}
+</script>
