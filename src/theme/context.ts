@@ -1,6 +1,7 @@
 import { getAllSettings } from '../db/queries/admin';
 import { getNav } from '../routes/admin/navigation';
 import { getActiveBanner } from '../db/queries/banners';
+import { pixelSettings, buildPixelHead, buildPixelNoscript } from '../marketing/pixels';
 
 export interface Money {
   amount: number;      // Minor units (cents)
@@ -103,6 +104,12 @@ export interface GlobalContext {
     displayMode: 'inc' | 'ex' | 'both';
     label: string;
   };
+  // Raw HTML for the marketing pixels (Meta/Google). Empty strings when no IDs
+  // are configured. Injected with a triple-stash so the <script> tags render.
+  marketing: {
+    pixelHead: string;
+    pixelNoscript: string;
+  };
 }
 
 export interface ProductPageContext extends GlobalContext {
@@ -191,6 +198,7 @@ export function buildGlobalContext(
   const settings = getAllSettings();
   const currencyCode = settings.store_currency ?? 'GBP';
   const activeBanner = getActiveBanner();
+  const pixels = pixelSettings(settings);
   return {
     store: {
       name: settings.store_name ?? 'My Store',
@@ -238,6 +246,10 @@ export function buildGlobalContext(
       enabled: settings.tax_enabled === '1',
       displayMode: (settings.tax_display_mode as 'inc' | 'ex' | 'both') || 'inc',
       label: settings.tax_label || 'VAT',
+    },
+    marketing: {
+      pixelHead: buildPixelHead(pixels),
+      pixelNoscript: buildPixelNoscript(pixels),
     },
   };
 }

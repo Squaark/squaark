@@ -13,10 +13,12 @@ import { findPublishedPosts, countPublishedPosts, findPublishedPostBySlug } from
 import { getAllSettings } from '../../db/queries/admin';
 import { addSuppression } from '../../db/queries/suppressions';
 import { verifyUnsubscribeToken } from '../../email/unsubscribe';
+import { addSubscriber, unsubscribeEmail } from '../../db/queries/newsletter';
 import { CURRENCY_SYMBOLS } from '../../theme/context';
 import { checkoutRoutes } from './checkout';
 import { accountRoutes } from './account';
 import { downloadRoutes } from './downloads';
+import { feedRoutes } from './feed';
 import { findCustomerById } from '../../db/queries/customers';
 
 // Shown on the homepage when the theme's value-props haven't been customised.
@@ -107,6 +109,7 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
   await checkoutRoutes(fastify, registry);
   await accountRoutes(fastify, registry);
   await downloadRoutes(fastify);
+  await feedRoutes(fastify);
 
   // One-click opt-out from recovery emails (token-signed link in the email).
   fastify.get('/unsubscribe', async (req: FastifyRequest<{ Querystring: { e?: string; t?: string } }>, reply: FastifyReply) => {
@@ -117,6 +120,39 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
     if (email && verifyUnsubscribeToken(email, req.query.t)) {
       addSuppression(email);
       return reply.type('text/html').send(page(`You've been unsubscribed. <strong>${esc(email)}</strong> will no longer receive cart reminders.`));
+    }
+    return reply.code(400).type('text/html').send(page('This unsubscribe link is invalid or has expired.'));
+  });
+
+  // ── Newsletter ───────────────────────────────────────────────────────────────
+  // Storefront footer signup. Rate-limited to blunt abuse of the open form.
+  fastify.post('/newsletter/subscribe', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (req: FastifyRequest<{ Body: { email?: string } }>, reply: FastifyReply) => {
+      const email = (req.body?.email ?? '').trim();
+      const valid = /.+@.+\..+/.test(email);
+      if (valid) addSubscriber(email, 'footer');
+
+      // htmx swaps the form out for an inline confirmation; a plain POST just
+      // returns to the page the shopper came from.
+      if (req.headers['hx-request']) {
+        reply.type('text/html');
+        return valid
+          ? `<p class="newsletter-signup__done">Thanks for subscribing! You're on the list.</p>`
+          : `<p class="newsletter-signup__error">Please enter a valid email address.</p>`;
+      }
+      const referer = (req.headers['referer'] as string | undefined) ?? '/';
+      return reply.redirect(referer);
+    });
+
+  // Token-signed opt-out from newsletter broadcasts (link in every broadcast).
+  fastify.get('/newsletter/unsubscribe', async (req: FastifyRequest<{ Querystring: { e?: string; t?: string } }>, reply: FastifyReply) => {
+    const email = (req.query.e ?? '').trim();
+    const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+    const storeName = esc(getAllSettings().store_name || 'the store');
+    const page = (msg: string) => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Unsubscribe</title></head><body style="font-family:system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1.5rem;line-height:1.6;color:#111827;"><h1 style="font-size:1.25rem;">${storeName}</h1><p>${msg}</p></body></html>`;
+    if (email && verifyUnsubscribeToken(email, req.query.t)) {
+      unsubscribeEmail(email);
+      return reply.type('text/html').send(page(`You've been unsubscribed. <strong>${esc(email)}</strong> will no longer receive our newsletter.`));
     }
     return reply.code(400).type('text/html').send(page('This unsubscribe link is invalid or has expired.'));
   });

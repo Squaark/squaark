@@ -14,6 +14,7 @@
       <li><button @click="tab = 'email'" :class="tab === 'email' ? 'settings-tab settings-tab--active' : 'settings-tab'" class="settings-tab">Email</button></li>
       <li><button @click="tab = 'payments'" :class="tab === 'payments' ? 'settings-tab settings-tab--active' : 'settings-tab'" class="settings-tab">Payments</button></li>
       <li><button @click="tab = 'tax'" :class="tab === 'tax' ? 'settings-tab settings-tab--active' : 'settings-tab'" class="settings-tab">Tax</button></li>
+      <li><button @click="tab = 'marketing'" :class="tab === 'marketing' ? 'settings-tab settings-tab--active' : 'settings-tab'" class="settings-tab">Marketing</button></li>
       <li><button @click="tab = 'media'" :class="tab === 'media' ? 'settings-tab settings-tab--active' : 'settings-tab'" class="settings-tab">Media</button></li>
       <li><button @click="tab = 'server'" :class="tab === 'server' ? 'settings-tab settings-tab--active' : 'settings-tab'" class="settings-tab">Server</button></li>
       <li><button @click="tab = 'logs'" :class="tab === 'logs' ? 'settings-tab settings-tab--active' : 'settings-tab'" class="settings-tab">Logs</button></li>
@@ -284,6 +285,54 @@
       </form>
     </div>
 
+    <!-- Marketing -->
+    <div x-show="tab === 'marketing'" x-cloak>
+      <form method="POST" action="/admin/settings/marketing">
+        {{csrf_field}}
+        <div class="card--no-overflow card-body stack-sm">
+          <h2 class="font-semibold">Marketing pixels</h2>
+          <p class="form-hint -mt-1">
+            Add your advertising tags and they'll load on every storefront page (tracking page views),
+            with a purchase/conversion event firing on the order-confirmation page. Leave a field blank to disable it.
+          </p>
+
+          <div style="padding-top:0.5rem;border-top:1px solid #f3f4f6;">
+            <label class="form-label">Meta (Facebook) Pixel ID</label>
+            <input type="text" name="meta_pixel_id" value="{{settings.meta_pixel_id}}" placeholder="1234567890" class="form-input font-mono" style="max-width:20rem;">
+            <p class="form-hint">Numeric ID from Meta Events Manager. Fires <code>PageView</code> and <code>Purchase</code>.</p>
+          </div>
+
+          <div style="padding-top:0.75rem;border-top:1px solid #f3f4f6;">
+            <label class="form-label">Google Analytics 4 measurement ID</label>
+            <input type="text" name="ga4_measurement_id" value="{{settings.ga4_measurement_id}}" placeholder="G-XXXXXXXXXX" class="form-input font-mono" style="max-width:20rem;">
+            <p class="form-hint">Starts with <code>G-</code>. Fires <code>page_view</code> and a <code>purchase</code> event with order value.</p>
+          </div>
+
+          <div style="padding-top:0.75rem;border-top:1px solid #f3f4f6;" class="stack-sm">
+            <h3 class="text-sm font-medium">Google Ads conversion <span class="form-optional">(optional)</span></h3>
+            <div>
+              <label class="form-label-xs">Conversion ID</label>
+              <input type="text" name="google_ads_id" value="{{settings.google_ads_id}}" placeholder="AW-XXXXXXXXX" class="form-input font-mono" style="max-width:20rem;">
+            </div>
+            <div>
+              <label class="form-label-xs">Conversion label</label>
+              <input type="text" name="google_ads_conversion_label" value="{{settings.google_ads_conversion_label}}" placeholder="abcDEFgh12" class="form-input font-mono" style="max-width:20rem;">
+              <p class="form-hint">Both fields fire a Google Ads conversion on the order-confirmation page. Uses the same Google tag as GA4.</p>
+            </div>
+          </div>
+
+          <div style="padding-top:0.75rem;border-top:1px solid #f3f4f6;">
+            <h3 class="text-sm font-medium">Product feed</h3>
+            <p class="form-hint">A Google Merchant / Meta Catalog product feed is published automatically at
+              <a href="/feed.xml" target="_blank"><code>{{settings.store_url}}/feed.xml</code></a> — paste that URL into Merchant Center or your Meta catalogue.</p>
+          </div>
+        </div>
+        <div class="mt-4">
+          <button type="submit" class="btn btn-primary">Save marketing settings</button>
+        </div>
+      </form>
+    </div>
+
     <!-- Media -->
     <div x-show="tab === 'media'" x-cloak>
       <div class="card--no-overflow card-body stack-sm">
@@ -506,7 +555,7 @@ var CSRF_TOKEN = '{{csrfToken}}';
 
 function settingsTabs() {
   const hash = window.location.hash.replace('#', '');
-  const valid = ['store', 'email', 'payments', 'tax', 'media', 'server', 'logs'];
+  const valid = ['store', 'email', 'payments', 'tax', 'marketing', 'media', 'server', 'logs'];
   return {
     tab: valid.includes(hash) ? hash : 'store',
   };

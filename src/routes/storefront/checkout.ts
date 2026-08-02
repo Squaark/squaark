@@ -5,7 +5,7 @@ import { buildGlobalContext } from '../../theme/context';
 import { getCartPage, getCartSummary } from '../../commerce/cart';
 import { clearCart } from '../../db/queries/cart';
 import { getAllSettings } from '../../db/queries/admin';
-import { createOrder, markOrderPaid, findOrderById, findOrderByPaymentReference, findOrderItems, type Address } from '../../db/queries/orders';
+import { createOrder, markOrderPaid, findOrderById, findOrderByPaymentReference, findOrderItems, getOrderProductIds, type Address } from '../../db/queries/orders';
 import { createOrderDownloads, findDownloadsForOrder } from '../../db/queries/downloads';
 import { sendTemplatedEmail } from '../../email/send';
 import { buildOrderEmailContext } from '../../email/order-context';
@@ -18,6 +18,7 @@ import { calculateItemsTax } from '../../commerce/tax';
 import { resolveShipping } from '../../commerce/shipping';
 import { findStockShortfalls } from '../../commerce/inventory';
 import { generateVerificationToken, isAccountClaimed, sendVerificationEmail } from '../../commerce/customer-verification';
+import { pixelSettings, buildPurchasePixel } from '../../marketing/pixels';
 import argon2 from 'argon2';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -599,6 +600,15 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       expired: d.expires_at ? new Date(d.expires_at) < new Date() : false,
     }));
 
+    // Fire Meta/Google purchase + conversion events (no-op when no pixel is set).
+    // content_ids are product ids so they line up with the feed's <g:id>.
+    const purchasePixel = buildPurchasePixel(pixelSettings(settings), {
+      orderId: order.order_number != null ? String(order.order_number) : orderId,
+      value: order.total / 100,
+      currency: ctx.store.currency.code,
+      contentIds: getOrderProductIds(orderId),
+    });
+
     await render(registry, reply, 'checkout-success', {
       ...ctx,
       pageTitle: `Order #${order.order_number} confirmed`,
@@ -611,6 +621,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       taxLabel: settings.tax_label || 'VAT',
       taxNumber: settings.tax_number || '',
       downloads: orderDownloads,
+      purchasePixel,
     });
   });
 
