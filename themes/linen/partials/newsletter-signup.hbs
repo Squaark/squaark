@@ -1,0 +1,9 @@
+<form class="newsletter-signup" hx-post="/newsletter/subscribe" hx-swap="outerHTML" method="POST" action="/newsletter/subscribe">
+  <input type="hidden" name="_csrf" value="{{csrfToken}}">
+  <p class="footer-col-heading">Newsletter</p>
+  <p class="newsletter-signup__hint">Sign up for occasional updates and offers.</p>
+  <div class="newsletter-signup__row">
+    <input type="email" name="email" required placeholder="you@example.com" aria-label="Email address" class="newsletter-signup__input">
+    <button type="submit" class="newsletter-signup__btn">Subscribe</button>
+  </div>
+</form>
