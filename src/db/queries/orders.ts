@@ -163,6 +163,24 @@ export function findOrderItems(orderId: string): OrderItemRow[] {
   return query<OrderItemRow>('SELECT * FROM order_items WHERE order_id = ?', [orderId]);
 }
 
+/**
+ * Distinct product ids in an order, in line-item order. Used for the marketing
+ * purchase pixel's `content_ids` so they match the product feed's `g:id` (also
+ * the product id) — required for Meta/Google to attribute a purchase to the
+ * right catalogue item for dynamic ads.
+ */
+export function getOrderProductIds(orderId: string): string[] {
+  return query<{ product_id: string }>(
+    `SELECT v.product_id
+       FROM order_items oi
+       JOIN product_variants v ON v.id = oi.variant_id
+      WHERE oi.order_id = ? AND oi.variant_id IS NOT NULL
+      GROUP BY v.product_id
+      ORDER BY MIN(oi.rowid)`,
+    [orderId],
+  ).map((r) => r.product_id);
+}
+
 export function createOrder(input: CreateOrderInput): OrderRow {
   const id = randomUUID();
   const nextNumber = queryOne<{ n: number }>('SELECT COALESCE(MAX(order_number), 1000) + 1 AS n FROM orders')!.n;

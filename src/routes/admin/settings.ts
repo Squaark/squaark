@@ -31,6 +31,7 @@ export async function settingsRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post('/settings/restart', restartServer);
   fastify.post('/settings/media/:slot/remove', removeMedia);
   fastify.post('/settings/tax', taxSettingsSave);
+  fastify.post('/settings/marketing', marketingSettingsSave);
   fastify.post('/settings/update', updateHandler);
   fastify.post('/settings/revert', revertHandler);
   fastify.get('/settings/update-status', updateStatusHandler);
@@ -176,6 +177,18 @@ async function paymentSettingsSave(
   }
   return reply.redirect('/admin/settings?saved=1#payments');
 
+}
+
+async function marketingSettingsSave(
+  req: FastifyRequest<{ Body: Record<string, string> }>,
+  reply: FastifyReply,
+) {
+  // Public tracking IDs (they ship in the page source), so not treated as secrets.
+  const allowed = ['meta_pixel_id', 'ga4_measurement_id', 'google_ads_id', 'google_ads_conversion_label'];
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) setSetting(key, req.body[key].trim());
+  }
+  return reply.redirect('/admin/settings?saved=1#marketing');
 }
 
 async function taxSettingsSave(

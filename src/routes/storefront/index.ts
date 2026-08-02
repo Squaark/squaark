@@ -16,6 +16,7 @@ import { CURRENCY_SYMBOLS } from '../../theme/context';
 import { checkoutRoutes } from './checkout';
 import { accountRoutes } from './account';
 import { downloadRoutes } from './downloads';
+import { feedRoutes } from './feed';
 import { findCustomerById } from '../../db/queries/customers';
 
 // Shown on the homepage when the theme's value-props haven't been customised.
@@ -106,6 +107,7 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
   await checkoutRoutes(fastify, registry);
   await accountRoutes(fastify, registry);
   await downloadRoutes(fastify);
+  await feedRoutes(fastify);
 
   // One-click opt-out from recovery emails (token-signed link in the email).
   fastify.get('/unsubscribe', async (req: FastifyRequest<{ Querystring: { e?: string; t?: string } }>, reply: FastifyReply) => {
