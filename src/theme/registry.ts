@@ -1,8 +1,9 @@
 import path from 'path';
+import { createReadStream } from 'fs';
 import { ThemeEngine } from './engine';
 import { loadManifest, resolveConfig, resolveConfigNested, buildCssVars, type ThemeManifest } from './config';
 import { findActiveTheme, type ThemeRow } from '../db/queries/themes';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 
 export class ThemeRegistry {
   private engine: ThemeEngine | null = null;
@@ -15,7 +16,24 @@ export class ThemeRegistry {
     const theme = findActiveTheme();
     if (!theme) throw new Error('No active theme found in database');
     await this.load(theme);
-    this.engine!.registerAssetRoutes(fastify);
+    this.registerAssetRoute(fastify);
+  }
+
+  /**
+   * Registers the `/theme/assets/*` route ONCE, at boot. The handler resolves
+   * against whichever theme is active at request time, so switching themes just
+   * swaps the in-memory engine — it never re-registers a route on the
+   * already-listening server (which throws "Cannot add route").
+   */
+  private registerAssetRoute(fastify: FastifyInstance): void {
+    fastify.get('/theme/assets/*', async (req: FastifyRequest, reply: FastifyReply) => {
+      const hashedName = (req.params as Record<string, string>)['*'];
+      const asset = this.currentEngine.resolveAssetFile(hashedName);
+      if (!asset) return reply.code(404).send('Asset not found');
+      reply.header('Content-Type', asset.mime);
+      reply.header('Cache-Control', 'public, max-age=31536000, immutable');
+      return reply.send(createReadStream(asset.filePath));
+    });
   }
 
   private async load(theme: ThemeRow): Promise<void> {
@@ -57,10 +75,11 @@ export class ThemeRegistry {
       this.engine?.invalidateAll();
       return;
     }
-    // Different theme — full reinit
+    // Different theme — swap the engine + config in memory. The asset route
+    // registered at init already delegates to currentEngine, so nothing new
+    // needs registering here (doing so would throw once the server is listening).
     this.engine = null;
     await this.load(theme);
-    this.engine!.registerAssetRoutes(fastify);
   }
 
   get currentEngine(): ThemeEngine {

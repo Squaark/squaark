@@ -1,12 +1,11 @@
 import Handlebars from 'handlebars';
 import { LRUCache } from 'lru-cache';
 import { readFile, readdir } from 'fs/promises';
-import { existsSync, createReadStream } from 'fs';
+import { existsSync } from 'fs';
 import path from 'path';
 import { getAllSettings } from '../db/queries/admin';
 import { buildAssetManifest, buildReverseManifest, getMimeType, type AssetManifest } from './assets';
 import { registerHelpers } from './helpers';
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 export class ThemeEngine {
   private cache = new LRUCache<string, HandlebarsTemplateDelegate>({ max: 100 });
@@ -66,24 +65,17 @@ export class ThemeEngine {
     this.cache.clear();
   }
 
-  /** Register a Fastify route for /theme/assets/* with hash-stripping and immutable caching. */
-  registerAssetRoutes(fastify: FastifyInstance): void {
-    const assetsDir = path.join(this.themePath, 'assets');
-
-    fastify.get('/theme/assets/*', async (req: FastifyRequest, reply: FastifyReply) => {
-      const hashedName = (req.params as Record<string, string>)['*'];
-      const originalName = this.reverseManifest[hashedName] ?? hashedName;
-      const filePath = path.join(assetsDir, originalName);
-
-      if (!existsSync(filePath)) {
-        return reply.code(404).send('Asset not found');
-      }
-
-      const ext = path.extname(originalName);
-      reply.header('Content-Type', getMimeType(ext));
-      reply.header('Cache-Control', 'public, max-age=31536000, immutable');
-      return reply.send(createReadStream(filePath));
-    });
+  /**
+   * Resolves a hashed `/theme/assets/*` request to a file path + mime for THIS
+   * theme, or null if it doesn't exist. The route itself is registered once by
+   * the registry (delegating to the active engine), so switching themes never
+   * re-registers a route on the already-listening server.
+   */
+  resolveAssetFile(hashedName: string): { filePath: string; mime: string } | null {
+    const originalName = this.reverseManifest[hashedName] ?? hashedName;
+    const filePath = path.join(this.themePath, 'assets', originalName);
+    if (!existsSync(filePath)) return null;
+    return { filePath, mime: getMimeType(path.extname(originalName)) };
   }
 
   private async registerPartials(): Promise<void> {

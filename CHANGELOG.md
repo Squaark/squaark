@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - WooCommerce import skips WooCommerce's own system pages (cart, checkout, my-account, shop, …).
 
 ### Fixed
+- Switching the active theme no longer crashes with "Fastify instance is already listening. Cannot add route!" — the `/theme/assets/*` route is now registered once at boot and serves whichever theme is active, instead of being re-registered on every switch.
 - Admin styling left broken by the earlier Tailwind removal (status badges, utility classes).
 - Theme-editor image upload no longer reloads the page and discards unsaved edits.
 - Order confirmation emails rendered blank totals.
