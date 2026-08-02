@@ -1,0 +1,158 @@
+<div class="page-header">
+  <h1 class="page-title">Analytics</h1>
+  <div class="range-tabs">
+    {{#each ranges}}
+    <a href="/admin/analytics?range={{this.days}}" class="range-tab {{#if this.active}}range-tab--active{{/if}}">{{this.days}} days</a>
+    {{/each}}
+  </div>
+</div>
+
+<p class="text-muted text-sm mb-4">Sales figures cover paid orders only, compared with the previous {{sales.days}} days.</p>
+
+<div class="analytics-kpis mb-8">
+  <div class="stat-card">
+    <p class="stat-card__label">Revenue</p>
+    <p class="stat-card__value">{{pence sales.kpi.current.revenue}}</p>
+    <p class="stat-card__sub">{{{delta_badge sales.kpi.revenueChangePct}}}</p>
+  </div>
+  <div class="stat-card">
+    <p class="stat-card__label">Paid orders</p>
+    <p class="stat-card__value">{{sales.kpi.current.orders}}</p>
+    <p class="stat-card__sub">{{{delta_badge sales.kpi.ordersChangePct}}}</p>
+  </div>
+  <div class="stat-card">
+    <p class="stat-card__label">Avg. order value</p>
+    <p class="stat-card__value">{{pence sales.kpi.current.avgOrderValue}}</p>
+    <p class="stat-card__sub">{{{delta_badge sales.kpi.aovChangePct}}}</p>
+  </div>
+  <div class="stat-card">
+    <p class="stat-card__label">Conversion rate</p>
+    <p class="stat-card__value">{{sales.conversion.conversionRate}}%</p>
+    <p class="stat-card__sub">{{sales.conversion.orders}} of {{sales.conversion.visitors}} visitors</p>
+  </div>
+</div>
+
+<div class="card mb-8">
+  <div class="card-body">
+    <div class="flex-between mb-3">
+      <p class="font-medium text-sm">Revenue{{#if (eq sales.trendBucket 'week')}} per week{{else}} per day{{/if}}</p>
+      <span class="text-muted text-xs">last {{sales.days}} days</span>
+    </div>
+    {{{revenue_bars sales.trend}}}
+  </div>
+</div>
+
+<div class="grid-2 mb-8">
+  <div class="card">
+    <div class="card-body">
+      <p class="font-medium text-sm mb-3">Where the money came from</p>
+      <table class="breakdown">
+        <tbody>
+          <tr><td>Gross sales</td><td class="right">{{pence sales.breakdown.gross}}</td></tr>
+          <tr><td>Discounts</td><td class="right breakdown__neg">{{#if sales.breakdown.discounts}}−{{/if}}{{pence sales.breakdown.discounts}}</td></tr>
+          <tr><td>Shipping</td><td class="right">{{pence sales.breakdown.shipping}}</td></tr>
+          <tr><td>Tax</td><td class="right">{{pence sales.breakdown.tax}}</td></tr>
+        </tbody>
+        <tfoot>
+          <tr><td>Total charged</td><td class="right">{{pence sales.breakdown.total}}</td></tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <p class="font-medium text-sm mb-3">Best sellers <span class="text-muted text-xs font-normal">(by revenue)</span></p>
+      {{#if sales.topProducts.length}}
+      <table class="breakdown">
+        <thead>
+          <tr><th>Product</th><th class="right">Units</th><th class="right">Revenue</th></tr>
+        </thead>
+        <tbody>
+          {{#each sales.topProducts}}
+          <tr>
+            <td>{{truncate this.product_title 32}}</td>
+            <td class="right text-muted">{{this.units}}</td>
+            <td class="right">{{pence this.revenue}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      {{else}}
+      <p class="text-sm text-muted">No sales in this period yet.</p>
+      {{/if}}
+    </div>
+  </div>
+</div>
+
+<div class="grid-3 mb-8">
+  <div class="stat-card">
+    <p class="stat-card__label">Visitors</p>
+    <p class="stat-card__value">{{sales.conversion.visitors}}</p>
+    <p class="stat-card__sub">{{sales.conversion.pageViews}} page views</p>
+  </div>
+  <div class="stat-card">
+    <p class="stat-card__label">Revenue per visitor</p>
+    <p class="stat-card__value">{{pence sales.conversion.revenuePerVisitor}}</p>
+    <p class="stat-card__sub">across {{sales.days}} days</p>
+  </div>
+  <div class="stat-card">
+    <p class="stat-card__label">Units sold</p>
+    <p class="stat-card__value">{{sales.kpi.current.units}}</p>
+    <p class="stat-card__sub">items in paid orders</p>
+  </div>
+</div>
+
+<div class="card mb-8">
+  <div class="card-header">
+    <p class="font-medium text-sm">Recent orders</p>
+    <a href="/admin/orders" class="btn-link btn-link--sm">All orders →</a>
+  </div>
+  {{#if recentOrders.length}}
+  <table class="data-table">
+    <thead>
+      <tr><th>Order</th><th>Customer</th><th>Status</th><th class="right">Total</th><th>Date</th></tr>
+    </thead>
+    <tbody>
+      {{#each recentOrders}}
+      <tr class="row-link" style="cursor:pointer" onclick="location.href='/admin/orders/{{this.id}}'">
+        <td class="cell-title"><a href="/admin/orders/{{this.id}}">#{{this.order_number}}</a></td>
+        <td>{{this.email}}</td>
+        <td>{{{status_badge this.status}}}</td>
+        <td class="right">{{pence this.total}}</td>
+        <td class="text-muted text-xs">{{date_short this.created_at}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state"><p>No orders yet.</p></div>
+  {{/if}}
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-body">
+      <p class="font-medium text-sm mb-3">Top pages <span class="text-muted text-xs font-normal">(30 days)</span></p>
+      {{#if traffic.topPages.length}}
+      <ul class="traffic-list">
+        {{#each traffic.topPages}}
+        <li><span class="traffic-list__path">{{this.path}}</span><span class="traffic-list__count">{{this.views}}</span></li>
+        {{/each}}
+      </ul>
+      {{else}}<p class="text-sm text-muted">No data yet.</p>{{/if}}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <p class="font-medium text-sm mb-3">Top referrers <span class="text-muted text-xs font-normal">(30 days)</span></p>
+      {{#if traffic.topReferrers.length}}
+      <ul class="traffic-list">
+        {{#each traffic.topReferrers}}
+        <li><span class="traffic-list__path">{{this.referrer}}</span><span class="traffic-list__count">{{this.views}}</span></li>
+        {{/each}}
+      </ul>
+      {{else}}<p class="text-sm text-muted">No referral traffic yet.</p>{{/if}}
+    </div>
+  </div>
+</div>
