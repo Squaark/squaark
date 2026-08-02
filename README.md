@@ -2,6 +2,36 @@
 
 Self-hosted ecommerce platform. Keeping it simple with Node.js + SQLite.
 
+## Features
+
+**Selling**
+- Products with variants, images, digital downloads, SEO fields, and inventory tracking
+- Collections, search, and genuinely-related "You may also like" (shared-collection, with an optional manual per-product picker) plus cart recommendations
+- Cart + checkout with **Stripe** (hosted Checkout → Apple/Google Pay) and **PayPal**; guest checkout
+- Shipping zones & rates (flat, free, free-over-threshold); tax bands (inc/ex display)
+- **Promotions**: discount codes, **automatic discounts** (order % / fixed off over a threshold, and buy-X-get-Y / BOGO), and scheduled **promo banners**
+- **Product reviews** with star ratings, verified-purchase badges, moderation, and rich-result structured data
+
+**Marketing & growth**
+- **Blog** on the page-builder engine (featured image, author, scheduling, RSS, sitemap)
+- **Abandoned-checkout recovery** emails with one-click unsubscribe
+- **Low-stock alerts** to the store owner
+- Meta/Google **pixels + product feed**, newsletter capture + broadcasts
+- SEO: sitemap.xml, robots.txt, meta/OG tags, canonical URLs, structured data
+
+**Operations**
+- Orders: fulfilment + tracking, refunds (Stripe/PayPal), merchant notifications, CSV export
+- Customer accounts: registration, password reset, email verification
+- **Sales/analytics dashboard**: revenue, orders, AOV, conversion (period-over-period), best-sellers, traffic
+- Editable transactional email templates with live preview
+- Staff accounts with restricted access; admin **two-factor auth**
+- One-click **self-update** + revert; online **backup/restore**; `/health` endpoint
+- WooCommerce import; full store export/import
+
+**Storefront**
+- Two bundled, fully-configurable themes — **Linen** (clean/editorial) and **Nova** (bold/modern, with a hero product slider) — plus uploadable custom themes
+- Configurable cart word (Cart / Basket / Bag), pages with a section builder, editable navigation
+
 ## Requirements
 
 - Node.js 22+ (`better-sqlite3` requires it as of v13). 22 (LTS) is the tested baseline — CI, Docker, and `.nvmrc` all pin it — but `better-sqlite3`, `argon2`, and `sharp` all ship N-API prebuilt binaries now, so newer versions (e.g. 26) work fine too.
@@ -30,13 +60,18 @@ The database schema is created automatically on first boot, there is no separate
 3. **Settings > Payments** - paste in Stripe and/or PayPal credentials. Both providers can be active at the same time.
 4. **Settings > Logs** - live view of payment events, sent emails, and server errors. Useful for debugging without touching the server.
 5. **Emails** - editable Handlebars templates for order confirmation, shipping, admin notifications, password reset. Live preview against sample data.
-6. **Themes** - the `linen` theme is active by default. Customise colours, fonts, and layout from its config page, or upload a different theme.
+6. **Themes** - two bundled themes ship in-repo: **Linen** (clean/editorial, active by default) and **Nova** (bold/modern with a hero product slider). Switch between them, customise colours/fonts/layout from the config page, or upload a custom theme.
 7. **Pages** - build pages with a section builder (text, image, image + text, CTA, columns), or import from a WordPress export via **Import**.
-8. **Navigation** - edit the main and footer nav links.
-9. **Users** - add staff accounts with restricted access (products and orders only, no settings or theme access).
-10. **Products / Collections** - `npm run db:seed` loads sample catalogue data, or add your own.
+8. **Blog** - write posts with the same section builder, plus featured image, author, and scheduled publish dates. Each post has an RSS feed and appears in the sitemap.
+9. **Promotions** - discount codes, automatic (codeless) discounts and buy-X-get-Y offers, and scheduled announcement banners.
+10. **Reviews** - customer product reviews with star ratings, verified-purchase badges, and approve/publish moderation.
+11. **Analytics** - sales dashboard (revenue, orders, AOV, conversion with period-over-period deltas, best-sellers) on top of the traffic view (page views, unique visitors, top pages, referrers).
+12. **Marketing** - Meta/Google pixels and a product feed, newsletter capture, and one-off broadcasts on your email setup.
+13. **Navigation** - edit the main and footer nav links (add a `/blog` link here to surface the blog).
+14. **Users** - add staff accounts with restricted access; enable two-factor auth on any account under **Account**.
+15. **Products / Collections** - `npm run db:seed` loads sample catalogue data, or add your own.
 
-The dashboard shows basic traffic analytics (page views, unique visitors, top pages, referrers) collected from storefront requests. No external service or cookie consent needed — bots are filtered by user agent and IPs are hashed before storage.
+Traffic analytics are collected from storefront requests with no external service or cookie consent needed — bots are filtered by user agent and IPs are hashed before storage.
 
 ## Scripts
 
