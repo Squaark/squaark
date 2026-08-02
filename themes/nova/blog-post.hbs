@@ -1,0 +1,31 @@
+{{> header}}
+
+{{#if postJsonLd}}<script type="application/ld+json">{{{postJsonLd}}}</script>{{/if}}
+
+<article>
+  <div class="container--md blog-post-head">
+    <a href="/blog" class="blog-back">← Blog</a>
+    <h1 class="blog-post-title">{{post.title}}</h1>
+    <p class="blog-post-meta">
+      {{#if post.published_at}}{{timestamp post.published_at}}{{/if}}{{#if post.author}} · {{post.author}}{{/if}}
+    </p>
+  </div>
+
+  {{#if post.featured_image}}
+    <div class="container--md">
+      <img class="blog-post-hero" src="{{post.featured_image}}" alt="{{post.title}}">
+    </div>
+  {{/if}}
+
+  {{#if post.sections.length}}
+    {{#each post.sections}}
+      {{renderSection this}}
+    {{/each}}
+  {{else}}
+    <div class="container--md" style="padding:2rem 1rem 4rem;">
+      <div class="cms-prose">{{sanitized_html post.content}}</div>
+    </div>
+  {{/if}}
+</article>
+
+{{> footer}}
