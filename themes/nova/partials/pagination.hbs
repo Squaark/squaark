@@ -1,0 +1,25 @@
+{{#if pagination}}
+  {{#if (or pagination.hasPrev pagination.hasNext)}}
+    <nav class="pagination" aria-label="Pagination">
+      {{#if pagination.hasPrev}}
+        <a href="{{pagination.prevUrl}}" class="">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+          Previous
+        </a>
+      {{/if}}
+
+      <span class="pagination__info">Page {{pagination.currentPage}} of {{pagination.totalPages}}</span>
+
+      {{#if pagination.hasNext}}
+        <a href="{{pagination.nextUrl}}" class="">
+          Next
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </a>
+      {{/if}}
+    </nav>
+  {{/if}}
+{{/if}}

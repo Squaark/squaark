@@ -1,0 +1,80 @@
+<div class="page-header">
+  <h1 class="page-title">Newsletter</h1>
+  <a href="/admin/newsletter/broadcasts/new" class="btn btn-primary">New broadcast</a>
+</div>
+
+{{#if sent}}<div class="alert alert-success">Broadcast queued — it's sending to your subscribers now. Refresh to see the delivered count.</div>{{/if}}
+{{#if error}}<div class="alert alert-error">{{error}}</div>{{/if}}
+
+<div class="stat-row" style="display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;">
+  <div class="card card-body" style="flex:1;min-width:12rem;">
+    <p class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.05em;">Active subscribers</p>
+    <p style="font-size:1.75rem;font-weight:700;">{{subscribedCount}}</p>
+  </div>
+  <div class="card card-body" style="flex:1;min-width:12rem;">
+    <p class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.05em;">Total captured</p>
+    <p style="font-size:1.75rem;font-weight:700;">{{totalCount}}</p>
+  </div>
+</div>
+
+<h2 class="font-semibold" style="margin-bottom:0.75rem;">Broadcasts</h2>
+<div class="card" style="margin-bottom:2rem;">
+  {{#if broadcasts.length}}
+    <table class="data-table">
+      <thead>
+        <tr><th>Subject</th><th>Status</th><th>Recipients</th><th>Sent</th><th>Date</th></tr>
+      </thead>
+      <tbody>
+        {{#each broadcasts}}
+        <tr>
+          <td class="cell-title">{{truncate this.subject 60}}</td>
+          <td>
+            {{#if (eq this.status 'sent')}}<span class="badge badge-green">Sent</span>
+            {{else if (eq this.status 'sending')}}<span class="badge badge-blue">Sending…</span>
+            {{else if (eq this.status 'failed')}}<span class="badge badge-red">Failed</span>
+            {{else}}<span class="badge badge-gray">Draft</span>{{/if}}
+          </td>
+          <td class="text-sm">{{this.recipient_count}}</td>
+          <td class="text-sm">{{this.sent_count}}{{#if this.failed_count}} <span class="text-muted">({{this.failed_count}} failed)</span>{{/if}}</td>
+          <td class="text-sm text-muted">{{date_short this.created_at}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  {{else}}
+    <div class="empty-state">
+      <p>No broadcasts sent yet.</p>
+      <p class="text-sm text-muted">Compose a one-off email — a new arrival, a sale, an announcement — and send it to every subscriber using your store's email settings.</p>
+      <a href="/admin/newsletter/broadcasts/new" class="btn btn-primary mt-4">Compose your first broadcast</a>
+    </div>
+  {{/if}}
+</div>
+
+<h2 class="font-semibold" style="margin-bottom:0.75rem;">Subscribers</h2>
+<div class="card">
+  {{#if subscribers.length}}
+    <table class="data-table">
+      <thead>
+        <tr><th>Email</th><th>Status</th><th>Source</th><th>Signed up</th></tr>
+      </thead>
+      <tbody>
+        {{#each subscribers}}
+        <tr>
+          <td class="cell-title">{{this.email}}</td>
+          <td>
+            {{#if (eq this.status 'subscribed')}}<span class="badge badge-green">Subscribed</span>
+            {{else}}<span class="badge badge-gray">Unsubscribed</span>{{/if}}
+          </td>
+          <td class="text-sm text-muted">{{#if this.source}}{{this.source}}{{else}}—{{/if}}</td>
+          <td class="text-sm text-muted">{{date_short this.created_at}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  {{else}}
+    <div class="empty-state">
+      <p>No subscribers yet.</p>
+      <p class="text-sm text-muted">The signup form in your store footer adds people here.</p>
+    </div>
+  {{/if}}
+</div>

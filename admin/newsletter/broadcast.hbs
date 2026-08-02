@@ -1,0 +1,39 @@
+<div class="page-header">
+  <h1 class="page-title">New broadcast</h1>
+  <a href="/admin/newsletter" class="btn btn-secondary">Cancel</a>
+</div>
+
+{{#if error}}<div class="alert alert-error">{{error}}</div>{{/if}}
+
+<form method="POST" action="/admin/newsletter/broadcasts">
+  {{csrf_field}}
+  <div class="card card-body stack-sm">
+    <p class="form-hint -mt-1">
+      This will send to <strong>{{subscribedCount}}</strong> active subscriber{{#unless (eq subscribedCount 1)}}s{{/unless}}
+      using your <a href="/admin/settings#email">email settings</a>. Every message gets an unsubscribe link automatically.
+    </p>
+
+    <div>
+      <label class="form-label">Subject</label>
+      <input type="text" name="subject" value="{{form.subject}}" required class="form-input" placeholder="What's new at the store">
+    </div>
+
+    <div>
+      <label class="form-label">Message</label>
+      <textarea name="body" rows="12" required class="form-input font-mono" style="line-height:1.5;" placeholder="<h1>Big news</h1>&#10;<p>Hello! We just launched…</p>">{{form.body}}</textarea>
+      <p class="form-hint">
+        Basic HTML is supported. You can drop in <code>&#123;&#123;store.name&#125;&#125;</code> and
+        <code>&#123;&#123;unsubscribe_url&#125;&#125;</code> placeholders — if you leave the unsubscribe link out,
+        one is added to the footer for you.
+      </p>
+    </div>
+  </div>
+
+  <div class="mt-4 row">
+    <button type="submit" class="btn btn-primary"
+      onclick="return confirm('Send this broadcast to {{subscribedCount}} subscriber(s) now?')">
+      Send broadcast
+    </button>
+    <a href="/admin/newsletter" class="btn btn-secondary">Cancel</a>
+  </div>
+</form>

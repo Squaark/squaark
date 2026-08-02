@@ -1,0 +1,30 @@
+{{> header}}
+
+<div class="container--narrow auth-page">
+  <h1 class="auth-title">Reset password</h1>
+
+  {{#if sent}}
+  <div class="auth-success">If an account exists for that email, we've sent a link to reset your password. The link expires in 1 hour.</div>
+  <p style="font-size:0.8rem;color:#6b7280;text-align:center;margin-top:0.75rem;">Don't see it? Check your spam or junk folder.</p>
+  <p style="font-size:0.875rem;color:#6b7280;text-align:center;margin-top:1.5rem;">
+    <a href="/account/login" style="font-weight:500;color:#111827;">Back to sign in</a>
+  </p>
+  {{else}}
+  <p style="font-size:0.875rem;color:#6b7280;margin-bottom:2rem;">Enter your email and we'll send you a link to reset your password.</p>
+  <form method="POST" action="/account/forgot" class="auth-form">
+    {{csrf_field}}
+    <div>
+      <label class="store-label">Email</label>
+      <input type="email" name="email" required autocomplete="email" class="store-input">
+    </div>
+    <button type="submit" class="btn btn-block" style="background:var(--color-primary);color:#fff;justify-content:center;">
+      Send reset link
+    </button>
+  </form>
+  <p style="font-size:0.875rem;color:#6b7280;text-align:center;margin-top:1.5rem;">
+    <a href="/account/login" style="font-weight:500;color:#111827;">Back to sign in</a>
+  </p>
+  {{/if}}
+</div>
+
+{{> footer}}

@@ -15,3 +15,4 @@ backups/
 # `!themes/<name>/` line for each one you ship in-repo).
 themes/*
 !themes/linen/
+!themes/nova/

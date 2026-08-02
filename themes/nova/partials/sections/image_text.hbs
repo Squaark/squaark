@@ -1,0 +1,12 @@
+<div class="section-image-text">
+  <div class="{{#if (eq imagePosition 'right')}}section-image-text__inner--reverse{{else}}section-image-text__inner{{/if}}">
+    {{#if src}}
+    <div class="section-image-text__img-wrap">
+      <img src="{{src}}" alt="{{alt}}">
+    </div>
+    {{/if}}
+    <div class="section-image-text__content">
+      {{sanitized_html content}}
+    </div>
+  </div>
+</div>

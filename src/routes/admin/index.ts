@@ -6,6 +6,7 @@ import { authRoutes } from './auth';
 import { productRoutes } from './products';
 import { collectionRoutes } from './collections';
 import { pageRoutes } from './pages';
+import { postRoutes } from './posts';
 import { orderRoutes } from './orders';
 import { settingsRoutes } from './settings';
 import { themeRoutes } from './themes';
@@ -22,6 +23,7 @@ import { automaticDiscountRoutes } from './automatic-discounts';
 import { bannerRoutes } from './banners';
 import { reviewRoutes } from './reviews';
 import { analyticsRoutes } from './analytics';
+import { newsletterRoutes } from './newsletter';
 import { countOrders } from '../../db/queries/orders';
 import { getAllSettings } from '../../db/queries/admin';
 import { queryOne } from '../../db/connection';
@@ -58,6 +60,7 @@ export async function adminRoutes(fastify: FastifyInstance): Promise<void> {
       await app.register(productRoutes);
       await app.register(collectionRoutes);
       await app.register(pageRoutes);
+      await app.register(postRoutes);
       await app.register(orderRoutes);
       await app.register(customersRoutes);
       await app.register(shippingRoutes);
@@ -67,6 +70,7 @@ export async function adminRoutes(fastify: FastifyInstance): Promise<void> {
       await app.register(bannerRoutes);
       await app.register(reviewRoutes);
       await app.register(analyticsRoutes);
+      await app.register(newsletterRoutes);
       // Every signed-in user (admin or staff) can manage their own account.
       await app.register(accountRoutes);
 

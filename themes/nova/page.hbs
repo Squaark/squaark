@@ -1,0 +1,19 @@
+{{> header}}
+
+<div class="container--md page-title-area">
+  <h1>{{page.title}}</h1>
+</div>
+
+{{#if page.sections}}
+  {{#each page.sections}}
+  {{renderSection this}}
+  {{/each}}
+{{else}}
+  <div class="container--md" style="padding-bottom:4rem;">
+    <div class="cms-prose">
+      {{sanitized_html page.content}}
+    </div>
+  </div>
+{{/if}}
+
+{{> footer}}
