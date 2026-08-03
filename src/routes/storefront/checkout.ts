@@ -97,7 +97,7 @@ function parseAddress(body: Record<string, string>): Address {
 
 async function base(req: FastifyRequest, reply: FastifyReply, registry: ThemeRegistry) {
   const cartSummary = await getCartSummary(req.cartId);
-  const global = buildGlobalContext('/checkout', registry.currentThemeConfig);
+  const global = await buildGlobalContext('/checkout', registry.currentThemeConfig);
   return { ...global, cart: cartSummary, csrfToken: reply.generateCsrf(), cssVars: registry.currentCssVars };
 }
 

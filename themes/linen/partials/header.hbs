@@ -81,7 +81,61 @@
     <!-- Main navigation -->
     <nav class="header-nav">
       {{#each navigation.main}}
-        <a href="{{this.url}}" class="{{#is this.url ../currentPath}}active{{/is}}">{{this.label}}</a>
+        {{#if this.mega}}
+          <div class="nav-item has-mega">
+            <a href="{{this.url}}" class="{{#is this.url ../currentPath}}active{{/is}}">{{this.label}}
+              <svg class="nav-item__caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>
+            </a>
+            <div class="mega-panel">
+              <div class="mega-panel__inner{{#if this.mega.columnsPerRow}} mega-panel__inner--grid{{/if}}"{{#if this.mega.columnsPerRow}} style="--mega-cols:{{this.mega.columnsPerRow}};"{{/if}}>
+                {{#each this.mega.columns}}
+                  <div class="mega-col mega-col--{{this.type}}">
+                    {{#if this.heading}}<p class="mega-col__heading">{{this.heading}}</p>{{/if}}
+                    {{#if (eq this.type 'products')}}
+                      {{#if (eq this.display 'grid')}}
+                        <div class="mega-products">
+                          {{#each this.products}}
+                            <a class="mega-product" href="{{url 'product' this.slug}}">
+                              <span class="mega-product__media">{{#if this.image}}<img src="{{this.image.thumbnail}}" alt="{{this.image.alt}}" loading="lazy">{{else}}<span class="mega-product__ph"></span>{{/if}}</span>
+                              <span class="mega-product__title">{{this.title}}</span>
+                              <span class="mega-product__price">{{money this.price}}</span>
+                            </a>
+                          {{/each}}
+                        </div>
+                      {{else}}
+                        <ul class="mega-plist{{#if (eq this.display 'list-text')}} mega-plist--text{{/if}}">
+                          {{#each this.products}}
+                            <li><a class="mega-prow" href="{{url 'product' this.slug}}">
+                              <span class="mega-prow__media">{{#if this.image}}<img src="{{this.image.thumbnail}}" alt="{{this.image.alt}}" loading="lazy">{{else}}<span class="mega-product__ph"></span>{{/if}}</span>
+                              <span class="mega-prow__title">{{this.title}}</span>
+                              <span class="mega-prow__price">{{money this.price}}</span>
+                            </a></li>
+                          {{/each}}
+                        </ul>
+                      {{/if}}
+                      {{#if this.showMore}}<a class="mega-more" href="{{this.moreUrl}}">Show more →</a>{{/if}}
+                    {{else if (eq this.type 'collections')}}
+                      <div class="mega-cats">
+                        {{#each this.links}}
+                          <a class="mega-cat" href="{{this.url}}">
+                            <span class="mega-cat__media">{{#if this.image}}<img src="{{this.image}}" alt="{{this.label}}" loading="lazy">{{else}}<span class="mega-cat__ph"></span>{{/if}}</span>
+                            <span class="mega-cat__label">{{this.label}}</span>
+                          </a>
+                        {{/each}}
+                      </div>
+                    {{else}}
+                      <ul class="mega-links">
+                        {{#each this.links}}<li><a href="{{this.url}}">{{this.label}}</a></li>{{/each}}
+                      </ul>
+                    {{/if}}
+                  </div>
+                {{/each}}
+              </div>
+            </div>
+          </div>
+        {{else}}
+          <a href="{{this.url}}" class="{{#is this.url ../currentPath}}active{{/is}}">{{this.label}}</a>
+        {{/if}}
       {{/each}}
     </nav>
 
@@ -139,6 +193,16 @@
     <div class="mobile-nav__inner">
       {{#each navigation.main}}
         <a href="{{this.url}}">{{this.label}}</a>
+        {{#if this.mega}}
+          {{#each this.mega.columns}}
+            {{#if this.heading}}<p class="mobile-nav__heading">{{this.heading}}</p>{{/if}}
+            {{#if (eq this.type 'products')}}
+              {{#each this.products}}<a class="mobile-nav__sub" href="{{url 'product' this.slug}}">{{this.title}}</a>{{/each}}
+            {{else}}
+              {{#each this.links}}<a class="mobile-nav__sub" href="{{this.url}}">{{this.label}}</a>{{/each}}
+            {{/if}}
+          {{/each}}
+        {{/if}}
       {{/each}}
     </div>
   </div>

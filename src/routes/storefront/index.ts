@@ -45,9 +45,9 @@ async function base(
   reply: FastifyReply,
   currentPath: string,
   registry: ThemeRegistry,
-): Promise<ReturnType<typeof buildGlobalContext> & { csrfToken: string; cssVars: string }> {
+): Promise<Awaited<ReturnType<typeof buildGlobalContext>> & { csrfToken: string; cssVars: string }> {
   const cartSummary = await getCartSummary(req.cartId);
-  const global = buildGlobalContext(currentPath, registry.currentThemeConfig);
+  const global = await buildGlobalContext(currentPath, registry.currentThemeConfig);
   let customer = null;
   if (req.session.customerId) {
     const c = findCustomerById(req.session.customerId);
@@ -83,7 +83,7 @@ async function cartFragment(
   // "//update" and "//remove/<id>", which a browser reads as protocol-relative
   // URLs pointing at a host called "update"/"remove" — so after the first htmx
   // swap every quantity change and Remove click silently went nowhere.
-  const global = buildGlobalContext(req.url.split('?')[0], registry.currentThemeConfig);
+  const global = await buildGlobalContext(req.url.split('?')[0], registry.currentThemeConfig);
   const html = await registry.currentEngine.render('partials/cart-contents', {
     ...global,
     cart,

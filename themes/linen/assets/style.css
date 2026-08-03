@@ -278,6 +278,63 @@ input, select, textarea { font-family: inherit; }
 .mobile-nav__inner { padding: 0.75rem 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
 .mobile-nav__inner a { font-size: 0.875rem; font-weight: 500; opacity: 0.7; transition: opacity 0.15s; }
 .mobile-nav__inner a:hover { opacity: 1; }
+.mobile-nav__heading { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; font-weight: 700; margin: 0.5rem 0 0; }
+.mobile-nav__sub { padding-left: 1rem; font-size: 0.85rem !important; opacity: 0.6 !important; }
+
+/* ── Mega menu ──────────────────────────────────────────────────────────── */
+.nav-item { position: static; display: inline-flex; align-items: center; }
+.nav-item__caret { display: inline-block; margin-left: 0.15rem; transition: transform 0.15s ease; }
+.nav-item.has-mega:hover .nav-item__caret,
+.nav-item.has-mega:focus-within .nav-item__caret { transform: rotate(180deg); }
+/* Anchored to the sticky (positioned) header so it spans the full header width;
+   the inner card is capped to the content width and centred beneath the header. */
+.mega-panel { position: absolute; top: 100%; left: 0; right: 0; z-index: 60;
+  padding: 0.75rem 1rem 0; /* top = hover bridge, sides = container gutters */
+  opacity: 0; visibility: hidden; transform: translateY(6px);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease; }
+@media (min-width: 640px)  { .mega-panel { padding-left: 1.5rem; padding-right: 1.5rem; } }
+@media (min-width: 1024px) { .mega-panel { padding-left: 2rem;   padding-right: 2rem; } }
+.nav-item.has-mega:hover .mega-panel,
+.nav-item.has-mega:focus-within .mega-panel { opacity: 1; visibility: visible; transform: translateY(0); }
+.mega-panel__inner { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 1.5rem 2rem; max-width: 80rem; margin: 0 auto;
+  background: #fff; border: 1px solid #eef0f3; border-radius: 0.75rem;
+  box-shadow: 0 20px 45px rgba(15, 15, 26, 0.14); padding: 1.5rem 1.75rem; }
+.mega-col { flex: 1 1 auto; min-width: 8rem; }
+.mega-col--products, .mega-col--collections { min-width: 12rem; }
+/* Fixed columns-per-row: lay the column blocks out in an even N-wide grid. */
+.mega-panel__inner--grid { display: grid; grid-template-columns: repeat(var(--mega-cols, 3), minmax(0, 1fr)); align-items: start; }
+.mega-panel__inner--grid .mega-col { min-width: 0; }
+.mega-panel__inner--grid .mega-products { grid-template-columns: repeat(auto-fit, 7.75rem); }
+.mega-col__heading { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; font-weight: 700; margin-bottom: 0.85rem; }
+.mega-links { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.55rem; }
+.mega-links a { font-size: 0.9rem; color: #374151; }
+.mega-links a:hover { color: var(--color-accent); }
+.mega-cats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.85rem; }
+.mega-cat__media { display: block; aspect-ratio: 3 / 2; border-radius: 0.5rem; overflow: hidden; background: #f3f4f6; margin-bottom: 0.4rem; }
+.mega-cat__media img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; }
+.mega-cat:hover .mega-cat__media img { transform: scale(1.05); }
+.mega-cat__label { font-size: 0.85rem; font-weight: 600; color: #111827; }
+.mega-cat:hover .mega-cat__label { color: var(--color-accent); }
+.mega-products { display: grid; grid-template-columns: repeat(2, 7.75rem); gap: 0.75rem; justify-content: start; }
+.mega-product { display: block; }
+.mega-product__media { display: block; aspect-ratio: 1; border-radius: 0.5rem; overflow: hidden; background: #f3f4f6; margin-bottom: 0.4rem; }
+.mega-product__media img { width: 100%; height: 100%; object-fit: cover; }
+.mega-product__title { display: block; font-size: 0.82rem; font-weight: 600; color: #111827; line-height: 1.25; }
+.mega-product__price { display: block; font-size: 0.82rem; color: #6b7280; margin-top: 0.1rem; }
+.mega-product:hover .mega-product__title { color: var(--color-accent); }
+/* Product column — list variants (with or without thumbnail) */
+.mega-plist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; min-width: 12rem; }
+.mega-prow { display: flex; align-items: center; gap: 0.65rem; padding: 0.3rem 0.35rem; border-radius: 0.5rem; }
+.mega-prow:hover { background: #f9fafb; }
+.mega-prow__media { flex-shrink: 0; width: 2.75rem; height: 2.75rem; border-radius: 0.4rem; overflow: hidden; background: #f3f4f6; }
+.mega-prow__media img { width: 100%; height: 100%; object-fit: cover; }
+.mega-prow__title { flex: 1; font-size: 0.85rem; font-weight: 600; color: #111827; line-height: 1.25; }
+.mega-prow:hover .mega-prow__title { color: var(--color-accent); }
+.mega-prow__price { font-size: 0.82rem; color: #6b7280; white-space: nowrap; }
+.mega-plist--text { min-width: 11rem; }
+.mega-plist--text .mega-prow__media { display: none; }
+.mega-more { display: inline-block; margin-top: 0.85rem; font-size: 0.82rem; font-weight: 700; color: var(--color-accent); }
+.mega-more:hover { text-decoration: underline; text-underline-offset: 2px; }
 
 /* ── Main ───────────────────────────────────────────────────────────────── */
 main { display: block; }
