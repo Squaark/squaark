@@ -29,8 +29,8 @@ Self-hosted ecommerce platform. Keeping it simple with Node.js + SQLite.
 - WooCommerce import; full store export/import
 
 **Storefront**
-- Two bundled, fully-configurable themes — **Linen** (clean/editorial) and **Nova** (bold/modern, with a hero product slider) — plus uploadable custom themes
-- Configurable cart word (Cart / Basket / Bag), pages with a section builder, editable navigation
+- Two bundled, fully-configurable themes — **Linen** (clean/editorial) and **Nova** (bold/modern, with a repeater-driven hero slider) — plus uploadable custom themes
+- Configurable cart word (Cart / Basket / Bag), pages with a section builder, editable navigation with optional mega menus (columns of links, categories with pictures, or products)
 
 ## Requirements
 
@@ -60,14 +60,14 @@ The database schema is created automatically on first boot, there is no separate
 3. **Settings > Payments** - paste in Stripe and/or PayPal credentials. Both providers can be active at the same time.
 4. **Settings > Logs** - live view of payment events, sent emails, and server errors. Useful for debugging without touching the server.
 5. **Emails** - editable Handlebars templates for order confirmation, shipping, admin notifications, password reset. Live preview against sample data.
-6. **Themes** - two bundled themes ship in-repo: **Linen** (clean/editorial, active by default) and **Nova** (bold/modern with a hero product slider). Switch between them, customise colours/fonts/layout from the config page, or upload a custom theme.
+6. **Themes** - two bundled themes ship in-repo: **Linen** (clean/editorial, active by default) and **Nova** (bold/modern with a repeater-driven hero slider). Switch between them, customise colours/fonts/layout from the config page, or upload a custom theme.
 7. **Pages** - build pages with a section builder (text, image, image + text, CTA, columns), or import from a WordPress export via **Import**.
 8. **Blog** - write posts with the same section builder, plus featured image, author, and scheduled publish dates. Each post has an RSS feed and appears in the sitemap.
 9. **Promotions** - discount codes, automatic (codeless) discounts and buy-X-get-Y offers, and scheduled announcement banners.
 10. **Reviews** - customer product reviews with star ratings, verified-purchase badges, and approve/publish moderation.
 11. **Analytics** - sales dashboard (revenue, orders, AOV, conversion with period-over-period deltas, best-sellers) on top of the traffic view (page views, unique visitors, top pages, referrers).
 12. **Marketing** - Meta/Google pixels and a product feed, newsletter capture, and one-off broadcasts on your email setup.
-13. **Navigation** - edit the main and footer nav links (add a `/blog` link here to surface the blog).
+13. **Navigation** - edit the main and footer nav links (add a `/blog` link here to surface the blog). Any header link can be given a **mega menu** built from columns, where each column is one of: plain **links**, **categories** (pick a collection from a dropdown, with an optional picture), or **products** (pick a collection and how many to show — as thumbnails, a list with images, or a text-only list, with an optional "Show more" link). Choose how many columns show per row (or leave it automatic). The panel is centred at the content width and renders in both bundled themes (hover on desktop, expand inline on mobile).
 14. **Users** - add staff accounts with restricted access; enable two-factor auth on any account under **Account**.
 15. **Products / Collections** - `npm run db:seed` loads sample catalogue data, or add your own.
 

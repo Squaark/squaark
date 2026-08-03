@@ -7,56 +7,153 @@
 <form method="POST" action="/admin/navigation">
   {{csrf_field}}
 
-  <div class="grid-2 mb-6">
+  <!-- Header nav (with optional mega menus) -->
+  <div class="card--no-overflow card-body mb-6"
+       x-data="navEditor()"
+       x-init="init($el.dataset.items, $el.dataset.collections)"
+       data-items='{{mainNavSafe}}'
+       data-collections='{{collectionsJson}}'>
+    <h2 class="font-semibold mb-1">Header navigation</h2>
+    <p class="text-sm" style="color:#6b7280;margin-bottom:1rem;">
+      Add a mega menu to any link to show columns of links, categories with pictures, or products on hover.
+    </p>
 
-    <!-- Header nav -->
-    <div class="card--no-overflow card-body"
-         x-data="navEditor()"
-         x-init="init($el.dataset.items)"
-         data-items='{{mainNavSafe}}'>
-      <h2 class="font-semibold mb-4">Header navigation</h2>
-      <div class="stack-xs mb-3">
-        <template x-for="(item, i) in items" :key="i">
+    <div class="stack-xs mb-3">
+      <template x-for="(item, i) in items" :key="i">
+        <div style="border:1px solid #e5e7eb;border-radius:0.5rem;padding:0.75rem;">
           <div class="row">
-            <input x-model="item.label" placeholder="Label" type="text" class="form-input" style="width:7rem;">
+            <input x-model="item.label" placeholder="Label" type="text" class="form-input" style="width:8rem;">
             <input x-model="item.url" placeholder="URL e.g. /about" type="text" class="form-input flex-1">
-            <button type="button" @click="moveUp(i)" :disabled="i === 0"
-              style="padding:0.25rem;color:#9ca3af;" title="Move up">↑</button>
-            <button type="button" @click="moveDown(i)" :disabled="i === items.length - 1"
-              style="padding:0.25rem;color:#9ca3af;" title="Move down">↓</button>
-            <button type="button" @click="items.splice(i, 1)"
-              style="padding:0.25rem;color:#9ca3af;" title="Remove">✕</button>
+            <button type="button" @click="toggleMega(item)"
+              class="btn-link text-sm" :style="item.mega ? 'font-weight:600;color:var(--admin-accent,#4f46e5);' : ''"
+              title="Toggle mega menu" x-text="item.mega ? 'Mega ▾' : 'Mega ▸'"></button>
+            <button type="button" @click="moveUp(i)" :disabled="i === 0" style="padding:0.25rem;color:#9ca3af;" title="Move up">↑</button>
+            <button type="button" @click="moveDown(i)" :disabled="i === items.length - 1" style="padding:0.25rem;color:#9ca3af;" title="Move down">↓</button>
+            <button type="button" @click="items.splice(i, 1)" style="padding:0.25rem;color:#9ca3af;" title="Remove">✕</button>
           </div>
-        </template>
-      </div>
-      <button type="button" @click="items.push({label:'',url:''})" class="btn-link text-sm">+ Add link</button>
-      <input type="hidden" name="nav_main" :value="JSON.stringify(items)">
+
+          <!-- Mega menu editor -->
+          <div x-show="item.mega" x-cloak style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px dashed #e5e7eb;">
+            <div class="stack-xs">
+              <template x-for="(col, ci) in (item.mega ? item.mega.columns : [])" :key="ci">
+                <div style="background:#f9fafb;border:1px solid #eef0f3;border-radius:0.5rem;padding:0.75rem;">
+                  <div class="row" style="margin-bottom:0.5rem;">
+                    <input x-model="col.heading" placeholder="Column heading (optional)" type="text" class="form-input flex-1">
+                    <select x-model="col.type" class="form-input" style="width:12rem;">
+                      <option value="links">Links</option>
+                      <option value="collections">Categories (with image)</option>
+                      <option value="products">Products</option>
+                    </select>
+                    <button type="button" @click="item.mega.columns.splice(ci, 1)" style="padding:0.25rem;color:#9ca3af;" title="Remove column">✕</button>
+                  </div>
+
+                  <!-- Products column: pick a collection, count, and how to display -->
+                  <template x-if="col.type === 'products'">
+                    <div class="stack-xs">
+                      <div class="row">
+                        <label class="text-sm" style="color:#6b7280;">Collection</label>
+                        <select x-model="col.collection" class="form-input flex-1">
+                          <option value="">All products</option>
+                          <template x-for="c in collections" :key="c.slug">
+                            <option :value="c.slug" x-text="c.title"></option>
+                          </template>
+                        </select>
+                        <label class="text-sm" style="color:#6b7280;">Show</label>
+                        <input x-model.number="col.count" type="number" min="1" max="12" class="form-input" style="width:5rem;">
+                      </div>
+                      <div class="row">
+                        <label class="text-sm" style="color:#6b7280;">Display</label>
+                        <select x-model="col.display" class="form-input" style="width:16rem;">
+                          <option value="grid">Thumbnails</option>
+                          <option value="list">List with image</option>
+                          <option value="list-text">List (text only)</option>
+                        </select>
+                      </div>
+                      <label class="row text-sm" style="color:#374151;gap:0.5rem;cursor:pointer;">
+                        <input type="checkbox" x-model="col.showMore">
+                        Show a “Show more” button linking to the collection
+                      </label>
+                    </div>
+                  </template>
+
+                  <!-- Categories column: choose a collection per row (+ optional picture) -->
+                  <template x-if="col.type === 'collections'">
+                    <div class="stack-xs">
+                      <template x-for="(lnk, li) in col.links" :key="li">
+                        <div class="row">
+                          <select x-model="lnk.collection" class="form-input flex-1">
+                            <option value="">— choose category —</option>
+                            <template x-for="c in collections" :key="c.slug">
+                              <option :value="c.slug" x-text="c.title"></option>
+                            </template>
+                          </select>
+                          <input x-model="lnk.image" placeholder="Image URL (optional)" type="text" class="form-input flex-1">
+                          <button type="button" @click="col.links.splice(li, 1)" style="padding:0.25rem;color:#9ca3af;" title="Remove">✕</button>
+                        </div>
+                      </template>
+                      <button type="button" @click="col.links.push({collection:'',image:''})" class="btn-link text-sm">+ Add category</button>
+                    </div>
+                  </template>
+
+                  <!-- Links column: plain label + URL rows -->
+                  <template x-if="col.type === 'links'">
+                    <div class="stack-xs">
+                      <template x-for="(lnk, li) in col.links" :key="li">
+                        <div class="row">
+                          <input x-model="lnk.label" placeholder="Label" type="text" class="form-input" style="width:9rem;">
+                          <input x-model="lnk.url" placeholder="URL e.g. /collections/shoes" type="text" class="form-input flex-1">
+                          <button type="button" @click="col.links.splice(li, 1)" style="padding:0.25rem;color:#9ca3af;" title="Remove">✕</button>
+                        </div>
+                      </template>
+                      <button type="button" @click="col.links.push({label:'',url:''})" class="btn-link text-sm">+ Add link</button>
+                    </div>
+                  </template>
+                </div>
+              </template>
+            </div>
+            <template x-if="item.mega">
+              <div class="row" style="margin-top:0.5rem;align-items:center;gap:0.75rem;">
+                <button type="button" @click="addColumn(item)" class="btn-link text-sm">+ Add column</button>
+                <span style="flex:1;"></span>
+                <label class="text-sm" style="color:#6b7280;">Columns per row</label>
+                <select x-model.number="item.mega.columnsPerRow" class="form-input" style="width:8rem;">
+                  <option value="0">Auto</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                </select>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
     </div>
 
-    <!-- Footer nav -->
-    <div class="card--no-overflow card-body"
-         x-data="navEditor()"
-         x-init="init($el.dataset.items)"
-         data-items='{{footerNavSafe}}'>
-      <h2 class="font-semibold mb-4">Footer navigation</h2>
-      <div class="stack-xs mb-3">
-        <template x-for="(item, i) in items" :key="i">
-          <div class="row">
-            <input x-model="item.label" placeholder="Label" type="text" class="form-input" style="width:7rem;">
-            <input x-model="item.url" placeholder="URL e.g. /about" type="text" class="form-input flex-1">
-            <button type="button" @click="moveUp(i)" :disabled="i === 0"
-              style="padding:0.25rem;color:#9ca3af;" title="Move up">↑</button>
-            <button type="button" @click="moveDown(i)" :disabled="i === items.length - 1"
-              style="padding:0.25rem;color:#9ca3af;" title="Move down">↓</button>
-            <button type="button" @click="items.splice(i, 1)"
-              style="padding:0.25rem;color:#9ca3af;" title="Remove">✕</button>
-          </div>
-        </template>
-      </div>
-      <button type="button" @click="items.push({label:'',url:''})" class="btn-link text-sm">+ Add link</button>
-      <input type="hidden" name="nav_footer" :value="JSON.stringify(items)">
-    </div>
+    <button type="button" @click="items.push({label:'',url:'',mega:null})" class="btn-link text-sm">+ Add link</button>
+    <input type="hidden" name="nav_main" :value="JSON.stringify(items)">
+  </div>
 
+  <!-- Footer nav -->
+  <div class="card--no-overflow card-body mb-6"
+       x-data="navEditor()"
+       x-init="init($el.dataset.items)"
+       data-items='{{footerNavSafe}}'>
+    <h2 class="font-semibold mb-4">Footer navigation</h2>
+    <div class="stack-xs mb-3">
+      <template x-for="(item, i) in items" :key="i">
+        <div class="row">
+          <input x-model="item.label" placeholder="Label" type="text" class="form-input" style="width:8rem;">
+          <input x-model="item.url" placeholder="URL e.g. /about" type="text" class="form-input flex-1">
+          <button type="button" @click="moveUp(i)" :disabled="i === 0" style="padding:0.25rem;color:#9ca3af;" title="Move up">↑</button>
+          <button type="button" @click="moveDown(i)" :disabled="i === items.length - 1" style="padding:0.25rem;color:#9ca3af;" title="Move down">↓</button>
+          <button type="button" @click="items.splice(i, 1)" style="padding:0.25rem;color:#9ca3af;" title="Remove">✕</button>
+        </div>
+      </template>
+    </div>
+    <button type="button" @click="items.push({label:'',url:''})" class="btn-link text-sm">+ Add link</button>
+    <input type="hidden" name="nav_footer" :value="JSON.stringify(items)">
   </div>
 
   <button type="submit" class="btn btn-primary">Save navigation</button>
@@ -67,8 +164,20 @@
 function navEditor() {
   return {
     items: [],
-    init(json) {
+    collections: [],
+    init(json, collectionsJson) {
       try { this.items = JSON.parse(json || '[]'); } catch { this.items = []; }
+      if (collectionsJson) { try { this.collections = JSON.parse(collectionsJson || '[]'); } catch { this.collections = []; } }
+    },
+    emptyColumn() {
+      return { heading: '', type: 'links', links: [{ label: '', url: '' }], collection: '', count: 4, display: 'grid', showMore: false };
+    },
+    toggleMega(item) {
+      item.mega = item.mega ? null : { columns: [this.emptyColumn()], columnsPerRow: 0 };
+    },
+    addColumn(item) {
+      if (!item.mega) item.mega = { columns: [], columnsPerRow: 0 };
+      item.mega.columns.push(this.emptyColumn());
     },
     moveUp(i) {
       if (i === 0) return;

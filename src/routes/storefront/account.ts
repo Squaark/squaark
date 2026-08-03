@@ -49,7 +49,7 @@ async function render(
 
 async function base(req: FastifyRequest, reply: FastifyReply, path: string, registry: ThemeRegistry) {
   const cartSummary = await getCartSummary(req.cartId);
-  const global = buildGlobalContext(path, registry.currentThemeConfig);
+  const global = await buildGlobalContext(path, registry.currentThemeConfig);
   let customer = null;
   if (req.session.customerId) {
     const c = findCustomerById(req.session.customerId);
