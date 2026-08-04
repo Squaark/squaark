@@ -5,7 +5,7 @@ Self-hosted ecommerce platform. Keeping it simple with Node.js + SQLite.
 ## Features
 
 **Selling**
-- Products with variants, images, digital downloads, SEO fields, and inventory tracking
+- Products with variants, images, digital downloads, SEO fields, inventory tracking, and optional **availability windows** (a "product calendar" — visible always, purchasable only between set dates, with optional **pre-orders** during the run-up)
 - Collections, search, and genuinely-related "You may also like" (shared-collection, with an optional manual per-product picker) plus cart recommendations
 - Cart + checkout with **Stripe** (hosted Checkout → Apple/Google Pay) and **PayPal**; guest checkout
 - Shipping zones & rates (flat, free, free-over-threshold); tax bands (inc/ex display)

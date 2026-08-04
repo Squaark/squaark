@@ -18,6 +18,7 @@ import {
 import type { ProductSummary, Image, Variant } from '../theme/context';
 import { money } from '../theme/context';
 import { getRatingSummaries } from '../db/queries/reviews';
+import { computeAvailability, type Availability } from './availability';
 
 /** Attaches published-review rating summaries to a set of product cards in one batch query. */
 function attachRatings(summaries: ProductSummary[]): ProductSummary[] {
@@ -71,6 +72,7 @@ export function rowToProductSummary(row: ProductRow): ProductSummary {
     vendor:         row.vendor,
     image:          rowToImage(row, row.title),
     taxRate:        row.tax_rate ?? null,
+    availability:   computeAvailability(row.available_from, row.available_until, undefined, row.allow_preorder === 1),
   };
 }
 
@@ -104,6 +106,7 @@ export interface FullProduct {
   seoTitle: string | null;
   seoDescription: string | null;
   taxRate: string | null;
+  availability: Availability;
 }
 
 export async function getProduct(slug: string): Promise<FullProduct | null> {
@@ -135,6 +138,7 @@ export async function getProduct(slug: string): Promise<FullProduct | null> {
     seoTitle:       row.seo_title ?? null,
     seoDescription: row.seo_description ?? null,
     taxRate:        row.tax_rate ?? null,
+    availability:   computeAvailability(row.available_from, row.available_until, undefined, row.allow_preorder === 1),
   };
 }
 
