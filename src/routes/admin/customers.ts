@@ -4,13 +4,14 @@ import { render } from '../../admin/render';
 import { getAdminById } from '../../admin/auth';
 import { getAllSettings } from '../../db/queries/admin';
 import { listCustomers, countCustomers, deleteCustomer } from '../../db/queries/customers';
-import { findAllGroups, createGroup, deleteGroup, setCustomerGroup } from '../../db/queries/customer-groups';
+import { findAllGroups, createGroup, updateGroup, deleteGroup, setCustomerGroup } from '../../db/queries/customer-groups';
 
 export async function customersRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get('/customers', listCustomersPage);
   fastify.post('/customers/:id/delete', deleteCustomerHandler);
   fastify.post('/customers/:id/group', setGroupHandler);
   fastify.post('/customer-groups', createGroupHandler);
+  fastify.post('/customer-groups/:id', updateGroupHandler);
   fastify.post('/customer-groups/:id/delete', deleteGroupHandler);
 }
 
@@ -63,6 +64,17 @@ async function createGroupHandler(
 ) {
   const name = req.body.name?.trim();
   if (name) createGroup(name);
+  return reply.redirect('/admin/customers');
+}
+
+async function updateGroupHandler(
+  req: FastifyRequest<{ Params: { id: string }; Body: { name?: string; discount_percent?: string; tax_display?: string } }>,
+  reply: FastifyReply,
+) {
+  const name = req.body.name?.trim();
+  const pct = parseInt(req.body.discount_percent ?? '0', 10) || 0;
+  const tax = req.body.tax_display === 'ex' || req.body.tax_display === 'inc' ? req.body.tax_display : null;
+  if (name) updateGroup(req.params.id, name, pct, tax);
   return reply.redirect('/admin/customers');
 }
 

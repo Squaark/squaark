@@ -20,6 +20,7 @@ import { accountRoutes } from './account';
 import { downloadRoutes } from './downloads';
 import { feedRoutes } from './feed';
 import { findCustomerById } from '../../db/queries/customers';
+import { getGroupForCustomer } from '../../db/queries/customer-groups';
 
 // Shown on the homepage when the theme's value-props haven't been customised.
 // Kept in sync with the manifest default in themes/linen/theme.json.
@@ -48,11 +49,18 @@ async function base(
 ): Promise<Awaited<ReturnType<typeof buildGlobalContext>> & { csrfToken: string; cssVars: string }> {
   const cartSummary = await getCartSummary(req.cartId);
   const global = await buildGlobalContext(currentPath, registry.currentThemeConfig);
+  const group = getGroupForCustomer(req.session.customerId);
   let customer = null;
   if (req.session.customerId) {
     const c = findCustomerById(req.session.customerId);
-    if (c) customer = { loggedIn: true, firstName: c.first_name || null };
+    if (c) customer = {
+      loggedIn: true,
+      firstName: c.first_name || null,
+      group: group ? { name: group.name, discountPercent: group.discount_percent, taxDisplay: group.tax_display } : null,
+    };
   }
+  // A trade/wholesale group can force ex- or inc-tax price display.
+  if (group?.tax_display) global.tax.displayMode = group.tax_display as 'inc' | 'ex';
   return {
     ...global,
     cart: cartSummary,
@@ -77,7 +85,7 @@ async function cartFragment(
   req: FastifyRequest,
   reply: FastifyReply,
 ): Promise<string> {
-  const cart = await getCartPage(req.cartId);
+  const cart = await getCartPage(req.cartId, req.session.customerId ?? null);
   // `store` is required: cart-contents.hbs builds its own hx-post/hx-delete URLs
   // from {{../store.cartSlug}}. Without it the re-rendered buttons collapse to
   // "//update" and "//remove/<id>", which a browser reads as protocol-relative
@@ -297,7 +305,7 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
   const cartPage = async (req: FastifyRequest, reply: FastifyReply) => {
     const [ctx, cart] = await Promise.all([
       base(req, reply, `/${activeCartSlug()}`, registry),
-      getCartPage(req.cartId),
+      getCartPage(req.cartId, req.session.customerId ?? null),
     ]);
     const q = req.query as { error?: string; discount_error?: string };
     await render(registry, reply, 'cart', {
@@ -314,7 +322,7 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
     const code = ((req.body as { discount?: string }).discount ?? '').trim();
     const slug = activeCartSlug();
     if (!code) return reply.redirect(`/${slug}`);
-    const cart = await getCartPage(req.cartId);
+    const cart = await getCartPage(req.cartId, req.session.customerId ?? null);
     const v = validateDiscount(findDiscountByCode(code), cart.subtotal.amount);
     if (v.ok) {
       setCartDiscount(req.cartId, v.code);

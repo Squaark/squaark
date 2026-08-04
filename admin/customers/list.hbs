@@ -68,18 +68,27 @@
   <h2 class="font-semibold mb-1">Customer groups</h2>
   <p class="text-sm text-muted" style="margin-bottom:0.75rem;">Group customers (e.g. Trade, Wholesale). Group pricing and pay-on-account terms build on these.</p>
   {{#if groups.length}}
-  <ul style="list-style:none;padding:0;margin:0 0 1rem;display:flex;flex-direction:column;gap:0.35rem;max-width:24rem;">
+  <div style="display:flex;flex-direction:column;gap:0.6rem;margin-bottom:1rem;">
     {{#each groups}}
-    <li style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;">
-      <span class="text-sm">{{this.name}}</span>
-      <form method="POST" action="/admin/customer-groups/{{this.id}}/delete"
-        onsubmit="return confirm('Delete the “{{this.name}}” group? Customers in it become ungrouped.')">
-        {{csrf_field}}
-        <button type="submit" class="btn-link btn-link--danger btn-link--xs">Delete</button>
-      </form>
-    </li>
+    <form method="POST" action="/admin/customer-groups/{{this.id}}" class="row" style="gap:0.6rem;align-items:flex-end;flex-wrap:wrap;">
+      {{csrf_field}}
+      <div><label class="form-label-xs">Name</label><input type="text" name="name" value="{{this.name}}" class="form-input" style="width:10rem;" required></div>
+      <div><label class="form-label-xs">Discount %</label><input type="number" name="discount_percent" min="0" max="100" value="{{this.discount_percent}}" class="form-input" style="width:6rem;"></div>
+      <div>
+        <label class="form-label-xs">Prices shown</label>
+        <select name="tax_display" class="form-select" style="width:9rem;">
+          <option value="" {{#unless this.tax_display}}selected{{/unless}}>Store default</option>
+          <option value="inc" {{#if (eq this.tax_display 'inc')}}selected{{/if}}>Inc. tax</option>
+          <option value="ex" {{#if (eq this.tax_display 'ex')}}selected{{/if}}>Ex. tax</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-secondary btn-sm">Save</button>
+      <button type="submit" formaction="/admin/customer-groups/{{this.id}}/delete"
+        formnovalidate onclick="return confirm('Delete the “{{this.name}}” group? Customers in it become ungrouped.')"
+        class="btn-link btn-link--danger btn-link--xs">Delete</button>
+    </form>
     {{/each}}
-  </ul>
+  </div>
   {{/if}}
   <form method="POST" action="/admin/customer-groups" class="row" style="gap:0.5rem;max-width:24rem;">
     {{csrf_field}}

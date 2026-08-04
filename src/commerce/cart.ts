@@ -8,6 +8,7 @@ import {
   type CartItemRow,
 } from '../db/queries/cart';
 import { findVariantById, getCollectionIdsForProducts, anyVariantRequiresSlot, getProductAvailabilityByVariant } from '../db/queries/products';
+import { getGroupForCustomer } from '../db/queries/customer-groups';
 import { computeAvailability } from './availability';
 import { findDiscountByCode } from '../db/queries/discounts';
 import { validateDiscount } from './discounts';
@@ -71,7 +72,7 @@ export async function getCartSummary(cartId: string): Promise<CartSummary> {
   return { itemCount, subtotal: money(items.reduce((s, i) => s + i.price * i.quantity, 0)) };
 }
 
-export async function getCartPage(cartId: string): Promise<CartPage> {
+export async function getCartPage(cartId: string, customerId?: string | null): Promise<CartPage> {
   const cart  = findCart(cartId);
   const rows  = findCartItems(cartId);
   const items = rows.map(rowToCartItem);
@@ -100,14 +101,27 @@ export async function getCartPage(cartId: string): Promise<CartPage> {
   const promos = listActiveAutomaticDiscounts().map(rowToPromo);
   const { applied, total: discountTotal } = computeAutomaticDiscounts(dItems, subtotalAmount, promos, codeDiscount);
 
+  // Customer-group (trade/wholesale) discount — a store-wide % off the list
+  // subtotal, shown as its own line and folded into the total.
+  const appliedAll: { name: string; amount: number }[] = applied.map((a) => ({ name: a.name, amount: a.amount }));
+  let discountTotalAll = discountTotal;
+  const group = getGroupForCustomer(customerId);
+  if (group && group.discount_percent > 0 && subtotalAmount > 0) {
+    const groupAmount = Math.round((subtotalAmount * group.discount_percent) / 100);
+    if (groupAmount > 0) {
+      appliedAll.push({ name: `${group.name} discount (${group.discount_percent}%)`, amount: groupAmount });
+      discountTotalAll += groupAmount;
+    }
+  }
+
   return {
     items,
     itemCount,
     subtotal:         money(subtotalAmount),
     discountCode:     cart?.discount_code ?? null,
-    discountAmount:   discountTotal > 0 ? money(discountTotal) : null,
-    appliedDiscounts: applied.map((a) => ({ name: a.name, amount: money(a.amount) })),
-    total:            money(Math.max(0, subtotalAmount - discountTotal)),
+    discountAmount:   discountTotalAll > 0 ? money(discountTotalAll) : null,
+    appliedDiscounts: appliedAll.map((a) => ({ name: a.name, amount: money(a.amount) })),
+    total:            money(Math.max(0, subtotalAmount - discountTotalAll)),
     empty:            items.length === 0,
     checkoutUrl:      '/checkout',
   };

@@ -14,6 +14,7 @@ import config from '../../config';
 import { writeLog } from '../../db/queries/system-log';
 import { findCustomerByEmail, createCustomer, deleteCustomer } from '../../db/queries/customers';
 import { getRatesForCountry } from '../../db/queries/shipping';
+import { getGroupForCustomer } from '../../db/queries/customer-groups';
 import { calculateItemsTax } from '../../commerce/tax';
 import { resolveShipping } from '../../commerce/shipping';
 import { availableDates, isValidSlot } from '../../commerce/scheduling';
@@ -121,6 +122,8 @@ function resolveSlot(
 async function base(req: FastifyRequest, reply: FastifyReply, registry: ThemeRegistry) {
   const cartSummary = await getCartSummary(req.cartId);
   const global = await buildGlobalContext('/checkout', registry.currentThemeConfig);
+  const group = getGroupForCustomer(req.session.customerId);
+  if (group?.tax_display) global.tax.displayMode = group.tax_display as 'inc' | 'ex';
   return { ...global, cart: cartSummary, csrfToken: reply.generateCsrf(), cssVars: registry.currentCssVars };
 }
 
@@ -135,7 +138,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
 
   // GET /checkout — show address + payment form
   fastify.get('/checkout', async (req, reply) => {
-    const cart = await getCartPage(req.cartId);
+    const cart = await getCartPage(req.cartId, req.session.customerId ?? null);
     if (cart.empty) return reply.redirect(`/${(getAllSettings().cart_label || 'Cart').toLowerCase()}`);
 
     const settings = getAllSettings();
@@ -161,7 +164,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
   // GET /checkout/shipping-rates — htmx fragment: rate options for a given country
   fastify.get('/checkout/shipping-rates', async (req, reply) => {
     const country = one((req.query as { country?: unknown }).country);
-    const cart = await getCartPage(req.cartId);
+    const cart = await getCartPage(req.cartId, req.session.customerId ?? null);
     const settings = getAllSettings();
     const currencyCode = settings.store_currency ?? 'GBP';
     const symbols: Record<string, string> = { GBP: '£', USD: '$', EUR: '€' };
@@ -215,7 +218,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
   // POST /checkout — create Stripe session and redirect
   fastify.post('/checkout', async (req, reply) => {
     const body = req.body as Record<string, string>;
-    const cart = await getCartPage(req.cartId);
+    const cart = await getCartPage(req.cartId, req.session.customerId ?? null);
     if (cart.empty) return reply.redirect(`/${(getAllSettings().cart_label || 'Cart').toLowerCase()}`);
 
     const settings = getAllSettings();
@@ -438,7 +441,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
 
     if (!clientId || !clientSecret) return reply.code(400).send({ error: 'PayPal not configured' });
 
-    const cart = await getCartPage(req.cartId);
+    const cart = await getCartPage(req.cartId, req.session.customerId ?? null);
     if (cart.empty) return reply.code(400).send({ error: 'Cart is empty' });
 
     // Re-check stock against the live count before creating the PayPal order.

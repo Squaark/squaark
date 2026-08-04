@@ -15,6 +15,7 @@ import {
   findCustomerByResetToken,
   updateCustomerPassword,
 } from '../../db/queries/customers';
+import { getGroupForCustomer } from '../../db/queries/customer-groups';
 import { findOrdersByEmail, findOrderByIdAndEmail, findOrderItems } from '../../db/queries/orders';
 import { getSetting } from '../../db/queries/admin';
 import {
@@ -50,11 +51,16 @@ async function render(
 async function base(req: FastifyRequest, reply: FastifyReply, path: string, registry: ThemeRegistry) {
   const cartSummary = await getCartSummary(req.cartId);
   const global = await buildGlobalContext(path, registry.currentThemeConfig);
+  const group = getGroupForCustomer(req.session.customerId);
   let customer = null;
   if (req.session.customerId) {
     const c = findCustomerById(req.session.customerId);
-    if (c) customer = { loggedIn: true, firstName: c.first_name || null, emailVerified: !!c.email_verified };
+    if (c) customer = {
+      loggedIn: true, firstName: c.first_name || null, emailVerified: !!c.email_verified,
+      group: group ? { name: group.name, discountPercent: group.discount_percent, taxDisplay: group.tax_display } : null,
+    };
   }
+  if (group?.tax_display) global.tax.displayMode = group.tax_display as 'inc' | 'ex';
   return {
     ...global,
     cart: cartSummary,
