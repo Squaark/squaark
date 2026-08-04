@@ -16,26 +16,26 @@ describe('resolveShipping', () => {
     const result = resolveShipping(physicalCart, 'GB', 'digital_delivery');
     // The client's sentinel claim is simply not a real rate ID, so it falls
     // through to "no matching rate" rather than being honoured as free.
-    expect(result).toEqual({ amount: 0, title: null, rateId: null });
+    expect(result).toEqual({ amount: 0, title: null, rateId: null, isPickup: false, pickupAddress: null, pickupInstructions: null });
   });
 
   it('never trusts a client-claimed "free_shipping_product" for a cart that is not all free-shipping', () => {
     const mixedCart = cart([{ freeShipping: true }, { freeShipping: false }]);
     const result = resolveShipping(mixedCart, 'GB', 'free_shipping_product');
-    expect(result).toEqual({ amount: 0, title: null, rateId: null });
+    expect(result).toEqual({ amount: 0, title: null, rateId: null, isPickup: false, pickupAddress: null, pickupInstructions: null });
   });
 
   it('grants digital delivery only when every item in the cart is actually digital', () => {
     const allDigitalCart = cart([{ isDigital: true }, { isDigital: true }]);
     expect(resolveShipping(allDigitalCart, 'GB', '')).toEqual({
-      amount: 0, title: 'Digital delivery', rateId: 'digital_delivery',
+      amount: 0, title: 'Digital delivery', rateId: 'digital_delivery', isPickup: false, pickupAddress: null, pickupInstructions: null,
     });
   });
 
   it('grants free shipping only when every item in the cart actually has free shipping (and none are digital)', () => {
     const allFreeCart = cart([{ freeShipping: true }, { freeShipping: true }]);
     expect(resolveShipping(allFreeCart, 'GB', '')).toEqual({
-      amount: 0, title: 'Free Shipping', rateId: 'free_shipping_product',
+      amount: 0, title: 'Free Shipping', rateId: 'free_shipping_product', isPickup: false, pickupAddress: null, pickupInstructions: null,
     });
   });
 
@@ -55,19 +55,19 @@ describe('resolveShipping', () => {
     it('charges the real rate for an ordinary physical cart when a valid rate ID is submitted', () => {
       const physicalCart = cart([{ isDigital: false, freeShipping: false }]);
       expect(resolveShipping(physicalCart, 'GB', rateId)).toEqual({
-        amount: 495, title: 'Standard', rateId,
+        amount: 495, title: 'Standard', rateId, isPickup: false, pickupAddress: null, pickupInstructions: null,
       });
     });
 
     it('ignores a rate ID that does not apply to the requested country', () => {
       const physicalCart = cart([{ isDigital: false, freeShipping: false }]);
-      expect(resolveShipping(physicalCart, 'FR', rateId)).toEqual({ amount: 0, title: null, rateId: null });
+      expect(resolveShipping(physicalCart, 'FR', rateId)).toEqual({ amount: 0, title: null, rateId: null, isPickup: false, pickupAddress: null, pickupInstructions: null });
     });
 
     it('ignores a completely made-up rate ID', () => {
       const physicalCart = cart([{ isDigital: false, freeShipping: false }]);
       expect(resolveShipping(physicalCart, 'GB', 'not-a-real-rate-id')).toEqual({
-        amount: 0, title: null, rateId: null,
+        amount: 0, title: null, rateId: null, isPickup: false, pickupAddress: null, pickupInstructions: null,
       });
     });
 

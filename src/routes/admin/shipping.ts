@@ -135,7 +135,10 @@ async function createRateHandler(
   if (!name || !rate_type) return reply.redirect(`/admin/shipping/${req.params.id}`);
   const amountInt = Math.round(parseFloat(amount || '0') * 100);
   const minInt = min_order_amount ? Math.round(parseFloat(min_order_amount) * 100) : null;
-  createRate(req.params.id, name.trim(), rate_type, amountInt, minInt);
+  const pickup = rate_type === 'pickup'
+    ? { address: (req.body.pickup_address as string)?.trim() || null, instructions: (req.body.pickup_instructions as string)?.trim() || null }
+    : { address: null, instructions: null };
+  createRate(req.params.id, name.trim(), rate_type, amountInt, minInt, pickup);
   return reply.redirect(`/admin/shipping/${req.params.id}?saved=1`);
 }
 

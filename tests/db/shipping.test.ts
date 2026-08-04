@@ -24,7 +24,7 @@ describe('getRatesForCountry', () => {
 
     it('falls back to the wildcard zone for an unmatched country', () => {
       const rates = getRatesForCountry('FR', 1000);
-      expect(rates).toEqual([{ id: expect.any(String), name: 'Standard', amount: 995, isFree: false }]);
+      expect(rates).toEqual([{ id: expect.any(String), name: 'Standard', amount: 995, isFree: false, isPickup: false, pickupAddress: null, pickupInstructions: null }]);
     });
 
     it('charges a flat rate as-is', () => {

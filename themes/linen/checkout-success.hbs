@@ -71,6 +71,16 @@
   </div>
   {{/if}}
 
+  <!-- Collection -->
+  {{#if order.pickup_address}}
+    <div class="success-card">
+      <h2 class="success-card__title">Collect from</h2>
+      <address class="success-address" style="white-space:pre-line;">{{order.pickup_address}}</address>
+      {{#if order.pickup_instructions}}<p class="text-sm" style="color:#6b7280;margin-top:0.5rem;white-space:pre-line;">{{order.pickup_instructions}}</p>{{/if}}
+      <p class="text-sm" style="color:#6b7280;margin-top:0.5rem;">We'll email you when it's ready to collect.</p>
+    </div>
+  {{/if}}
+
   <!-- Shipping address -->
   {{#if order.shippingAddress.line1}}
     <div class="success-card">

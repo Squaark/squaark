@@ -59,6 +59,8 @@ interface PendingPaypalOrder {
   shippingAmount: number;
   shippingTitle: string | null;
   shippingRateId: string | null;
+  pickupAddress: string | null;
+  pickupInstructions: string | null;
   taxAmount: number;
   total: number;
   currency: string;
@@ -162,13 +164,21 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       return '';
     }
 
+    const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
     const html = rates.map((r, i) => {
       const label = r.isFree ? 'Free' : `${sym}${(r.amount / 100).toFixed(2)}`;
       const checked = i === 0 ? ' checked' : '';
-      return `<label class="shipping-rate-option">
-  <input type="radio" name="shippingRateId" value="${r.id}" data-amount="${r.amount}"${checked}
-         onchange="document.dispatchEvent(new CustomEvent('shipping-rate-changed',{detail:{id:'${r.id}',amount:${r.amount},label:'${label}'}}))">
-  <span class="shipping-rate-name">${r.name}</span>
+      const isPickup = 'isPickup' in r && r.isPickup ? 1 : 0;
+      const addr = isPickup ? ('pickupAddress' in r ? r.pickupAddress : null) : null;
+      const instr = isPickup ? ('pickupInstructions' in r ? r.pickupInstructions : null) : null;
+      const note = isPickup && (addr || instr)
+        ? `<span class="shipping-rate-pickup">${esc(addr || '')}${addr && instr ? ' — ' : ''}${esc(instr || '')}</span>`
+        : '';
+      return `<label class="shipping-rate-option${isPickup ? ' shipping-rate-option--pickup' : ''}">
+  <input type="radio" name="shippingRateId" value="${r.id}" data-amount="${r.amount}" data-pickup="${isPickup}"${checked}
+         onchange="document.dispatchEvent(new CustomEvent('shipping-rate-changed',{detail:{id:'${r.id}',amount:${r.amount},label:'${label}',pickup:${isPickup}}}))">
+  <span class="shipping-rate-name">${esc(r.name)}${note}</span>
   <span class="shipping-rate-price">${label}</span>
 </label>`;
     }).join('\n');
@@ -222,6 +232,8 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       shippingRateId: shipping.rateId,
       shippingTitle,
       taxAmount,
+      pickupAddress: shipping.pickupAddress,
+      pickupInstructions: shipping.pickupInstructions,
       items: cart.items.map(i => ({
         variantId: i.variantId,
         productTitle: i.productTitle,
@@ -447,6 +459,8 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
         shippingAmount: shipping.amount,
         shippingTitle: shipping.title,
         shippingRateId: shipping.rateId,
+        pickupAddress: shipping.pickupAddress,
+        pickupInstructions: shipping.pickupInstructions,
         taxAmount,
         total,
         currency,
@@ -534,6 +548,8 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
         shippingRateId: snapshot.shippingRateId,
         shippingTitle: snapshot.shippingTitle,
         taxAmount: snapshot.taxAmount,
+        pickupAddress: snapshot.pickupAddress,
+        pickupInstructions: snapshot.pickupInstructions,
         items: snapshot.items.map(i => ({
           variantId: i.variantId,
           productTitle: i.productTitle,

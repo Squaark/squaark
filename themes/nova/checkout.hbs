@@ -19,7 +19,8 @@
 
       <!-- Shipping address -->
       <div>
-        <h2 class="checkout-section-title">Shipping address</h2>
+        <h2 class="checkout-section-title" x-text="pickup ? 'Your details' : 'Shipping address'">Shipping address</h2>
+        <p class="text-sm" x-show="pickup" x-cloak style="color:#6b7280;margin:-0.5rem 0 0.75rem;">You've chosen to collect your order — no delivery address needed.</p>
         <div class="checkout-fields">
           <div class="checkout-2col">
             <div>
@@ -31,18 +32,18 @@
               <input type="text" id="lastName" name="lastName" required autocomplete="family-name" class="store-input">
             </div>
           </div>
-          <div>
+          <div x-show="!pickup">
             <label class="store-label">Address line 1</label>
-            <input type="text" id="line1" name="line1" required autocomplete="address-line1" class="store-input">
+            <input type="text" id="line1" name="line1" :required="!pickup" autocomplete="address-line1" class="store-input">
           </div>
-          <div>
+          <div x-show="!pickup">
             <label class="store-label">Address line 2 <span style="color:#9ca3af;">(optional)</span></label>
             <input type="text" id="line2" name="line2" autocomplete="address-line2" class="store-input">
           </div>
-          <div class="checkout-2col">
+          <div class="checkout-2col" x-show="!pickup">
             <div>
               <label class="store-label">Town / City</label>
-              <input type="text" id="city" name="city" required autocomplete="address-level2" class="store-input">
+              <input type="text" id="city" name="city" :required="!pickup" autocomplete="address-level2" class="store-input">
             </div>
             <div>
               <label class="store-label">County <span style="color:#9ca3af;">(optional)</span></label>
@@ -50,9 +51,9 @@
             </div>
           </div>
           <div class="checkout-2col">
-            <div>
+            <div x-show="!pickup">
               <label class="store-label">Postcode</label>
-              <input type="text" id="postcode" name="postcode" required autocomplete="postal-code" class="store-input">
+              <input type="text" id="postcode" name="postcode" :required="!pickup" autocomplete="postal-code" class="store-input">
             </div>
             <div>
               <label class="store-label">Country</label>
@@ -87,7 +88,7 @@
       <!-- Shipping method -->
       <div id="shipping-section">
         <div id="shipping-rate-options"
-             @shipping-rate-changed.document="selectRate($event.detail.id, $event.detail.amount, $event.detail.label)"
+             @shipping-rate-changed.document="selectRate($event.detail.id, $event.detail.amount, $event.detail.label, $event.detail.pickup)"
              @htmx:after-settle.document="autoSelectFirst()">
         </div>
       </div>
@@ -198,6 +199,7 @@ function checkoutApp(subtotal, discount, currencySymbol, taxEnabled, itemsTaxAmo
     shippingAmount: 0,
     shippingLabel: 'Calculated at checkout',
     selectedRateId: '',
+    pickup: false,
     taxEnabled: taxEnabled || false,
     itemsTaxAmount: itemsTaxAmount || 0,
     taxLabel: taxLabel || 'VAT',
@@ -211,10 +213,11 @@ function checkoutApp(subtotal, discount, currencySymbol, taxEnabled, itemsTaxAmo
       if (!this.taxEnabled || this.itemsTaxAmount <= 0) return '';
       return currencySymbol + (this.itemsTaxAmount / 100).toFixed(2);
     },
-    selectRate(id, amount, label) {
+    selectRate(id, amount, label, pickup) {
       this.selectedRateId = id;
       this.shippingAmount = amount;
       this.shippingLabel = label;
+      this.pickup = !!pickup;
       const el = document.getElementById('stripe-shippingRateId');
       if (el) el.value = id;
     },
