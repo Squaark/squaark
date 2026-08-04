@@ -18,7 +18,7 @@ function order(overrides: Partial<OrderRow> = {}): OrderRow {
 }
 
 const items: OrderItemRow[] = [
-  { id: 'i1', order_id: 'o1', variant_id: 'v1', product_title: 'Tote', variant_title: 'Natural', sku: null, price: 2100, quantity: 2, line_total: 4200 },
+  { id: 'i1', order_id: 'o1', variant_id: 'v1', product_title: 'Tote', variant_title: 'Natural', sku: null, price: 2100, quantity: 2, line_total: 4200, preorder: 0, preorder_available_from: null },
 ];
 
 describe('buildOrderEmailContext', () => {

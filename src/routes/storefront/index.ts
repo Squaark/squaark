@@ -304,6 +304,7 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
       ...ctx, pageTitle: `Your ${ctx.store.cartLabel}`, cart,
       recommendations: getCartRecommendations(req.cartId),
       outOfStock: q.error === 'out_of_stock',
+      unavailable: q.error === 'unavailable',
       discountError: q.discount_error,
     });
   };

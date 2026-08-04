@@ -230,6 +230,23 @@
       </label>
     </div>
     <div class="card--no-overflow card-body stack-sm">
+      <h2 class="font-semibold text-sm">Availability window</h2>
+      <p class="text-xs text-muted">Optional “product calendar”. The product stays visible, but can only be added to the basket between these dates (inclusive). Leave blank for always available.</p>
+      <div>
+        <label class="form-label-xs">Available from</label>
+        <input type="date" name="available_from" value="{{product.available_from}}" form="main-form" class="form-input">
+      </div>
+      <div>
+        <label class="form-label-xs">Available until</label>
+        <input type="date" name="available_until" value="{{product.available_until}}" form="main-form" class="form-input">
+      </div>
+      <label class="form-check">
+        <input type="checkbox" name="allow_preorder" value="1" {{#if (eq product.allow_preorder 1)}}checked{{/if}} form="main-form">
+        Allow pre-orders before the start date
+      </label>
+      <p class="text-xs text-muted">When on, customers can order before “Available from” (sold against stock); the order line is flagged as a pre-order with its ship date. When off, the product just shows “Coming soon”.</p>
+    </div>
+    <div class="card--no-overflow card-body stack-sm">
       <h2 class="font-semibold text-sm">Shipping &amp; Tax</h2>
       <label class="form-check">
         <input type="checkbox" name="is_digital" value="1" {{#if (eq product.is_digital 1)}}checked{{/if}} form="main-form"

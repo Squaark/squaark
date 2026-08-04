@@ -6,6 +6,12 @@ function fmt(pence: number, currency: string): string {
   return `${symbol}${(pence / 100).toFixed(2)}`;
 }
 
+function dateLabel(d: string | null): string | null {
+  if (!d) return null;
+  const dt = new Date(`${d}T00:00:00`);
+  return Number.isNaN(dt.getTime()) ? d : dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
 /**
  * Builds the `order` object the transactional email templates expect —
  * augmenting the raw row with the pre-formatted currency strings
@@ -26,6 +32,8 @@ export function buildOrderEmailContext(order: OrderRow, items: OrderItemRow[]): 
       ...i,
       line_total_formatted: fmt(i.line_total, cur),
       unit_price_formatted: fmt(i.price, cur),
+      preorder_from_formatted: i.preorder ? dateLabel(i.preorder_available_from) : null,
     })),
+    has_preorder: items.some(i => i.preorder === 1),
   };
 }
