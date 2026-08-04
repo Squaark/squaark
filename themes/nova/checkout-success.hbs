@@ -71,6 +71,14 @@
   </div>
   {{/if}}
 
+  <!-- Booked slot -->
+  {{#if order.fulfilment_date}}
+    <div class="success-card">
+      <h2 class="success-card__title">Booked slot</h2>
+      <p class="success-address">{{order.fulfilmentDateLabel}}{{#if order.fulfilment_window}} · {{order.fulfilment_window}}{{/if}}</p>
+    </div>
+  {{/if}}
+
   <!-- Collection -->
   {{#if order.pickup_address}}
     <div class="success-card">

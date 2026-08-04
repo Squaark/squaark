@@ -7,7 +7,7 @@ import {
   removeCartItem,
   type CartItemRow,
 } from '../db/queries/cart';
-import { findVariantById, getCollectionIdsForProducts } from '../db/queries/products';
+import { findVariantById, getCollectionIdsForProducts, anyVariantRequiresSlot } from '../db/queries/products';
 import { findDiscountByCode } from '../db/queries/discounts';
 import { validateDiscount } from './discounts';
 import { listActiveAutomaticDiscounts, rowToPromo } from '../db/queries/automatic-discounts';
@@ -117,6 +117,11 @@ export async function addToCart(cartId: string, variantId: string, quantity: num
   if (!variant) throw new Error('Variant not found');
   if (variant.inventory_quantity <= 0) throw new Error('Out of stock');
   upsertCartItem(cartId, variantId, quantity);
+}
+
+/** True if any item in the cart belongs to a product that needs a booked delivery/collection slot. */
+export function cartRequiresSlot(items: { variantId: string }[]): boolean {
+  return anyVariantRequiresSlot(items.map(i => i.variantId));
 }
 
 export async function updateCartItem(cartId: string, itemId: string, quantity: number): Promise<void> {

@@ -142,12 +142,13 @@ async function createProduct(
   const qty = parseInt(inventory_quantity || '0', 10);
 
   const tax_band_id = req.body.tax_band_id?.trim() || null;
+  const requires_slot = req.body.requires_slot === '1' ? 1 : 0;
   execute(
-    `INSERT INTO products (id, title, slug, description, vendor, tags_text, published, seo_title, seo_description, free_shipping, is_digital, tax_band_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO products (id, title, slug, description, vendor, tags_text, published, seo_title, seo_description, free_shipping, is_digital, tax_band_id, requires_slot)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [productId, title.trim(), slug.trim(), description || null, vendor || null, tags_text || '', published === '1' ? 1 : 0,
      seo_title || null, seo_description || null, free_shipping === '1' ? 1 : 0,
-     is_digital === '1' ? 1 : 0, tax_band_id],
+     is_digital === '1' ? 1 : 0, tax_band_id, requires_slot],
   );
   execute(
     `INSERT INTO product_variants (id, product_id, title, price, compare_at_price, sku, inventory_quantity)
@@ -169,11 +170,12 @@ async function updateProduct(
 
   const { title, slug, description, vendor, tags_text, published, seo_title, seo_description, free_shipping, is_digital: is_digital_update } = req.body;
   const tax_band_id_update = req.body.tax_band_id?.trim() || null;
+  const requires_slot = req.body.requires_slot === '1' ? 1 : 0;
   execute(
-    `UPDATE products SET title=?, slug=?, description=?, vendor=?, tags_text=?, published=?, seo_title=?, seo_description=?, free_shipping=?, is_digital=?, tax_band_id=?, updated_at=datetime('now') WHERE id=?`,
+    `UPDATE products SET title=?, slug=?, description=?, vendor=?, tags_text=?, published=?, seo_title=?, seo_description=?, free_shipping=?, is_digital=?, tax_band_id=?, requires_slot=?, updated_at=datetime('now') WHERE id=?`,
     [title, slug, description || null, vendor || null, tags_text || '', published === '1' ? 1 : 0,
      seo_title || null, seo_description || null, free_shipping === '1' ? 1 : 0,
-     is_digital_update === '1' ? 1 : 0, tax_band_id_update, id],
+     is_digital_update === '1' ? 1 : 0, tax_band_id_update, requires_slot, id],
   );
 
   // Update variants if provided

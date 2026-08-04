@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { query, queryOne, execute } from '../connection';
+import { parseSchedule, type FulfilmentSchedule } from '../../commerce/scheduling';
 
 export interface ShippingZoneRow {
   id: string;
@@ -20,6 +21,7 @@ export interface ShippingRateRow {
   position: number;
   pickup_address: string | null;      // 'pickup' — collection address
   pickup_instructions: string | null; // 'pickup' — opening hours / notes
+  fulfilment_schedule: string | null; // JSON slot schedule, or null
 }
 
 export function findAllZones(): ShippingZoneRow[] {
@@ -69,6 +71,7 @@ export function createRate(
   amount: number,
   minOrderAmount: number | null,
   pickup: { address: string | null; instructions: string | null } = { address: null, instructions: null },
+  schedule: string | null = null,
 ): ShippingRateRow {
   const id = randomUUID();
   const maxPos = queryOne<{ m: number }>(
@@ -76,8 +79,8 @@ export function createRate(
     [zoneId],
   )?.m ?? 0;
   execute(
-    'INSERT INTO shipping_rates (id, zone_id, name, rate_type, amount, min_order_amount, position, pickup_address, pickup_instructions) VALUES (?,?,?,?,?,?,?,?,?)',
-    [id, zoneId, name, rateType, amount, minOrderAmount, maxPos + 1, pickup.address, pickup.instructions],
+    'INSERT INTO shipping_rates (id, zone_id, name, rate_type, amount, min_order_amount, position, pickup_address, pickup_instructions, fulfilment_schedule) VALUES (?,?,?,?,?,?,?,?,?,?)',
+    [id, zoneId, name, rateType, amount, minOrderAmount, maxPos + 1, pickup.address, pickup.instructions, schedule],
   );
   return findRateById(id)!;
 }
@@ -94,6 +97,7 @@ export interface ResolvedRate {
   isPickup: boolean;
   pickupAddress: string | null;
   pickupInstructions: string | null;
+  schedule: FulfilmentSchedule | null; // set when the rate requires a booked slot
 }
 
 export function getRatesForCountry(country: string, subtotalMinorUnits: number): ResolvedRate[] {
@@ -119,7 +123,8 @@ export function getRatesForCountry(country: string, subtotalMinorUnits: number):
 
   const rates = findRatesForZone(matchedZone.id);
   return rates.map(r => {
-    const base = { id: r.id, name: r.name, isPickup: false, pickupAddress: null, pickupInstructions: null };
+    const base = { id: r.id, name: r.name, isPickup: false, pickupAddress: null, pickupInstructions: null,
+      schedule: parseSchedule(r.fulfilment_schedule) };
     if (r.rate_type === 'pickup') {
       return { ...base, amount: r.amount, isFree: r.amount === 0, isPickup: true,
         pickupAddress: r.pickup_address, pickupInstructions: r.pickup_instructions };

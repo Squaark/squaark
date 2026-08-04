@@ -88,8 +88,27 @@
       <!-- Shipping method -->
       <div id="shipping-section">
         <div id="shipping-rate-options"
-             @shipping-rate-changed.document="selectRate($event.detail.id, $event.detail.amount, $event.detail.label, $event.detail.pickup)"
+             @shipping-rate-changed.document="selectRate($event.detail.id, $event.detail.amount, $event.detail.label, $event.detail.pickup, $event.detail.schedule)"
              @htmx:after-settle.document="autoSelectFirst()">
+        </div>
+      </div>
+
+      <!-- Booked delivery/collection slot (shown for scheduled rates) -->
+      <div id="fulfilment-picker" x-show="scheduleDates.length" x-cloak>
+        <h2 class="checkout-section-title">Delivery / collection slot</h2>
+        <div class="checkout-2col">
+          <div>
+            <label class="store-label">Date</label>
+            <select id="fulfilmentDate" name="fulfilmentDate" class="store-select">
+              <template x-for="d in scheduleDates" :key="d.value"><option :value="d.value" x-text="d.label"></option></template>
+            </select>
+          </div>
+          <div>
+            <label class="store-label">Time</label>
+            <select id="fulfilmentWindow" name="fulfilmentWindow" class="store-select">
+              <template x-for="w in scheduleWindows" :key="w"><option :value="w" x-text="w"></option></template>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -113,6 +132,8 @@
             <input type="hidden" name="country" id="stripe-country">
             <input type="hidden" name="phone" id="stripe-phone">
             <input type="hidden" name="shippingRateId" id="stripe-shippingRateId">
+            <input type="hidden" name="fulfilmentDate" id="stripe-fulfilmentDate">
+            <input type="hidden" name="fulfilmentWindow" id="stripe-fulfilmentWindow">
             <button type="button" onclick="submitStripe()"
               class="btn btn-block"
               style="background:var(--color-accent);color:#fff;margin-bottom:0.75rem;justify-content:center;">
@@ -191,6 +212,7 @@
 
 <script>
 var CSRF_TOKEN = '{{csrfToken}}';
+var REQUIRES_SLOT = {{#if requiresSlot}}true{{else}}false{{/if}};
 
 function checkoutApp(subtotal, discount, currencySymbol, taxEnabled, itemsTaxAmount, taxLabel) {
   return {
@@ -200,6 +222,8 @@ function checkoutApp(subtotal, discount, currencySymbol, taxEnabled, itemsTaxAmo
     shippingLabel: 'Calculated at checkout',
     selectedRateId: '',
     pickup: false,
+    scheduleDates: [],
+    scheduleWindows: [],
     taxEnabled: taxEnabled || false,
     itemsTaxAmount: itemsTaxAmount || 0,
     taxLabel: taxLabel || 'VAT',
@@ -213,11 +237,16 @@ function checkoutApp(subtotal, discount, currencySymbol, taxEnabled, itemsTaxAmo
       if (!this.taxEnabled || this.itemsTaxAmount <= 0) return '';
       return currencySymbol + (this.itemsTaxAmount / 100).toFixed(2);
     },
-    selectRate(id, amount, label, pickup) {
+    selectRate(id, amount, label, pickup, schedule) {
       this.selectedRateId = id;
       this.shippingAmount = amount;
       this.shippingLabel = label;
       this.pickup = !!pickup;
+      try {
+        const s = schedule ? JSON.parse(schedule) : null;
+        this.scheduleDates = s && Array.isArray(s.dates) ? s.dates : [];
+        this.scheduleWindows = s && Array.isArray(s.windows) ? s.windows : [];
+      } catch (e) { this.scheduleDates = []; this.scheduleWindows = []; }
       const el = document.getElementById('stripe-shippingRateId');
       if (el) el.value = id;
     },
@@ -248,18 +277,30 @@ function getFormData() {
     country:        document.getElementById('country').value,
     phone:          document.getElementById('phone').value.trim(),
     shippingRateId: rateInput ? rateInput.value : '',
+    fulfilmentDate:   (document.getElementById('fulfilmentDate')   || {}).value || '',
+    fulfilmentWindow: (document.getElementById('fulfilmentWindow') || {}).value || '',
   };
 }
 
 function validateForm() {
   const d = getFormData();
-  if (!d.email || !d.firstName || !d.lastName || !d.line1 || !d.city || !d.postcode || !d.country) {
-    const el = document.getElementById('payment-error');
-    el.textContent = 'Please fill in all required fields.';
-    el.style.display = 'block';
-    return false;
+  const err = document.getElementById('payment-error');
+  const fail = (msg) => { err.textContent = msg; err.style.display = 'block'; return false; };
+  const line1El = document.getElementById('line1');
+  const addrVisible = line1El && line1El.offsetParent !== null; // hidden for collection/pickup
+  if (!d.email || !d.firstName || !d.lastName || !d.country ||
+      (addrVisible && (!d.line1 || !d.city || !d.postcode))) {
+    return fail('Please fill in all required fields.');
   }
-  document.getElementById('payment-error').style.display = 'none';
+  const picker = document.getElementById('fulfilment-picker');
+  const pickerVisible = picker && picker.offsetParent !== null;
+  if (pickerVisible && (!d.fulfilmentDate || !d.fulfilmentWindow)) {
+    return fail('Please choose a delivery/collection date and time.');
+  }
+  if (REQUIRES_SLOT && !pickerVisible) {
+    return fail('This order needs a delivery/collection date — please choose a scheduled option above.');
+  }
+  err.style.display = 'none';
   return true;
 }
 

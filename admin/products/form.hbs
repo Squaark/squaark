@@ -242,6 +242,11 @@
         Free shipping
       </label>
       <p class="text-xs text-muted">When checked, this product bypasses zone shipping rates. If every item in the cart has free shipping, the customer is charged £0.</p>
+      <label class="form-check">
+        <input type="checkbox" name="requires_slot" value="1" {{#if (eq product.requires_slot 1)}}checked{{/if}} form="main-form">
+        Needs a booked delivery/collection date
+      </label>
+      <p class="text-xs text-muted">When on, an order containing this product must choose a shipping/collection option that offers date &amp; time slots, and book one at checkout.</p>
       <div>
         <label class="form-label-xs">Tax band</label>
         <select name="tax_band_id" form="main-form" class="form-select">

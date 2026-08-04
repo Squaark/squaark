@@ -23,6 +23,7 @@ export interface ProductRow {
   free_shipping: number; // 1 | 0
   tax_band_id: string | null;
   tax_rate: string | null; // resolved from tax_rates JOIN
+  requires_slot: number;   // 1 | 0 — needs a booked delivery/collection slot
 }
 
 export interface ProductImageRow {
@@ -78,7 +79,7 @@ const PRODUCT_SUMMARY_SQL = `
   )
   SELECT
     p.id, p.title, p.slug, p.description, p.vendor, p.tags_text, p.published, p.created_at,
-    p.seo_title, p.seo_description, p.free_shipping,
+    p.seo_title, p.seo_description, p.free_shipping, p.requires_slot,
     p.tax_band_id, tr.rate AS tax_rate,
     fv.price,
     fv.compare_at_price,
@@ -287,4 +288,17 @@ export function getVariantInventory(variantId: string): number | null {
     'SELECT inventory_quantity FROM product_variants WHERE id = ?',
     [variantId],
   )?.inventory_quantity ?? null;
+}
+
+/** True if any of the given variants belongs to a product that needs a booked slot. */
+export function anyVariantRequiresSlot(variantIds: string[]): boolean {
+  const ids = variantIds.filter(Boolean);
+  if (ids.length === 0) return false;
+  const placeholders = ids.map(() => '?').join(',');
+  const row = queryOne<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM product_variants v JOIN products p ON p.id = v.product_id
+      WHERE v.id IN (${placeholders}) AND p.requires_slot = 1`,
+    ids,
+  );
+  return (row?.n ?? 0) > 0;
 }

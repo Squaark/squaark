@@ -1,5 +1,6 @@
 import { findRateById, getRatesForCountry } from '../db/queries/shipping';
 import type { CartItem } from '../theme/context';
+import type { FulfilmentSchedule } from './scheduling';
 
 export interface ShippingResolution {
   amount: number;
@@ -8,6 +9,7 @@ export interface ShippingResolution {
   isPickup: boolean;
   pickupAddress: string | null;
   pickupInstructions: string | null;
+  schedule: FulfilmentSchedule | null; // the chosen rate's booking schedule, if any
 }
 
 export interface ShippableCart {
@@ -29,7 +31,7 @@ export function resolveShipping(cart: ShippableCart, country: string, requestedR
   const allDigital = cart.items.length > 0 && cart.items.every(i => i.isDigital);
   const allFreeShipping = !allDigital && cart.items.length > 0 && cart.items.every(i => i.freeShipping);
 
-  const NONE = { isPickup: false, pickupAddress: null, pickupInstructions: null };
+  const NONE = { isPickup: false, pickupAddress: null, pickupInstructions: null, schedule: null };
 
   if (allDigital) return { amount: 0, title: 'Digital delivery', rateId: 'digital_delivery', ...NONE };
   if (allFreeShipping) return { amount: 0, title: 'Free Shipping', rateId: 'free_shipping_product', ...NONE };
@@ -42,6 +44,7 @@ export function resolveShipping(cart: ShippableCart, country: string, requestedR
       if (resolved) return {
         amount: resolved.amount, title: rateRow.name, rateId: rateRow.id,
         isPickup: resolved.isPickup, pickupAddress: resolved.pickupAddress, pickupInstructions: resolved.pickupInstructions,
+        schedule: resolved.schedule,
       };
     }
   }

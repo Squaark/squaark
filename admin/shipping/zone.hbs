@@ -73,6 +73,7 @@
               {{#if (eq this.rate_type 'free')}}Free{{/if}}
               {{#if (eq this.rate_type 'free_over')}}Free over threshold{{/if}}
               {{#if (eq this.rate_type 'pickup')}}Collection{{#if this.pickup_address}} · {{this.pickup_address}}{{/if}}{{/if}}
+              {{#if this.fulfilment_schedule}} · <span style="color:#1e40af;">booked slot</span>{{/if}}
             </td>
             <td class="text-sm">
               {{#if (eq this.rate_type 'free')}}—{{/if}}
@@ -98,7 +99,7 @@
 
       <!-- Add rate form -->
       <form method="POST" action="/admin/shipping/{{zone.id}}/rates"
-            x-data="{ rateType: 'flat' }" style="border-top:1px solid #f3f4f6;padding-top:1rem;margin-top:0.5rem;">
+            x-data="{ rateType: 'flat', scheduled: false }" style="border-top:1px solid #f3f4f6;padding-top:1rem;margin-top:0.5rem;">
         {{csrf_field}}
         <p class="text-sm font-medium" style="margin-bottom:0.75rem;">Add a rate</p>
         <div class="form-row form-row--3">
@@ -133,7 +134,33 @@
           <textarea name="pickup_instructions" rows="2" placeholder="e.g. Mon–Fri 9–5. Ring the bell at the side door." class="form-input"></textarea>
           <p class="text-xs text-muted" style="margin-top:0.35rem;">Set the amount to 0 for free collection. Add one rate per location.</p>
         </div>
-        <div style="margin-top:0.75rem;">
+
+        <label class="form-check" style="margin-top:0.9rem;">
+          <input type="checkbox" name="scheduled" value="1" x-model="scheduled">
+          Customers book a date &amp; time for this option
+        </label>
+        <div x-show="scheduled" x-cloak style="margin-top:0.5rem;border-left:2px solid #eef0f3;padding-left:0.9rem;">
+          <label class="form-label-xs">Available days</label>
+          <div class="row" style="flex-wrap:wrap;gap:0.9rem;margin:0.25rem 0 0.6rem;">
+            <label class="form-check"><input type="checkbox" name="sched_weekdays" value="1"> Mon</label>
+            <label class="form-check"><input type="checkbox" name="sched_weekdays" value="2"> Tue</label>
+            <label class="form-check"><input type="checkbox" name="sched_weekdays" value="3"> Wed</label>
+            <label class="form-check"><input type="checkbox" name="sched_weekdays" value="4"> Thu</label>
+            <label class="form-check"><input type="checkbox" name="sched_weekdays" value="5"> Fri</label>
+            <label class="form-check"><input type="checkbox" name="sched_weekdays" value="6"> Sat</label>
+            <label class="form-check"><input type="checkbox" name="sched_weekdays" value="0"> Sun</label>
+          </div>
+          <label class="form-label-xs">Time windows (one per line)</label>
+          <textarea name="sched_windows" rows="3" placeholder="9am–12pm&#10;12pm–3pm&#10;3pm–6pm" class="form-input"></textarea>
+          <div class="row" style="gap:0.9rem;margin-top:0.5rem;flex-wrap:wrap;">
+            <div><label class="form-label-xs">Lead time (days)</label><input type="number" name="sched_lead" min="0" value="1" class="form-input" style="max-width:9rem;"></div>
+            <div><label class="form-label-xs">Book up to (days ahead)</label><input type="number" name="sched_horizon" min="1" value="14" class="form-input" style="max-width:9rem;"></div>
+          </div>
+          <label class="form-label-xs" style="margin-top:0.5rem;display:block;">Blackout dates (optional, comma-separated YYYY-MM-DD)</label>
+          <input type="text" name="sched_blackouts" placeholder="2026-12-25, 2026-12-26" class="form-input">
+        </div>
+
+        <div style="margin-top:0.9rem;">
           <button type="submit" class="btn btn-secondary btn-sm">Add rate</button>
         </div>
       </form>
