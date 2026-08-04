@@ -4,10 +4,14 @@ import { render } from '../../admin/render';
 import { getAdminById } from '../../admin/auth';
 import { getAllSettings } from '../../db/queries/admin';
 import { listCustomers, countCustomers, deleteCustomer } from '../../db/queries/customers';
+import { findAllGroups, createGroup, deleteGroup, setCustomerGroup } from '../../db/queries/customer-groups';
 
 export async function customersRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get('/customers', listCustomersPage);
   fastify.post('/customers/:id/delete', deleteCustomerHandler);
+  fastify.post('/customers/:id/group', setGroupHandler);
+  fastify.post('/customer-groups', createGroupHandler);
+  fastify.post('/customer-groups/:id/delete', deleteGroupHandler);
 }
 
 async function listCustomersPage(
@@ -26,6 +30,7 @@ async function listCustomersPage(
       admin,
       settings: getAllSettings(),
       customers,
+      groups: findAllGroups(),
       total,
       page,
       totalPages: Math.ceil(total / limit),
@@ -42,4 +47,29 @@ async function deleteCustomerHandler(
 ) {
   deleteCustomer(req.params.id);
   return reply.redirect('/admin/customers?deleted=1');
+}
+
+async function setGroupHandler(
+  req: FastifyRequest<{ Params: { id: string }; Body: { group_id?: string } }>,
+  reply: FastifyReply,
+) {
+  setCustomerGroup(req.params.id, req.body.group_id?.trim() || null);
+  return reply.redirect('/admin/customers');
+}
+
+async function createGroupHandler(
+  req: FastifyRequest<{ Body: { name?: string } }>,
+  reply: FastifyReply,
+) {
+  const name = req.body.name?.trim();
+  if (name) createGroup(name);
+  return reply.redirect('/admin/customers');
+}
+
+async function deleteGroupHandler(
+  req: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+) {
+  deleteGroup(req.params.id);
+  return reply.redirect('/admin/customers');
 }
