@@ -1,10 +1,15 @@
 import { findRateById, getRatesForCountry } from '../db/queries/shipping';
 import type { CartItem } from '../theme/context';
+import type { FulfilmentSchedule } from './scheduling';
 
 export interface ShippingResolution {
   amount: number;
   title: string | null;
   rateId: string | null;
+  isPickup: boolean;
+  pickupAddress: string | null;
+  pickupInstructions: string | null;
+  schedule: FulfilmentSchedule | null; // the chosen rate's booking schedule, if any
 }
 
 export interface ShippableCart {
@@ -26,16 +31,22 @@ export function resolveShipping(cart: ShippableCart, country: string, requestedR
   const allDigital = cart.items.length > 0 && cart.items.every(i => i.isDigital);
   const allFreeShipping = !allDigital && cart.items.length > 0 && cart.items.every(i => i.freeShipping);
 
-  if (allDigital) return { amount: 0, title: 'Digital delivery', rateId: 'digital_delivery' };
-  if (allFreeShipping) return { amount: 0, title: 'Free Shipping', rateId: 'free_shipping_product' };
+  const NONE = { isPickup: false, pickupAddress: null, pickupInstructions: null, schedule: null };
+
+  if (allDigital) return { amount: 0, title: 'Digital delivery', rateId: 'digital_delivery', ...NONE };
+  if (allFreeShipping) return { amount: 0, title: 'Free Shipping', rateId: 'free_shipping_product', ...NONE };
 
   if (requestedRateId) {
     const rateRow = findRateById(requestedRateId);
     if (rateRow) {
       const subtotalAfterDiscount = cart.subtotal.amount - (cart.discountAmount?.amount ?? 0);
       const resolved = getRatesForCountry(country, subtotalAfterDiscount).find(r => r.id === rateRow.id);
-      if (resolved) return { amount: resolved.amount, title: rateRow.name, rateId: rateRow.id };
+      if (resolved) return {
+        amount: resolved.amount, title: rateRow.name, rateId: rateRow.id,
+        isPickup: resolved.isPickup, pickupAddress: resolved.pickupAddress, pickupInstructions: resolved.pickupInstructions,
+        schedule: resolved.schedule,
+      };
     }
   }
-  return { amount: 0, title: null, rateId: null };
+  return { amount: 0, title: null, rateId: null, ...NONE };
 }

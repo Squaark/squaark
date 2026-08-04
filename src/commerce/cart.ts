@@ -7,7 +7,7 @@ import {
   removeCartItem,
   type CartItemRow,
 } from '../db/queries/cart';
-import { findVariantById, getCollectionIdsForProducts, getProductAvailabilityByVariant } from '../db/queries/products';
+import { findVariantById, getCollectionIdsForProducts, anyVariantRequiresSlot, getProductAvailabilityByVariant } from '../db/queries/products';
 import { computeAvailability } from './availability';
 import { findDiscountByCode } from '../db/queries/discounts';
 import { validateDiscount } from './discounts';
@@ -126,6 +126,11 @@ export async function addToCart(cartId: string, variantId: string, quantity: num
     if (!a.orderable) throw new Error(a.status === 'upcoming' ? 'Not yet available' : 'No longer available');
   }
   upsertCartItem(cartId, variantId, quantity);
+}
+
+/** True if any item in the cart belongs to a product that needs a booked delivery/collection slot. */
+export function cartRequiresSlot(items: { variantId: string }[]): boolean {
+  return anyVariantRequiresSlot(items.map(i => i.variantId));
 }
 
 /**

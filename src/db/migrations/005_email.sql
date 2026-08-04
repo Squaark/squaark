@@ -44,7 +44,8 @@ INSERT INTO email_templates (key, name, subject, body) VALUES
   <tr><td>Shipping</td><td align="right">{{order.shipping_formatted}}</td></tr>
   <tr style="font-weight:bold;"><td>Total</td><td align="right">{{order.total_formatted}}</td></tr>
 </table>
-<p>We''ll email you again once your order ships.</p>'
+{{#if order.fulfilment_date}}<p style="margin-top:8px;"><strong>Booked for:</strong> {{order.fulfilment_date_formatted}}{{#if order.fulfilment_window}} ({{order.fulfilment_window}}){{/if}}</p>{{/if}}
+{{#if order.pickup_address}}<p style="margin-top:8px;"><strong>Collect from:</strong><br>{{order.pickup_address}}{{#if order.pickup_instructions}}<br><span style="color:#555;">{{order.pickup_instructions}}</span>{{/if}}</p><p>We''ll email you when your order is ready to collect.</p>{{else}}<p>We''ll email you again once your order ships.</p>{{/if}}'
 ),
 (
   'order_shipped',

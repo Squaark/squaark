@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import Stripe from 'stripe';
 import type { ThemeRegistry } from '../../theme/registry';
 import { buildGlobalContext } from '../../theme/context';
-import { getCartPage, getCartSummary, findUnavailableItems } from '../../commerce/cart';
+import { getCartPage, getCartSummary, cartRequiresSlot, findUnavailableItems } from '../../commerce/cart';
 import { clearCart } from '../../db/queries/cart';
 import { getAllSettings } from '../../db/queries/admin';
 import { createOrder, markOrderPaid, findOrderById, findOrderByPaymentReference, findOrderItems, getOrderProductIds, type Address } from '../../db/queries/orders';
@@ -16,6 +16,7 @@ import { findCustomerByEmail, createCustomer, deleteCustomer } from '../../db/qu
 import { getRatesForCountry } from '../../db/queries/shipping';
 import { calculateItemsTax } from '../../commerce/tax';
 import { resolveShipping } from '../../commerce/shipping';
+import { availableDates, isValidSlot } from '../../commerce/scheduling';
 import { findStockShortfalls } from '../../commerce/inventory';
 import { generateVerificationToken, isAccountClaimed, sendVerificationEmail } from '../../commerce/customer-verification';
 import { pixelSettings, buildPurchasePixel } from '../../marketing/pixels';
@@ -59,6 +60,10 @@ interface PendingPaypalOrder {
   shippingAmount: number;
   shippingTitle: string | null;
   shippingRateId: string | null;
+  pickupAddress: string | null;
+  pickupInstructions: string | null;
+  fulfilmentDate: string | null;
+  fulfilmentWindow: string | null;
   taxAmount: number;
   total: number;
   currency: string;
@@ -93,6 +98,24 @@ function parseAddress(body: Record<string, string>): Address {
     country: one(body.country),
     phone: body.phone?.trim() || undefined,
   };
+}
+
+/**
+ * Validates the booked slot against the chosen rate's schedule. Returns the
+ * {date, window} to store, or null if invalid — i.e. a scheduled rate with a
+ * bad/empty slot, or a cart that requires a slot but a non-scheduled rate.
+ */
+function resolveSlot(
+  shipping: { schedule: import('../../commerce/scheduling').FulfilmentSchedule | null },
+  body: Record<string, string>,
+  requiresSlot: boolean,
+): { date: string | null; window: string | null } | null {
+  const date = one(body.fulfilmentDate);
+  const window = one(body.fulfilmentWindow);
+  if (shipping.schedule) {
+    return isValidSlot(shipping.schedule, date, window) ? { date, window } : null;
+  }
+  return requiresSlot ? null : { date: null, window: null };
 }
 
 async function base(req: FastifyRequest, reply: FastifyReply, registry: ThemeRegistry) {
@@ -131,6 +154,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       ...ctx, cart, pageTitle: 'Checkout',
       stripeEnabled, paypalEnabled, stripePk, paypalClientId, paypalMode,
       itemsTaxAmount,
+      requiresSlot: cartRequiresSlot(cart.items),
     });
   });
 
@@ -162,13 +186,24 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       return '';
     }
 
+    const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
     const html = rates.map((r, i) => {
       const label = r.isFree ? 'Free' : `${sym}${(r.amount / 100).toFixed(2)}`;
       const checked = i === 0 ? ' checked' : '';
-      return `<label class="shipping-rate-option">
-  <input type="radio" name="shippingRateId" value="${r.id}" data-amount="${r.amount}"${checked}
-         onchange="document.dispatchEvent(new CustomEvent('shipping-rate-changed',{detail:{id:'${r.id}',amount:${r.amount},label:'${label}'}}))">
-  <span class="shipping-rate-name">${r.name}</span>
+      const isPickup = 'isPickup' in r && r.isPickup ? 1 : 0;
+      const addr = isPickup ? ('pickupAddress' in r ? r.pickupAddress : null) : null;
+      const instr = isPickup ? ('pickupInstructions' in r ? r.pickupInstructions : null) : null;
+      const schedule = 'schedule' in r ? r.schedule : null;
+      const schedData = schedule ? { dates: availableDates(schedule), windows: schedule.windows } : null;
+      const schedAttr = schedData ? ` data-schedule='${esc(JSON.stringify(schedData))}'` : '';
+      const note = isPickup && (addr || instr)
+        ? `<span class="shipping-rate-pickup">${esc(addr || '')}${addr && instr ? ' — ' : ''}${esc(instr || '')}</span>`
+        : (schedData ? `<span class="shipping-rate-pickup">Choose a date &amp; time below</span>` : '');
+      return `<label class="shipping-rate-option${isPickup ? ' shipping-rate-option--pickup' : ''}">
+  <input type="radio" name="shippingRateId" value="${r.id}" data-amount="${r.amount}" data-pickup="${isPickup}"${schedAttr}${checked}
+         onchange="document.dispatchEvent(new CustomEvent('shipping-rate-changed',{detail:{id:'${r.id}',amount:${r.amount},label:'${label}',pickup:${isPickup},schedule:this.dataset.schedule||''}}))">
+  <span class="shipping-rate-name">${esc(r.name)}${note}</span>
   <span class="shipping-rate-price">${label}</span>
 </label>`;
     }).join('\n');
@@ -211,6 +246,11 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     const orderTotal = cart.total.amount + shippingAmount;
     const taxAmount = calculateItemsTax(cart.items, settings.tax_enabled === '1');
 
+    // Validate a booked delivery/collection slot when the rate schedules one, or
+    // the cart requires one.
+    const slot = resolveSlot(shipping, body, cartRequiresSlot(cart.items));
+    if (!slot) return reply.redirect(`/${(settings.cart_label || 'Cart').toLowerCase()}?error=slot_required`);
+
     // Create a pending order first so we have an ID for metadata
     const order = createOrder({
       email: body.email?.trim() ?? '',
@@ -227,6 +267,10 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       shippingRateId: shipping.rateId,
       shippingTitle,
       taxAmount,
+      pickupAddress: shipping.pickupAddress,
+      pickupInstructions: shipping.pickupInstructions,
+      fulfilmentDate: slot.date,
+      fulfilmentWindow: slot.window,
       items: cart.items.map(i => ({
         variantId: i.variantId,
         productTitle: i.productTitle,
@@ -409,6 +453,9 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     const taxAmount = calculateItemsTax(cart.items, settings.tax_enabled === '1');
     const total = cart.total.amount + shipping.amount;
 
+    const slot = resolveSlot(shipping, body, cartRequiresSlot(cart.items));
+    if (!slot) return reply.code(409).send({ error: 'slot_required' });
+
     try {
       const token = await getPaypalToken(clientId, clientSecret, mode);
       const res = await fetch(`${getPaypalBase(mode)}/v2/checkout/orders`, {
@@ -454,6 +501,10 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
         shippingAmount: shipping.amount,
         shippingTitle: shipping.title,
         shippingRateId: shipping.rateId,
+        pickupAddress: shipping.pickupAddress,
+        pickupInstructions: shipping.pickupInstructions,
+        fulfilmentDate: slot.date,
+        fulfilmentWindow: slot.window,
         taxAmount,
         total,
         currency,
@@ -541,6 +592,10 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
         shippingRateId: snapshot.shippingRateId,
         shippingTitle: snapshot.shippingTitle,
         taxAmount: snapshot.taxAmount,
+        pickupAddress: snapshot.pickupAddress,
+        pickupInstructions: snapshot.pickupInstructions,
+        fulfilmentDate: snapshot.fulfilmentDate,
+        fulfilmentWindow: snapshot.fulfilmentWindow,
         items: snapshot.items.map(i => ({
           variantId: i.variantId,
           productTitle: i.productTitle,
@@ -619,7 +674,12 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     await render(registry, reply, 'checkout-success', {
       ...ctx,
       pageTitle: `Order #${order.order_number} confirmed`,
-      order: { ...order, items, shippingAddress },
+      order: {
+        ...order, items, shippingAddress,
+        fulfilmentDateLabel: order.fulfilment_date
+          ? new Date(`${order.fulfilment_date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+          : null,
+      },
       store: { ...ctx.store, name: settings.store_name },
       canCreateAccount,
       accountCreated: accountStatus === 'created',

@@ -9,7 +9,7 @@ function fmt(pence: number, currency: string): string {
 function dateLabel(d: string | null): string | null {
   if (!d) return null;
   const dt = new Date(`${d}T00:00:00`);
-  return Number.isNaN(dt.getTime()) ? d : dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  return Number.isNaN(dt.getTime()) ? d : dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 /**
@@ -28,6 +28,7 @@ export function buildOrderEmailContext(order: OrderRow, items: OrderItemRow[]): 
     shipping_formatted: fmt(order.shipping, cur),
     discount_formatted: order.discount_amount ? fmt(order.discount_amount, cur) : null,
     tax_formatted: fmt(order.tax_amount, cur),
+    fulfilment_date_formatted: dateLabel(order.fulfilment_date),
     items: items.map(i => ({
       ...i,
       line_total_formatted: fmt(i.line_total, cur),

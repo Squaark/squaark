@@ -6,6 +6,9 @@
   {{#if outOfStock}}
     <div class="auth-error" style="margin-bottom:1.5rem;">One or more items in your {{store.cartLabel}} are no longer in stock in the quantity requested. Please adjust the quantities and try again.</div>
   {{/if}}
+  {{#if slotRequired}}
+    <div class="auth-error" style="margin-bottom:1.5rem;">Your {{store.cartLabel}} contains an item that needs a delivery/collection date. Please choose a scheduled option and pick a date &amp; time at checkout.</div>
+  {{/if}}
   {{#if unavailable}}
     <div class="auth-error" style="margin-bottom:1.5rem;">One or more items in your {{store.cartLabel}} are no longer available for sale right now. Please remove them to continue.</div>
   {{/if}}

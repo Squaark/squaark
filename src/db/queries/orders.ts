@@ -23,6 +23,10 @@ export interface OrderRow {
   shipping_rate_id: string | null;
   shipping_title: string | null;
   tax_amount: number;
+  pickup_address: string | null;
+  pickup_instructions: string | null;
+  fulfilment_date: string | null;   // YYYY-MM-DD booked slot date
+  fulfilment_window: string | null; // booked time-window label
   tracking_number: string | null;
   tracking_url: string | null;
   shipped_at: string | null;
@@ -78,6 +82,10 @@ export interface CreateOrderInput {
   shippingRateId?: string | null;
   shippingTitle?: string | null;
   taxAmount?: number;
+  pickupAddress?: string | null;
+  pickupInstructions?: string | null;
+  fulfilmentDate?: string | null;
+  fulfilmentWindow?: string | null;
   items: Array<{
     variantId: string | null;
     productTitle: string;
@@ -195,8 +203,10 @@ export function createOrder(input: CreateOrderInput): OrderRow {
       subtotal, discount_amount, shipping, total, currency,
       discount_code, notes, shipping_address, billing_address,
       payment_provider, payment_reference,
-      shipping_rate_id, shipping_title, tax_amount
-    ) VALUES (?, ?, ?, 'pending', 'unfulfilled', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      shipping_rate_id, shipping_title, tax_amount,
+      pickup_address, pickup_instructions,
+      fulfilment_date, fulfilment_window
+    ) VALUES (?, ?, ?, 'pending', 'unfulfilled', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     RETURNING *
   `, [
     id, nextNumber, input.email,
@@ -207,6 +217,8 @@ export function createOrder(input: CreateOrderInput): OrderRow {
     input.paymentProvider, input.paymentReference,
     input.shippingRateId ?? null, input.shippingTitle ?? null,
     input.taxAmount ?? 0,
+    input.pickupAddress ?? null, input.pickupInstructions ?? null,
+    input.fulfilmentDate ?? null, input.fulfilmentWindow ?? null,
   ]);
 
   for (const item of input.items) {

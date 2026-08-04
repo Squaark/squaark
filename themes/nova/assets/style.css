@@ -695,6 +695,7 @@ main { display: block; }
 .shipping-rate-option:has(input:checked) { border-color: var(--color-primary); background: #f9fafb; }
 .shipping-rate-option input[type="radio"] { accent-color: var(--color-primary); flex-shrink: 0; }
 .shipping-rate-name { flex: 1; font-size: 0.875rem; color: #111827; }
+.shipping-rate-pickup { display: block; font-size: 0.78rem; color: #6b7280; margin-top: 0.15rem; line-height: 1.4; }
 .shipping-rate-price { font-size: 0.875rem; font-weight: 500; color: #111827; }
 
 /* ── Checkout success ────────────────────────────────────────────────────── */
