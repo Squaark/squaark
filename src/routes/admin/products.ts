@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import '../../types';
 import { render } from '../../admin/render';
 import { getAdminById } from '../../admin/auth';
-import { getAllSettings } from '../../db/queries/admin';
+import { getAllSettings, getSetting } from '../../db/queries/admin';
 import { processUploadedImage } from '../../admin/images';
 import fs from 'fs';
 import path from 'path';
@@ -10,6 +10,8 @@ import { execute, query, queryOne } from '../../db/connection';
 import { findAllBands } from '../../db/queries/tax';
 import { saveProductFile, deleteProductFile, findFileForProduct } from '../../db/queries/downloads';
 import { findManualRelatedIds, getProductNamesByIds, setRelatedProducts, searchProductsByTitle } from '../../db/queries/products';
+import { productLimitReached } from '../../billing/usage';
+import { getLimits } from '../../billing/limits';
 import type { MultipartFile } from '@fastify/multipart';
 import config from '../../config';
 
@@ -117,6 +119,19 @@ async function createProduct(
     return reply.type('text/html').send(
       await render('products/form', { ...adminCtx(req), product: req.body, variants: [], images: [],
         taxBands: findAllBands(), error: 'Title and slug are required', pageTitle: 'New product' }, reply),
+    );
+  }
+
+  // Quota: block new products once the injected product limit is reached (admin
+  // side only — never the storefront). Existing products keep working. Limits
+  // are set by the host; a standalone install has none, so this never fires.
+  if (productLimitReached()) {
+    const upgradeUrl = getSetting('upgrade_url');
+    return reply.type('text/html').send(
+      await render('products/form', { ...adminCtx(req), product: req.body, variants: [], images: [],
+        taxBands: findAllBands(), pageTitle: 'New product',
+        error: `You've reached this store's product limit of ${getLimits().products}.` +
+          (upgradeUrl ? ` Visit ${upgradeUrl} to raise it.` : '') }, reply),
     );
   }
 
