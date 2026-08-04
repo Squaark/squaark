@@ -518,6 +518,10 @@ main { display: block; }
 .variant-select { width: 100%; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem; outline: none; background: #fff; }
 .variant-select:focus { border-color: #111827; box-shadow: 0 0 0 2px rgba(17,24,39,0.1); }
 
+.product-availability { font-size: 0.85rem; line-height: 1.5; margin: 0 0 1rem; padding: 0.55rem 0.8rem; border-radius: 0.5rem; background: #f3f4f6; color: #4b5563; }
+.product-availability--upcoming { background: #eff6ff; color: #1e40af; }
+.product-availability--preorder { background: #eef2ff; color: #3730a3; font-weight: 500; }
+.product-availability--ended { background: #fef2f2; color: #991b1b; }
 .add-to-cart { display: flex; gap: 0.75rem; }
 .qty-input { width: 6rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 0.75rem; text-align: center; font-size: 0.875rem; outline: none; font-family: inherit; }
 .qty-input:focus { border-color: #111827; }

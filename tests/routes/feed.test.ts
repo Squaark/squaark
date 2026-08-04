@@ -8,7 +8,7 @@ const base: ProductRow = {
   on_sale: 0, available: 1, img_original: '/uploads/mug.jpg', img_thumbnail: null,
   img_medium: null, img_large: '/uploads/mug-large.jpg', img_alt: 'Mug',
   created_at: '2026-01-01', seo_title: null, seo_description: null, free_shipping: 0,
-  tax_band_id: null, tax_rate: null, requires_slot: 0,
+  tax_band_id: null, tax_rate: null, available_from: null, available_until: null, allow_preorder: 0, requires_slot: 0,
 };
 
 const STORE = 'https://shop.example.com';

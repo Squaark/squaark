@@ -305,6 +305,7 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
       recommendations: getCartRecommendations(req.cartId),
       outOfStock: q.error === 'out_of_stock',
       slotRequired: q.error === 'slot_required',
+      unavailable: q.error === 'unavailable',
       discountError: q.discount_error,
     });
   };

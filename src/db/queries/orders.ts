@@ -1,5 +1,7 @@
 import { randomUUID } from 'crypto';
 import { query, queryOne, execute, executeReturning, transaction, db } from '../connection';
+import { getProductAvailabilityByVariant } from './products';
+import { computeAvailability } from '../../commerce/availability';
 
 export interface OrderRow {
   id: string;
@@ -49,6 +51,8 @@ export interface OrderItemRow {
   price: number;
   quantity: number;
   line_total: number;
+  preorder: number;                      // 1 | 0
+  preorder_available_from: string | null; // YYYY-MM-DD the item ships from
 }
 
 export interface Address {
@@ -218,10 +222,20 @@ export function createOrder(input: CreateOrderInput): OrderRow {
   ]);
 
   for (const item of input.items) {
+    // Flag the line as a pre-order (with its ship-from date) if the product is
+    // in its upcoming window and allows pre-orders — captured at order time so
+    // the merchant still sees it after the window opens.
+    let preorder = 0;
+    let preorderFrom: string | null = null;
+    const win = item.variantId ? getProductAvailabilityByVariant(item.variantId) : null;
+    if (win) {
+      const a = computeAvailability(win.available_from, win.available_until, undefined, win.allow_preorder === 1);
+      if (a.preorder) { preorder = 1; preorderFrom = win.available_from; }
+    }
     execute(`
-      INSERT INTO order_items (id, order_id, variant_id, product_title, variant_title, sku, price, quantity, line_total)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [randomUUID(), id, item.variantId, item.productTitle, item.variantTitle, item.sku, item.price, item.quantity, item.price * item.quantity]);
+      INSERT INTO order_items (id, order_id, variant_id, product_title, variant_title, sku, price, quantity, line_total, preorder, preorder_available_from)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [randomUUID(), id, item.variantId, item.productTitle, item.variantTitle, item.sku, item.price, item.quantity, item.price * item.quantity, preorder, preorderFrom]);
   }
 
   return row;

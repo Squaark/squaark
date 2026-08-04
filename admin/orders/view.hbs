@@ -15,6 +15,7 @@
             <td>
               <p class="cell-title">{{this.product_title}}</p>
               <p class="cell-hint">{{this.variant_title}}{{#if this.sku}} · SKU: {{this.sku}}{{/if}}</p>
+              {{#if this.preorder}}<p class="cell-hint" style="color:#1e40af;font-weight:600;">Pre-order · ships from {{date_short this.preorder_available_from}}</p>{{/if}}
             </td>
             <td class="right text-muted">× {{this.quantity}}</td>
             <td class="right cell-title">£{{money_pence this.line_total}}</td>

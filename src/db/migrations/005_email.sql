@@ -35,7 +35,7 @@ INSERT INTO email_templates (key, name, subject, body) VALUES
 <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse:collapse;margin:16px 0;">
   {{#each order.items}}
   <tr style="border-bottom:1px solid #eee;">
-    <td>{{this.product_title}} <span style="color:#888;">({{this.variant_title}}) &times; {{this.quantity}}</span></td>
+    <td>{{this.product_title}} <span style="color:#888;">({{this.variant_title}}) &times; {{this.quantity}}</span>{{#if this.preorder}}<br><span style="color:#1e40af;font-size:13px;">Pre-order &mdash; ships from {{this.preorder_from_formatted}}</span>{{/if}}</td>
     <td align="right">{{this.line_total_formatted}}</td>
   </tr>
   {{/each}}

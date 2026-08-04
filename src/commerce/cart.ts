@@ -7,7 +7,8 @@ import {
   removeCartItem,
   type CartItemRow,
 } from '../db/queries/cart';
-import { findVariantById, getCollectionIdsForProducts, anyVariantRequiresSlot } from '../db/queries/products';
+import { findVariantById, getCollectionIdsForProducts, anyVariantRequiresSlot, getProductAvailabilityByVariant } from '../db/queries/products';
+import { computeAvailability } from './availability';
 import { findDiscountByCode } from '../db/queries/discounts';
 import { validateDiscount } from './discounts';
 import { listActiveAutomaticDiscounts, rowToPromo } from '../db/queries/automatic-discounts';
@@ -116,12 +117,33 @@ export async function addToCart(cartId: string, variantId: string, quantity: num
   const variant = findVariantById(variantId);
   if (!variant) throw new Error('Variant not found');
   if (variant.inventory_quantity <= 0) throw new Error('Out of stock');
+  // Availability window ("product calendar"): the product may be visible but not
+  // yet (or no longer) purchasable. Enforce server-side so a direct POST can't
+  // bypass the disabled add-to-cart button.
+  const win = getProductAvailabilityByVariant(variantId);
+  if (win) {
+    const a = computeAvailability(win.available_from, win.available_until, undefined, win.allow_preorder === 1);
+    if (!a.orderable) throw new Error(a.status === 'upcoming' ? 'Not yet available' : 'No longer available');
+  }
   upsertCartItem(cartId, variantId, quantity);
 }
 
 /** True if any item in the cart belongs to a product that needs a booked delivery/collection slot. */
 export function cartRequiresSlot(items: { variantId: string }[]): boolean {
   return anyVariantRequiresSlot(items.map(i => i.variantId));
+}
+
+/**
+ * Cart items whose product is currently outside its availability window — used
+ * to re-check at checkout, since an item may have been added while purchasable
+ * and its window then opened/closed before the customer paid.
+ */
+export function findUnavailableItems<T extends { variantId: string }>(items: T[]): T[] {
+  return items.filter((it) => {
+    const win = getProductAvailabilityByVariant(it.variantId);
+    if (!win) return false;
+    return !computeAvailability(win.available_from, win.available_until, undefined, win.allow_preorder === 1).orderable;
+  });
 }
 
 export async function updateCartItem(cartId: string, itemId: string, quantity: number): Promise<void> {

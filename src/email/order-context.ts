@@ -33,6 +33,8 @@ export function buildOrderEmailContext(order: OrderRow, items: OrderItemRow[]): 
       ...i,
       line_total_formatted: fmt(i.line_total, cur),
       unit_price_formatted: fmt(i.price, cur),
+      preorder_from_formatted: i.preorder ? dateLabel(i.preorder_available_from) : null,
     })),
+    has_preorder: items.some(i => i.preorder === 1),
   };
 }

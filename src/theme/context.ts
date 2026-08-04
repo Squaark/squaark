@@ -4,6 +4,7 @@ import { getActiveBanner } from '../db/queries/banners';
 import { pixelSettings, buildPixelHead, buildPixelNoscript } from '../marketing/pixels';
 import { listFeaturedProducts } from '../commerce/collections';
 import { findCollectionBySlug } from '../db/queries/collections';
+import type { Availability } from '../commerce/availability';
 
 export interface Money {
   amount: number;      // Minor units (cents)
@@ -51,6 +52,7 @@ export interface ProductSummary {
   vendor: string | null;
   taxRate: string | null;
   rating?: { average: number; count: number } | null;
+  availability: Availability;
 }
 
 export interface Variant {

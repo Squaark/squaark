@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import Stripe from 'stripe';
 import type { ThemeRegistry } from '../../theme/registry';
 import { buildGlobalContext } from '../../theme/context';
-import { getCartPage, getCartSummary, cartRequiresSlot } from '../../commerce/cart';
+import { getCartPage, getCartSummary, cartRequiresSlot, findUnavailableItems } from '../../commerce/cart';
 import { clearCart } from '../../db/queries/cart';
 import { getAllSettings } from '../../db/queries/admin';
 import { createOrder, markOrderPaid, findOrderById, findOrderByPaymentReference, findOrderItems, getOrderProductIds, type Address } from '../../db/queries/orders';
@@ -228,6 +228,11 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     if (shortfalls.length) {
       return reply.redirect(`/${(settings.cart_label || 'Cart').toLowerCase()}?error=out_of_stock`);
     }
+    // Re-check availability windows too — an item's window may have closed since
+    // it was added.
+    if (findUnavailableItems(cart.items).length) {
+      return reply.redirect(`/${(settings.cart_label || 'Cart').toLowerCase()}?error=unavailable`);
+    }
 
     const address = parseAddress(body);
     const storeUrl = settings.store_url?.replace(/\/$/, '') || 'http://localhost:3000';
@@ -439,6 +444,8 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     // Re-check stock against the live count before creating the PayPal order.
     const shortfalls = findStockShortfalls(cart.items);
     if (shortfalls.length) return reply.code(409).send({ error: 'out_of_stock', items: shortfalls });
+    const unavailable = findUnavailableItems(cart.items);
+    if (unavailable.length) return reply.code(409).send({ error: 'unavailable', items: unavailable });
 
     const currency = (settings.store_currency || 'GBP').toUpperCase();
     const address = parseAddress(body);
