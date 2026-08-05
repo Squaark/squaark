@@ -104,7 +104,7 @@ linen/
 ├── THEME.md                  # Human-facing notes for whoever edits this theme
 ├── partials/
 │   ├── header.hbs, footer.hbs, cart-contents.hbs, pagination.hbs, product-card.hbs
-│   └── sections/              # Page-builder section partials: text, image, image_text, cta, columns
+│   └── sections/              # Page-builder section partials, one per section type (see §6.5)
 ├── assets/
 │   ├── style.css              # Plain CSS with custom properties — no Tailwind, no build step
 │   ├── main.js
@@ -269,6 +269,52 @@ interface CartItem {
 
 Checkout, account, and page-builder templates follow the same `GlobalContext`-extension pattern above but don't have a single named interface each yet — they're assembled ad hoc in `src/routes/storefront/checkout.ts` and `account.ts`.
 
+### 6.5 Page-builder sections (the section contract)
+
+The visual page builder is split so the **engine is theme-agnostic** and the
+**look is per-theme**. The core (`src/theme/sections.ts`) owns the *catalogue* of
+section types and their settings; each theme owns *how each section looks*. A
+theme opts into the builder by satisfying two things — section partials and
+render hooks — and everything else (the editor, storage, drafts, reusable
+blocks, templates, live preview) works unchanged.
+
+**1. Section partials.** For every section type it wants to support, a theme
+ships `partials/sections/<type>.hbs`. The partial is rendered with the section's
+**settings as its root context** — so a `hero` partial reads `{{heading}}`,
+`{{src}}`, etc., and a repeater section iterates its items (`{{#each images}}`).
+A theme only needs partials for the types it supports: **a missing partial makes
+that section render nothing** (`renderSection` returns `''` — no error), so
+partial themes degrade gracefully.
+
+Current section types (17): `reusable`, `hero`, `featured_products`, `gallery`,
+`testimonials`, `logo_row`, `slideshow`, `faq`, `newsletter`, `video`, `map`,
+`spacer`, `text`, `image`, `image_text`, `cta`, `columns`. The authoritative
+list and each type's fields live in `src/theme/sections.ts` (`listSectionSchemas()`).
+
+**2. Render hooks.** A theme decides *where* sections appear by looping them
+through the `renderSection` helper (§7):
+
+| Template | Hook | What it renders |
+|---|---|---|
+| `page.hbs` | `{{#each page.sections}}{{renderSection this}}{{/each}}` | CMS pages **and** the home page (the home is a page flagged as home) |
+| `product.hbs` | `{{#each contentSections}}{{renderSection this}}{{/each}}` | Product-page template + that product's own sections, below the product |
+| `collection.hbs` | `{{#each contentSections}}{{renderSection this}}{{/each}}` | Collection-page template + that collection's own sections |
+| `index.hbs` | *(theme's own markup)* | The default themed home — only the fallback when no page is set as home |
+
+**3. Server-resolved sections.** Some sections are resolved before the theme
+sees them, so the partial just renders plain data:
+- `featured_products` arrives with a resolved `products` array (+ `collectionSlug`, `columns`).
+- `reusable` is **expanded** server-side into the referenced block's sections — the theme never renders a `reusable` partial.
+- `video` / `map` partials call the `video_embed` / `map_embed` helpers to turn a URL/address into an embed.
+
+**4. Conventions the bundled themes follow (optional but recommended):**
+- **Colour controls** set inline custom properties (`--section-bg`, `--section-text`; hero uses `--hero-bg`/`--hero-text`); the theme's CSS reads them with a fallback, e.g. `background-color: var(--section-bg, transparent)`. Site-colour swatches are theme tokens (`var(--color-accent)` etc.), pulled from the *active* theme's config — not hardcoded.
+- **Slideshow** needs a small carousel initialiser in the theme's `main.js` (targets `[data-slideshow]`).
+
+**Fastest path for a new/custom theme:** copy `partials/sections/`, the section
+CSS, the four render hooks, and the slideshow JS from a bundled theme, then
+restyle. Sections the theme omits simply won't appear.
+
 ## 7. Built-in Handlebars Helpers
 
 The real, complete list from `src/theme/helpers.ts`:
@@ -296,7 +342,9 @@ The real, complete list from `src/theme/helpers.ts`:
 | `canonical_url` | Emits `<link rel="canonical">` |
 | `og_tags` | Emits OpenGraph meta tags |
 | `structured_data` | Stub — returns an empty string. No JSON-LD is emitted currently |
-| `renderSection` | Renders one page-builder section by dispatching to the matching `partials/sections/{type}` partial |
+| `renderSection` | Renders one page-builder section by dispatching to the matching `partials/sections/{type}` partial. Exposes the page root as `@root` inside the partial (e.g. `{{@root.csrfToken}}` for the newsletter form). See §6.5 |
+| `video_embed` | YouTube/Vimeo watch URL → embeddable player URL (`''` if unrecognised) — used by the `video` section |
+| `map_embed` | Address → keyless Google Maps embed URL — used by the `map` section |
 | `pagination` | Renders prev/next links from a pagination object |
 
 ## 8. htmx Interaction Patterns

@@ -93,6 +93,31 @@ Register a `.hbs` file in `partials/` and include it anywhere:
 
 ---
 
+## Page-builder sections
+
+Pages, the home page, and product/collection pages are built from **sections** in
+the admin. The core owns the list of section types + their settings; this theme
+owns how they look. Two things make it work (the "section contract" — see
+`theme_engine_spec.md` §6.5):
+
+1. **`partials/sections/<type>.hbs`** — one partial per section type. It's
+   rendered with the section's settings as its context (`{{heading}}`,
+   `{{#each images}}`, …). This theme ships partials for all 17 types (hero,
+   featured_products, gallery, testimonials, logo_row, slideshow, faq,
+   newsletter, video, map, spacer, text, image, image_text, cta, columns —
+   `reusable` is expanded server-side). A missing partial just renders nothing.
+
+2. **Render hooks** — sections are looped through `{{renderSection this}}`:
+   - `page.hbs`: `{{#each page.sections}}{{renderSection this}}{{/each}}` (CMS pages + the home page)
+   - `product.hbs` / `collection.hbs`: `{{#each contentSections}}{{renderSection this}}{{/each}}` (page template + per-item sections, below the content)
+
+**Add a new section type:** add its schema to `src/theme/sections.ts`, drop a
+`partials/sections/<type>.hbs` in *every* theme, and style it. Colour-enabled
+sections read `var(--section-bg, …)` / `var(--section-text, …)` (hero uses
+`--hero-*`); the slideshow needs its initialiser in `assets/main.js`.
+
+---
+
 ## Templates and their page-specific variables
 
 ### `index.hbs` — Homepage

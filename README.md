@@ -30,7 +30,7 @@ Self-hosted ecommerce platform. Keeping it simple with Node.js + SQLite.
 - WooCommerce import; full store export/import
 
 **Storefront**
-- Two bundled, fully-configurable themes — **Linen** (clean/editorial) and **Nova** (bold/modern, with a repeater-driven hero slider) — plus uploadable custom themes
+- Two bundled, fully-configurable themes — **Linen** (clean/editorial) and **Nova** (bold/modern, with a repeater-driven hero slider) — plus uploadable custom themes. The page builder is theme-agnostic: any theme supports it by shipping a partial per section type and the `renderSection` hooks (the "section contract" — see [`theme_engine_spec.md`](theme_engine_spec.md) §6.5 and each theme's `THEME.md`); sections a theme doesn't implement simply don't render
 - Configurable cart word (Cart / Basket / Bag); a **visual page builder** with **live preview** — every page is built from drag-to-reorder, schema-declared sections (hero, featured products, gallery, testimonials, logo row, slideshow, FAQ, newsletter, video, map/contact, spacer, text, image, image + text, call-to-action, columns — with colour controls) in a two-pane editor with live preview (draft/publish, drag-reorder, reusable blocks); any page can be set as the storefront home page, and product & collection pages take shared templates plus per-item sections; editable navigation with optional mega menus (columns of links, categories with pictures, or products)
 
 ## Requirements
