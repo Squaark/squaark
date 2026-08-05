@@ -29,6 +29,7 @@ export function buildOrderEmailContext(order: OrderRow, items: OrderItemRow[]): 
     discount_formatted: order.discount_amount ? fmt(order.discount_amount, cur) : null,
     tax_formatted: fmt(order.tax_amount, cur),
     fulfilment_date_formatted: dateLabel(order.fulfilment_date),
+    due_date_formatted: dateLabel(order.due_date),
     items: items.map(i => ({
       ...i,
       line_total_formatted: fmt(i.line_total, cur),

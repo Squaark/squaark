@@ -100,7 +100,7 @@ export interface GlobalContext {
     itemCount: number;
     subtotal: Money;
   };
-  customer: { loggedIn: boolean; firstName: string | null } | null;
+  customer: { loggedIn: boolean; firstName: string | null; group?: { name: string; discountPercent: number; taxDisplay: string | null } | null } | null;
   navigation: { main: NavItem[]; footer: NavItem[] };
   banner: {
     id: string;

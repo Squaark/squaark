@@ -14,6 +14,13 @@
   <p style="color:#6b7280;margin-bottom:0.25rem;">Order <span style="font-weight:500;color:#374151;">#{{order.order_number}}</span></p>
   <p style="font-size:0.875rem;color:#9ca3af;margin-bottom:2.5rem;">A confirmation has been sent to <span style="color:#4b5563;">{{order.email}}</span></p>
 
+  {{#if order.isInvoice}}
+  <div class="success-card" style="border-left:3px solid var(--color-accent);text-align:left;margin-bottom:1.5rem;">
+    <h2 class="success-card__title">Placed on account</h2>
+    <p style="color:#4b5563;font-size:0.9rem;">This order has been placed on account — no payment was taken. We’ve emailed an invoice to {{order.email}}{{#if order.dueDateLabel}}, with payment due by <strong>{{order.dueDateLabel}}</strong>{{/if}}.</p>
+  </div>
+  {{/if}}
+
   <!-- Items -->
   <div class="success-card">
     <h2 class="success-card__title">Items ordered</h2>

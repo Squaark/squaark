@@ -12,6 +12,7 @@ export interface CustomerRow {
   verification_token_expires: string | null;
   reset_token: string | null;
   reset_token_expires: string | null;
+  group_id: string | null;
 }
 
 export interface CustomerListRow {
@@ -23,6 +24,8 @@ export interface CustomerListRow {
   email_verified: number;
   order_count: number;
   total_spent: number;
+  group_id: string | null;
+  group_name: string | null;
 }
 
 /**
@@ -33,11 +36,13 @@ export interface CustomerListRow {
 export function listCustomers(limit = 50, offset = 0): CustomerListRow[] {
   return query<CustomerListRow>(
     `SELECT
-       c.id, c.email, c.first_name, c.last_name, c.created_at, c.email_verified,
+       c.id, c.email, c.first_name, c.last_name, c.created_at, c.email_verified, c.group_id,
+       g.name AS group_name,
        COUNT(o.id) AS order_count,
        COALESCE(SUM(CASE WHEN o.status = 'paid' THEN o.total ELSE 0 END), 0) AS total_spent
      FROM customers c
      LEFT JOIN orders o ON lower(o.email) = lower(c.email)
+     LEFT JOIN customer_groups g ON g.id = c.group_id
      GROUP BY c.id
      ORDER BY c.created_at DESC
      LIMIT ? OFFSET ?`,

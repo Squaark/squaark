@@ -105,6 +105,14 @@
       </form>
     </div>
 
+    {{#if isInvoice}}
+    <div class="card--no-overflow card-body">
+      <h2 class="font-semibold text-sm mb-2">Invoice (on account)</h2>
+      <p class="text-sm">{{#if (eq order.status 'paid')}}Paid.{{else}}Awaiting payment.{{/if}}{{#if order.due_date}} Payment due {{date_short order.due_date}}.{{/if}}</p>
+      <p class="text-xs" style="color:#1e40af;margin-top:0.5rem;">No card was taken — mark this order <strong>paid</strong> below once the invoice is settled.</p>
+    </div>
+    {{/if}}
+
     <div class="card--no-overflow card-body stack-sm">
       <h2 class="font-semibold text-sm">Payment status</h2>
       {{#if statusUpdated}}<p class="text-xs text-success">Status updated.</p>{{/if}}
@@ -132,7 +140,7 @@
 
     <div class="card--no-overflow card-body-sm text-xs text-muted stack-xs">
       <p>Placed {{date_short order.created_at}}</p>
-      {{#if order.payment_provider}}<p>Paid via {{order.payment_provider}}</p>{{/if}}
+      {{#if order.payment_provider}}{{#if isInvoice}}<p>Pay on account (invoice)</p>{{else}}<p>Paid via {{order.payment_provider}}</p>{{/if}}{{/if}}
     </div>
   </div>
 </div>
