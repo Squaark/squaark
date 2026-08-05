@@ -205,6 +205,12 @@ export function registerHelpers(
     return '';
   });
 
+  // A keyless Google Maps embed URL for an address (works without an API key).
+  hbs.registerHelper('map_embed', (address: unknown) => {
+    const s = typeof address === 'string' ? address.trim() : '';
+    return s ? `https://www.google.com/maps?q=${encodeURIComponent(s)}&output=embed` : '';
+  });
+
   hbs.registerHelper('renderSection', function(section: Record<string, unknown>, options: Handlebars.HelperOptions) {
     const type = String(section.type ?? '');
     if (!type) return '';

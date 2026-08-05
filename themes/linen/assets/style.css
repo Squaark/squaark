@@ -59,6 +59,14 @@ input, select, textarea { font-family: inherit; }
 .section-hero--image .section-hero__subheading { color: var(--hero-text, rgba(255,255,255,0.9)); }
 .section-hero__btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.875rem 2rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; background: var(--color-accent); color: #fff; }
 .section-hero__btn:hover { opacity: 0.9; }
+.section-hero__eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.8rem; font-weight: 600; color: var(--hero-text, var(--color-accent)); margin-bottom: 0.75rem; }
+.section-hero--image .section-hero__eyebrow { color: var(--hero-text, rgba(255,255,255,0.9)); }
+/* Hero split (image beside text) */
+.section-hero--split { background-color: var(--hero-bg, #f9fafb); }
+.section-hero__split { display: grid; grid-template-columns: 1fr; max-width: 80rem; margin: 0 auto; align-items: center; }
+@media (min-width: 768px) { .section-hero__split { grid-template-columns: 1fr 1fr; } .section-hero--split-reverse .section-hero__split-media { order: 2; } }
+.section-hero__split-media img { width: 100%; height: 100%; min-height: 20rem; object-fit: cover; display: block; }
+.section-hero__split-content { padding: 3rem 2rem; }
 
 .section-cta { padding: 5rem 1rem; background-color: var(--section-bg, var(--color-primary)); }
 .section-cta__inner { max-width: 48rem; margin: 0 auto; }
@@ -1006,3 +1014,14 @@ body { opacity: 1; transition: opacity 0.15s ease; }
 .section-spacer--large { height: 6rem; }
 .section-spacer--line { display: flex; align-items: center; }
 .section-spacer--line hr { width: 100%; max-width: 80rem; margin: 0 auto; border: 0; border-top: 1px solid #e5e7eb; }
+
+/* Map / contact */
+.section-map { padding: 4rem 0; background-color: var(--section-bg, transparent); }
+.section-map__title { font-size: 1.5rem; font-weight: 700; color: var(--section-text, #111827); margin-bottom: 1.5rem; text-align: center; }
+.section-map__grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; align-items: stretch; }
+@media (min-width: 768px) { .section-map__grid { grid-template-columns: 1fr 1.6fr; } }
+.section-map__info { color: var(--section-text, #4b5563); line-height: 1.7; }
+.section-map__address { white-space: pre-line; margin-bottom: 0.75rem; }
+.section-map__line a { color: var(--color-accent); }
+.section-map__frame { position: relative; padding-top: 56.25%; border-radius: 0.75rem; overflow: hidden; border: 1px solid #e5e7eb; }
+.section-map__frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }

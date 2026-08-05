@@ -1,7 +1,24 @@
+{{#if (and src (or (eq imageStyle 'image-left') (eq imageStyle 'image-right')))}}
+{{!-- Split layout: image beside the text --}}
+<section class="section-hero section-hero--split{{#if (eq imageStyle 'image-right')}} section-hero--split-reverse{{/if}}"{{#if (or bgColor textColor)}} style="{{#if bgColor}}--hero-bg:{{bgColor}};{{/if}}{{#if textColor}}--hero-text:{{textColor}};{{/if}}"{{/if}}>
+  <div class="section-hero__split">
+    <div class="section-hero__split-media"><img src="{{src}}" alt="{{alt}}"></div>
+    <div class="section-hero__split-content">
+      {{#if eyebrow}}<p class="section-hero__eyebrow">{{eyebrow}}</p>{{/if}}
+      {{#if heading}}<h2 class="section-hero__heading">{{heading}}</h2>{{/if}}
+      {{#if subheading}}<p class="section-hero__subheading">{{subheading}}</p>{{/if}}
+      {{#if buttonLabel}}<a href="{{buttonUrl}}" class="section-hero__btn">{{buttonLabel}}</a>{{/if}}
+    </div>
+  </div>
+</section>
+{{else}}
+{{!-- Background layout --}}
 <section class="section-hero{{#if src}} section-hero--image{{/if}}{{#if (eq align 'center')}} section-hero--center{{/if}}"{{#if (or src (or bgColor textColor))}} style="{{#if src}}background-image:url('{{src}}');{{/if}}{{#if bgColor}}--hero-bg:{{bgColor}};{{/if}}{{#if textColor}}--hero-text:{{textColor}};{{/if}}"{{/if}}{{#if src}} role="img" aria-label="{{alt}}"{{/if}}>
   <div class="section-hero__inner">
+    {{#if eyebrow}}<p class="section-hero__eyebrow">{{eyebrow}}</p>{{/if}}
     {{#if heading}}<h2 class="section-hero__heading">{{heading}}</h2>{{/if}}
     {{#if subheading}}<p class="section-hero__subheading">{{subheading}}</p>{{/if}}
     {{#if buttonLabel}}<a href="{{buttonUrl}}" class="section-hero__btn">{{buttonLabel}}</a>{{/if}}
   </div>
 </section>
+{{/if}}
