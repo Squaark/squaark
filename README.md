@@ -31,7 +31,7 @@ Self-hosted ecommerce platform. Keeping it simple with Node.js + SQLite.
 
 **Storefront**
 - Two bundled, fully-configurable themes — **Linen** (clean/editorial) and **Nova** (bold/modern, with a repeater-driven hero slider) — plus uploadable custom themes
-- Configurable cart word (Cart / Basket / Bag), pages with a section builder, editable navigation with optional mega menus (columns of links, categories with pictures, or products)
+- Configurable cart word (Cart / Basket / Bag), pages with a reorderable section builder (hero, text, image, image + text, call-to-action, columns — each a schema-declared section rendered by a theme partial), editable navigation with optional mega menus (columns of links, categories with pictures, or products)
 
 ## Requirements
 

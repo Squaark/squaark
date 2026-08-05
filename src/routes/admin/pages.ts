@@ -5,6 +5,27 @@ import { getAdminById } from '../../admin/auth';
 import { getAllSettings } from '../../db/queries/admin';
 import { execute, query, queryOne } from '../../db/connection';
 import { savePageImage } from '../../admin/store-media';
+import { listSectionSchemas, sanitizeSections } from '../../theme/sections';
+import { themeRegistry } from '../../theme/registry';
+
+// Schemas are static — serialise once, single-quote-escaped for the data-attr.
+const SECTION_SCHEMAS_SAFE = JSON.stringify(listSectionSchemas()).replace(/'/g, '&#39;');
+
+/**
+ * The palette offered by `color` fields: the live theme brand colours (stored as
+ * `var(--color-*)` tokens so a hero follows a later brand-colour change) plus
+ * black/white. Built per request since theme colours can change.
+ */
+function siteColorsSafe(): string {
+  const colors = (themeRegistry.currentThemeConfig?.colors ?? {}) as Record<string, string>;
+  const list: { label: string; value: string; hex: string }[] = [];
+  if (colors.accent)     list.push({ label: 'Highlight', value: 'var(--color-accent)',     hex: colors.accent });
+  if (colors.primary)    list.push({ label: 'Primary',   value: 'var(--color-primary)',    hex: colors.primary });
+  if (colors.background) list.push({ label: 'Background', value: 'var(--color-background)', hex: colors.background });
+  list.push({ label: 'White', value: '#ffffff', hex: '#ffffff' });
+  list.push({ label: 'Dark',  value: '#111827', hex: '#111827' });
+  return JSON.stringify(list).replace(/'/g, '&#39;');
+}
 
 interface PageRow {
   id: string; title: string; slug: string; content: string; sections: string;
@@ -62,7 +83,7 @@ async function newPagePage(req: FastifyRequest, reply: FastifyReply) {
   return reply.type('text/html').send(
     await render('pages/form', {
       ...adminCtx(req), page: null,
-      sectionsSafe: '[]',
+      sectionsSafe: '[]', sectionSchemasSafe: SECTION_SCHEMAS_SAFE, siteColorsSafe: siteColorsSafe(),
       pageTitle: 'New page', pageSection: 'pages',
     }, reply),
   );
@@ -75,7 +96,7 @@ async function editPagePage(req: FastifyRequest<{ Params: { id: string } }>, rep
   return reply.type('text/html').send(
     await render('pages/form', {
       ...adminCtx(req), page,
-      sectionsSafe: safeSectionsAttr(sections),
+      sectionsSafe: safeSectionsAttr(sections), sectionSchemasSafe: SECTION_SCHEMAS_SAFE, siteColorsSafe: siteColorsSafe(),
       saved: 'saved' in (req.query as Record<string, string>),
       created: 'created' in (req.query as Record<string, string>),
       pageTitle: page.title, pageSection: 'pages',
@@ -99,11 +120,14 @@ async function createPage(
     return reply.type('text/html').send(
       await render('pages/form', {
         ...adminCtx(req), page: req.body, sectionsSafe: safeSectionsAttr(parseSections(sections)),
+        sectionSchemasSafe: SECTION_SCHEMAS_SAFE, siteColorsSafe: siteColorsSafe(),
         error: validationError, pageTitle: 'New page', pageSection: 'pages',
       }, reply),
     );
   }
-  const sectionsJson = (() => { try { JSON.parse(sections); return sections; } catch { return '[]'; } })();
+  // Normalise against the section schema — whitelists known types/fields and
+  // applies defaults, so stored section data is always clean regardless of input.
+  const sectionsJson = JSON.stringify(sanitizeSections(sections));
   const id = crypto.randomUUID();
   execute(
     'INSERT INTO pages (id, title, slug, content, sections, excerpt, status, seo_title, seo_description) VALUES (?,?,?,?,?,?,?,?,?)',
@@ -125,13 +149,15 @@ async function updatePage(
     return reply.type('text/html').send(
       await render('pages/form', {
         ...adminCtx(req), page: { ...page, ...req.body },
-        sectionsSafe: safeSectionsAttr(parseSections(sections)),
+        sectionsSafe: safeSectionsAttr(parseSections(sections)), sectionSchemasSafe: SECTION_SCHEMAS_SAFE, siteColorsSafe: siteColorsSafe(),
         error: `"${slugTrimmed.split('/')[0]}" is a reserved path and cannot be used as a slug`,
         pageTitle: title, pageSection: 'pages',
       }, reply),
     );
   }
-  const sectionsJson = (() => { try { JSON.parse(sections); return sections; } catch { return '[]'; } })();
+  // Normalise against the section schema — whitelists known types/fields and
+  // applies defaults, so stored section data is always clean regardless of input.
+  const sectionsJson = JSON.stringify(sanitizeSections(sections));
   execute(
     `UPDATE pages SET title=?, slug=?, content=?, sections=?, excerpt=?, status=?, seo_title=?, seo_description=?, updated_at=datetime('now') WHERE id=?`,
     [title, slugTrimmed, content || '', sectionsJson || '[]', excerpt || '', status === 'published' ? 'published' : 'draft',
