@@ -68,13 +68,16 @@ async function createGroupHandler(
 }
 
 async function updateGroupHandler(
-  req: FastifyRequest<{ Params: { id: string }; Body: { name?: string; discount_percent?: string; tax_display?: string } }>,
+  req: FastifyRequest<{ Params: { id: string }; Body: { name?: string; discount_percent?: string; tax_display?: string; pay_on_account?: string; payment_terms_days?: string } }>,
   reply: FastifyReply,
 ) {
   const name = req.body.name?.trim();
   const pct = parseInt(req.body.discount_percent ?? '0', 10) || 0;
   const tax = req.body.tax_display === 'ex' || req.body.tax_display === 'inc' ? req.body.tax_display : null;
-  if (name) updateGroup(req.params.id, name, pct, tax);
+  const payOnAccount = req.body.pay_on_account === '1' || req.body.pay_on_account === 'on';
+  const termsRaw = parseInt(req.body.payment_terms_days ?? '', 10);
+  const terms = Number.isFinite(termsRaw) && termsRaw > 0 ? termsRaw : null;
+  if (name) updateGroup(req.params.id, name, pct, tax, payOnAccount, terms);
   return reply.redirect('/admin/customers');
 }
 

@@ -27,6 +27,8 @@ export interface OrderRow {
   pickup_instructions: string | null;
   fulfilment_date: string | null;   // YYYY-MM-DD booked slot date
   fulfilment_window: string | null; // booked time-window label
+  due_date: string | null;          // YYYY-MM-DD invoice due date (pay-on-account)
+  accounting_ref: string | null;    // external accounting/invoice id (reserved for a future sync)
   tracking_number: string | null;
   tracking_url: string | null;
   shipped_at: string | null;
@@ -86,6 +88,7 @@ export interface CreateOrderInput {
   pickupInstructions?: string | null;
   fulfilmentDate?: string | null;
   fulfilmentWindow?: string | null;
+  dueDate?: string | null;
   items: Array<{
     variantId: string | null;
     productTitle: string;
@@ -205,8 +208,8 @@ export function createOrder(input: CreateOrderInput): OrderRow {
       payment_provider, payment_reference,
       shipping_rate_id, shipping_title, tax_amount,
       pickup_address, pickup_instructions,
-      fulfilment_date, fulfilment_window
-    ) VALUES (?, ?, ?, 'pending', 'unfulfilled', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      fulfilment_date, fulfilment_window, due_date
+    ) VALUES (?, ?, ?, 'pending', 'unfulfilled', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     RETURNING *
   `, [
     id, nextNumber, input.email,
@@ -219,6 +222,7 @@ export function createOrder(input: CreateOrderInput): OrderRow {
     input.taxAmount ?? 0,
     input.pickupAddress ?? null, input.pickupInstructions ?? null,
     input.fulfilmentDate ?? null, input.fulfilmentWindow ?? null,
+    input.dueDate ?? null,
   ]);
 
   for (const item of input.items) {
@@ -250,6 +254,34 @@ export function createOrder(input: CreateOrderInput): OrderRow {
  * products (p.is_digital = 1) carry no stock and are skipped; physical stock is
  * floored at 0 so a race that oversells shows 0, never a negative count.
  */
+/**
+ * Decrements physical stock for an order's items and counts any discount code's
+ * redemption. Shared by the paid path (markOrderPaid) and the invoice path
+ * (confirmInvoiceOrder) — both represent a committed sale. Must run inside a
+ * transaction. Digital products carry no stock and are skipped; physical stock
+ * is floored at 0 so a race that oversells shows 0, never a negative count.
+ */
+function applyOrderStockAndDiscount(orderId: string): void {
+  db.prepare(`
+    UPDATE product_variants
+    SET inventory_quantity = MAX(0, inventory_quantity - (
+          SELECT oi.quantity FROM order_items oi
+          WHERE oi.variant_id = product_variants.id AND oi.order_id = ?
+        )),
+        updated_at = datetime('now')
+    WHERE id IN (
+      SELECT oi.variant_id FROM order_items oi
+      JOIN products p ON p.id = (SELECT product_id FROM product_variants WHERE id = oi.variant_id)
+      WHERE oi.order_id = ? AND oi.variant_id IS NOT NULL AND p.is_digital = 0
+    )
+  `).run(orderId, orderId);
+
+  const dc = db.prepare('SELECT discount_code FROM orders WHERE id = ?').get(orderId) as { discount_code: string | null };
+  if (dc?.discount_code) {
+    db.prepare('UPDATE discounts SET times_used = times_used + 1 WHERE code = ?').run(dc.discount_code);
+  }
+}
+
 export function markOrderPaid(orderId: string, paymentReference: string): boolean {
   return transaction(() => {
     const res = db.prepare(
@@ -258,27 +290,28 @@ export function markOrderPaid(orderId: string, paymentReference: string): boolea
     ).run(paymentReference, orderId);
     if (res.changes === 0) return false;
 
-    db.prepare(`
-      UPDATE product_variants
-      SET inventory_quantity = MAX(0, inventory_quantity - (
-            SELECT oi.quantity FROM order_items oi
-            WHERE oi.variant_id = product_variants.id AND oi.order_id = ?
-          )),
-          updated_at = datetime('now')
-      WHERE id IN (
-        SELECT oi.variant_id FROM order_items oi
-        JOIN products p ON p.id = (SELECT product_id FROM product_variants WHERE id = oi.variant_id)
-        WHERE oi.order_id = ? AND oi.variant_id IS NOT NULL AND p.is_digital = 0
-      )
-    `).run(orderId, orderId);
-
     // Count a discount code's use once the order is actually paid (not on the
     // abandoned pending order), so usage limits reflect real redemptions.
-    const dc = db.prepare('SELECT discount_code FROM orders WHERE id = ?').get(orderId) as { discount_code: string | null };
-    if (dc?.discount_code) {
-      db.prepare('UPDATE discounts SET times_used = times_used + 1 WHERE code = ?').run(dc.discount_code);
-    }
+    applyOrderStockAndDiscount(orderId);
     return true;
+  });
+}
+
+/**
+ * Commits a pay-on-account (invoice) order at placement time: it reserves stock
+ * and counts discount usage exactly as a paid order would, but leaves the order
+ * `pending` (unpaid) — the merchant flips it to `paid` from the admin once the
+ * invoice is settled. Idempotent per order via `invoice_committed`, so a
+ * double-submit can't decrement stock twice.
+ */
+export function confirmInvoiceOrder(orderId: string): void {
+  transaction(() => {
+    const res = db.prepare(
+      `UPDATE orders SET invoice_committed = 1, updated_at = datetime('now')
+       WHERE id = ? AND COALESCE(invoice_committed, 0) = 0`,
+    ).run(orderId);
+    if (res.changes === 0) return;
+    applyOrderStockAndDiscount(orderId);
   });
 }
 

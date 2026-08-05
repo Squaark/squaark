@@ -11,6 +11,7 @@ Self-hosted ecommerce platform. Keeping it simple with Node.js + SQLite.
 - Shipping zones & rates (flat, free, free-over-threshold, **local collection/pickup** with per-location address & hours, or **bookable date/time slots**); tax bands (inc/ex display)
 - **Promotions**: discount codes, **automatic discounts** (order % / fixed off over a threshold, and buy-X-get-Y / BOGO), and scheduled **promo banners**
 - **Product reviews** with star ratings, verified-purchase badges, moderation, and rich-result structured data
+- **B2B / wholesale**: customer groups (e.g. Trade) with **group pricing** (a store-wide % off plus inc/ex-tax display) and **pay-on-account checkout** — approved groups place orders as unpaid invoices on net terms; an invoice email is sent and the merchant marks the order paid once settled (order data is structured for a future accounting sync, e.g. Xero)
 
 **Marketing & growth**
 - **Blog** on the page-builder engine (featured image, author, scheduling, RSS, sitemap)

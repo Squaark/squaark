@@ -146,12 +146,40 @@
           <div id="paypal-button-container"></div>
         {{/if}}
 
-        {{#unless stripeEnabled}}{{#unless paypalEnabled}}
+        {{#if canInvoice}}
+          {{#if stripeEnabled}}<div style="text-align:center;color:#9ca3af;font-size:0.8rem;margin:0.5rem 0;">— or —</div>{{else}}{{#if paypalEnabled}}<div style="text-align:center;color:#9ca3af;font-size:0.8rem;margin:0.5rem 0;">— or —</div>{{/if}}{{/if}}
+          <form method="POST" action="/checkout/invoice" id="invoice-form">
+            {{csrf_field}}
+            <input type="hidden" name="email" id="invoice-email">
+            <input type="hidden" name="firstName" id="invoice-firstName">
+            <input type="hidden" name="lastName" id="invoice-lastName">
+            <input type="hidden" name="line1" id="invoice-line1">
+            <input type="hidden" name="line2" id="invoice-line2">
+            <input type="hidden" name="city" id="invoice-city">
+            <input type="hidden" name="county" id="invoice-county">
+            <input type="hidden" name="postcode" id="invoice-postcode">
+            <input type="hidden" name="country" id="invoice-country">
+            <input type="hidden" name="phone" id="invoice-phone">
+            <input type="hidden" name="shippingRateId" id="invoice-shippingRateId">
+            <input type="hidden" name="fulfilmentDate" id="invoice-fulfilmentDate">
+            <input type="hidden" name="fulfilmentWindow" id="invoice-fulfilmentWindow">
+            <button type="button" onclick="submitInvoice()"
+              class="btn btn-block"
+              style="border:1px solid var(--color-accent);color:var(--color-accent);background:#fff;justify-content:center;">
+              Place order — pay by invoice
+            </button>
+          </form>
+          <p class="text-sm" style="color:#666;margin-top:0.5rem;text-align:center;">
+            On account{{#if invoiceTermsDays}} — payment due within {{invoiceTermsDays}} days{{/if}}. We’ll email your invoice.
+          </p>
+        {{/if}}
+
+        {{#unless stripeEnabled}}{{#unless paypalEnabled}}{{#unless canInvoice}}
           <div class="alert alert-warning">
             No payment methods are configured yet. Add Stripe or PayPal keys in
             <a href="/admin/settings#payments">Settings → Payments</a>.
           </div>
-        {{/unless}}{{/unless}}
+        {{/unless}}{{/unless}}{{/unless}}
       </div>
 
     </div>
@@ -313,6 +341,18 @@ function submitStripe() {
   });
   document.getElementById('stripe-form').submit();
 }
+
+{{#if canInvoice}}
+function submitInvoice() {
+  if (!validateForm()) return;
+  const d = getFormData();
+  Object.keys(d).forEach(k => {
+    const el = document.getElementById('invoice-' + k);
+    if (el) el.value = d[k];
+  });
+  document.getElementById('invoice-form').submit();
+}
+{{/if}}
 
 {{#if paypalEnabled}}
 function initPayPal() {

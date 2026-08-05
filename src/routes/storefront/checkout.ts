@@ -5,7 +5,7 @@ import { buildGlobalContext } from '../../theme/context';
 import { getCartPage, getCartSummary, cartRequiresSlot, findUnavailableItems } from '../../commerce/cart';
 import { clearCart } from '../../db/queries/cart';
 import { getAllSettings } from '../../db/queries/admin';
-import { createOrder, markOrderPaid, findOrderById, findOrderByPaymentReference, findOrderItems, getOrderProductIds, type Address } from '../../db/queries/orders';
+import { createOrder, markOrderPaid, confirmInvoiceOrder, findOrderById, findOrderByPaymentReference, findOrderItems, getOrderProductIds, type Address } from '../../db/queries/orders';
 import { createOrderDownloads, findDownloadsForOrder } from '../../db/queries/downloads';
 import { sendTemplatedEmail } from '../../email/send';
 import { buildOrderEmailContext } from '../../email/order-context';
@@ -87,6 +87,17 @@ function one(v: unknown): string {
   return typeof v === 'string' ? v.trim() : '';
 }
 
+/** YYYY-MM-DD `days` from today in local time, or null for due-on-receipt. */
+function dueDateFromTerms(days: number | null): string | null {
+  if (days == null || days <= 0) return null;
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function parseAddress(body: Record<string, string>): Address {
   return {
     firstName: body.firstName?.trim() ?? '',
@@ -153,11 +164,17 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     const taxEnabled = settings.tax_enabled === '1';
     const itemsTaxAmount = calculateItemsTax(cart.items, taxEnabled);
 
+    // Pay-on-account: only offered to a logged-in customer whose group allows it.
+    const invoiceGroup = getGroupForCustomer(req.session.customerId);
+    const canInvoice = !!invoiceGroup && invoiceGroup.pay_on_account === 1;
+
     await render(registry, reply, 'checkout', {
       ...ctx, cart, pageTitle: 'Checkout',
       stripeEnabled, paypalEnabled, stripePk, paypalClientId, paypalMode,
       itemsTaxAmount,
       requiresSlot: cartRequiresSlot(cart.items),
+      canInvoice,
+      invoiceTermsDays: canInvoice ? invoiceGroup!.payment_terms_days : null,
     });
   });
 
@@ -317,6 +334,87 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
 
     req.session.pendingOrderId = order.id;
     return reply.redirect(session.url!);
+  });
+
+  // POST /checkout/invoice — B2B pay-on-account: place the order unpaid and
+  // email an invoice, instead of taking a card payment.
+  fastify.post('/checkout/invoice', async (req, reply) => {
+    const body = req.body as Record<string, string>;
+    const settings = getAllSettings();
+    const cartSlug = (settings.cart_label || 'Cart').toLowerCase();
+
+    // Authorise server-side — never trust the button. The customer must be
+    // logged in and their group must permit pay-on-account.
+    const group = getGroupForCustomer(req.session.customerId);
+    if (!group || group.pay_on_account !== 1) {
+      return reply.code(403).send('Pay on account is not available for this account.');
+    }
+
+    const cart = await getCartPage(req.cartId, req.session.customerId ?? null);
+    if (cart.empty) return reply.redirect(`/${cartSlug}`);
+
+    // Same live re-checks as the card path.
+    if (findStockShortfalls(cart.items).length) return reply.redirect(`/${cartSlug}?error=out_of_stock`);
+    if (findUnavailableItems(cart.items).length) return reply.redirect(`/${cartSlug}?error=unavailable`);
+
+    const address = parseAddress(body);
+    const shipping = resolveShipping(cart, address.country, body.shippingRateId ?? '');
+    const orderTotal = cart.total.amount + shipping.amount;
+    const taxAmount = calculateItemsTax(cart.items, settings.tax_enabled === '1');
+
+    const slot = resolveSlot(shipping, body, cartRequiresSlot(cart.items));
+    if (!slot) return reply.redirect(`/${cartSlug}?error=slot_required`);
+
+    const order = createOrder({
+      email: body.email?.trim() ?? '',
+      subtotal: cart.subtotal.amount,
+      discountAmount: cart.discountAmount?.amount ?? 0,
+      shipping: shipping.amount,
+      total: orderTotal,
+      currency: settings.store_currency || 'GBP',
+      discountCode: cart.discountCode,
+      notes: body.notes?.trim() || null,
+      shippingAddress: address,
+      paymentProvider: 'invoice',
+      paymentReference: null,
+      shippingRateId: shipping.rateId,
+      shippingTitle: shipping.title,
+      taxAmount,
+      pickupAddress: shipping.pickupAddress,
+      pickupInstructions: shipping.pickupInstructions,
+      fulfilmentDate: slot.date,
+      fulfilmentWindow: slot.window,
+      dueDate: dueDateFromTerms(group.payment_terms_days),
+      items: cart.items.map(i => ({
+        variantId: i.variantId,
+        productTitle: i.productTitle,
+        variantTitle: i.variantTitle,
+        sku: null,
+        price: i.price.amount,
+        quantity: i.quantity,
+      })),
+    });
+
+    // Reserve stock now — an on-account order is a committed sale even though
+    // it's unpaid. Leaves the order `pending` for the merchant to mark paid.
+    confirmInvoiceOrder(order.id);
+    clearCart(req.cartId);
+
+    writeLog('payment', 'info', 'Invoice (pay-on-account) order placed', {
+      orderId: order.id, orderNumber: order.order_number, email: order.email, total: order.total,
+      dueDate: order.due_date,
+    });
+
+    const items = findOrderItems(order.id);
+    const storeUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+    sendTemplatedEmail('order_invoice', order.email, {
+      order: buildOrderEmailContext(order, items),
+      customer_name: address.firstName || null,
+      store: { name: settings.store_name, url: storeUrl },
+    }).catch(() => {});
+    sendMerchantNewOrderEmail(order, items).catch(() => {});
+
+    return reply.redirect(`/checkout/success/${order.id}`);
   });
 
   // GET /checkout/stripe/return — Stripe redirects here after payment
@@ -682,6 +780,10 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
         fulfilmentDateLabel: order.fulfilment_date
           ? new Date(`${order.fulfilment_date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
           : null,
+        dueDateLabel: order.due_date
+          ? new Date(`${order.due_date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+          : null,
+        isInvoice: order.payment_provider === 'invoice',
       },
       store: { ...ctx.store, name: settings.store_name },
       canCreateAccount,

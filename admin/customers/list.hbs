@@ -82,6 +82,14 @@
           <option value="ex" {{#if (eq this.tax_display 'ex')}}selected{{/if}}>Ex. tax</option>
         </select>
       </div>
+      <div>
+        <label class="form-label-xs">Pay on account</label>
+        <label class="text-sm" style="display:flex;align-items:center;gap:0.35rem;height:2.1rem;">
+          <input type="checkbox" name="pay_on_account" value="1" {{#if this.pay_on_account}}checked{{/if}}>
+          Allow invoicing
+        </label>
+      </div>
+      <div><label class="form-label-xs">Terms (days)</label><input type="number" name="payment_terms_days" min="0" placeholder="e.g. 30" value="{{this.payment_terms_days}}" class="form-input" style="width:6rem;"></div>
       <button type="submit" class="btn btn-secondary btn-sm">Save</button>
       <button type="submit" formaction="/admin/customer-groups/{{this.id}}/delete"
         formnovalidate onclick="return confirm('Delete the “{{this.name}}” group? Customers in it become ungrouped.')"
