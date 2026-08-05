@@ -9,6 +9,8 @@ import { setCartDiscount, clearCartDiscount } from '../../db/queries/cart';
 import { findDiscountByCode } from '../../db/queries/discounts';
 import { validateDiscount, type DiscountValidation } from '../../commerce/discounts';
 import { findAllPages, findPageBySlug, getHomepage, isHomepage, type PageRow } from '../../db/queries/pages';
+import { getProductSectionsRaw } from '../../db/queries/products';
+import { getCollectionSectionsRaw } from '../../db/queries/collections';
 import { findPublishedPosts, countPublishedPosts, findPublishedPostBySlug } from '../../db/queries/posts';
 import { getAllSettings, getSetting } from '../../db/queries/admin';
 import { resolveSections } from '../../commerce/section-render';
@@ -287,9 +289,12 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
     // Escape '<' so the JSON can't break out of the <script> block.
     const productJsonLd = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
 
-    // Global product-page template sections (+ this product's own, added in the
-    // per-item stage), rendered below the product detail.
-    const contentSections = await resolveSections(getSetting('product_template_sections'));
+    // Global product-page template sections, then this product's own, rendered
+    // below the product detail.
+    const contentSections = [
+      ...await resolveSections(getSetting('product_template_sections')),
+      ...await resolveSections(getProductSectionsRaw(product.id)),
+    ];
     await render(registry, reply, 'product', {
       ...ctx,
       pageTitle: product.seoTitle || product.title,
@@ -337,7 +342,10 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
         await registry.currentEngine.render('404', { ...ctx, pageTitle: 'Page Not Found' }),
       );
     }
-    const contentSections = await resolveSections(getSetting('collection_template_sections'));
+    const contentSections = [
+      ...await resolveSections(getSetting('collection_template_sections')),
+      ...await resolveSections(getCollectionSectionsRaw(collection.id)),
+    ];
     await render(registry, reply, 'collection', {
       ...ctx,
       pageTitle: collection.seoTitle || collection.title,

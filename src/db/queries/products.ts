@@ -318,3 +318,14 @@ export function getProductAvailabilityByVariant(
     [variantId],
   );
 }
+
+// ── Per-item page sections (product page builder) ────────────────────────────
+export function findProductForSections(id: string): { id: string; title: string; slug: string } | null {
+  return queryOne<{ id: string; title: string; slug: string }>('SELECT id, title, slug FROM products WHERE id = ?', [id]);
+}
+export function getProductSectionsRaw(id: string): string | null {
+  return queryOne<{ sections: string | null }>('SELECT sections FROM products WHERE id = ?', [id])?.sections ?? null;
+}
+export function setProductSections(id: string, json: string): void {
+  execute('UPDATE products SET sections = ? WHERE id = ?', [json, id]);
+}
