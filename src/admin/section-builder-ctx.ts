@@ -1,6 +1,7 @@
 import { listSectionSchemas } from '../theme/sections';
 import { themeRegistry } from '../theme/registry';
 import { findAllCollections } from '../db/queries/collections';
+import { findAllReusable } from '../db/queries/reusable-sections';
 
 // Schemas are static — serialise once, single-quote-escaped for the data-attr.
 const SECTION_SCHEMAS_SAFE = JSON.stringify(listSectionSchemas()).replace(/'/g, '&#39;');
@@ -27,6 +28,15 @@ function collectionsSafe(): string {
   return JSON.stringify(cols).replace(/'/g, '&#39;');
 }
 
+/** The saved reusable blocks, for `block` fields' dropdown. `exclude` drops the
+ *  block currently being edited so it can't reference itself. */
+function blocksSafe(exclude?: string): string {
+  const blocks = findAllReusable()
+    .filter((b) => b.id !== exclude)
+    .map((b) => ({ id: b.id, name: b.name }));
+  return JSON.stringify(blocks).replace(/'/g, '&#39;');
+}
+
 /**
  * Everything the shared `section-builder` partial needs, ready to spread into a
  * render context. `uploadUrl`/`canUpload` point image uploads at the right host
@@ -38,11 +48,13 @@ export function sectionBuilderVars(opts: {
   previewUrl?: string;
   legacy?: boolean;
   legacyContent?: string;
+  excludeBlock?: string;   // a block editing itself shouldn't list itself
 }): Record<string, unknown> {
   return {
     sectionSchemasSafe: SECTION_SCHEMAS_SAFE,
     siteColorsSafe: siteColorsSafe(),
     collectionsSafe: collectionsSafe(),
+    blocksSafe: blocksSafe(opts.excludeBlock),
     builderUploadUrl: opts.uploadUrl,
     builderCanUpload: opts.canUpload ? 'true' : 'false',
     builderPreviewUrl: opts.previewUrl ?? '',

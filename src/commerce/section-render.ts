@@ -1,5 +1,6 @@
 import { sanitizeSections } from '../theme/sections';
 import { listFeaturedProducts } from './collections';
+import { findReusableById } from '../db/queries/reusable-sections';
 
 /**
  * Turns a page's stored section JSON into render-ready sections: it re-sanitises
@@ -9,18 +10,28 @@ import { listFeaturedProducts } from './collections';
  * section-built page (including whichever page is set as the home page), and by
  * the live-preview endpoint. The result is rendered via `renderSection`.
  */
-export async function resolveSections(raw: unknown): Promise<Record<string, unknown>[]> {
+export async function resolveSections(
+  raw: unknown,
+  opts: { expandReusable?: boolean } = {},
+): Promise<Record<string, unknown>[]> {
   const sections = sanitizeSections(raw);
-  return Promise.all(sections.map(async (s) => {
+  const out: Record<string, unknown>[] = [];
+  for (const s of sections) {
+    if (s.type === 'reusable') {
+      // Inline the referenced block's sections. One level only — reusables
+      // nested inside a block are not expanded, which also prevents cycles.
+      if (opts.expandReusable === false) { out.push({ ...s }); continue; }
+      const block = findReusableById(String(s.block || ''));
+      if (block) out.push(...(await resolveSections(block.sections, { expandReusable: false })));
+      continue;
+    }
     if (s.type === 'featured_products') {
       const collectionSlug = String(s.collection || '');
       const count = parseInt(String(s.count || '8'), 10) || 8;
-      return {
-        ...s,
-        collectionSlug,
-        products: await listFeaturedProducts(collectionSlug, count),
-      };
+      out.push({ ...s, collectionSlug, products: await listFeaturedProducts(collectionSlug, count) });
+      continue;
     }
-    return { ...s };
-  }));
+    out.push({ ...s });
+  }
+  return out;
 }

@@ -23,7 +23,8 @@ export type FieldType =
   | 'checkbox'  // boolean
   | 'color'     // a CSS colour — a hex, or a site-colour token like var(--color-accent)
   | 'collection'// a collection slug, chosen from a dropdown of the store's collections
-  | 'repeater'; // an ordered list of sub-items, each with its own itemFields (one level deep)
+  | 'repeater'  // an ordered list of sub-items, each with its own itemFields (one level deep)
+  | 'block';    // a reusable-section id, chosen from a dropdown of saved blocks
 
 export interface SectionField {
   id: string;                 // settings key (stored at the top level of the section)
@@ -47,6 +48,14 @@ export interface SectionSchema {
 
 // Order here is the order sections appear in the "Add section" menu.
 const SECTION_SCHEMAS: SectionSchema[] = [
+  {
+    type: 'reusable',
+    name: 'Reusable block',
+    fields: [
+      { id: 'block', type: 'block', label: 'Block',
+        help: 'Insert a saved reusable block. Edit the block to update it everywhere.' },
+    ],
+  },
   {
     type: 'hero',
     name: 'Hero',

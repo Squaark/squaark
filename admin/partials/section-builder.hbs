@@ -16,6 +16,7 @@
      data-schemas='{{sectionSchemasSafe}}'
      data-sitecolors='{{siteColorsSafe}}'
      data-collections='{{collectionsSafe}}'
+     data-blocks='{{blocksSafe}}'
      data-upload-url='{{builderUploadUrl}}'
      data-can-upload='{{builderCanUpload}}'
      data-preview-url='{{builderPreviewUrl}}'>
@@ -125,6 +126,19 @@
                   <option :value="c.slug" x-text="c.title"></option>
                 </template>
               </select>
+            </template>
+
+            <template x-if="f.type === 'block'">
+              <div>
+                <select x-model="s[f.id]" class="form-select">
+                  <option value="">— choose a block —</option>
+                  <template x-for="b in blocks" :key="b.id">
+                    <option :value="b.id" x-text="b.name"></option>
+                  </template>
+                </select>
+                <p x-show="s[f.id]" class="form-hint"><a :href="'/admin/blocks/' + s[f.id]" target="_blank">Edit this block ↗</a></p>
+                <p x-show="!blocks.length" class="form-hint">No blocks yet — create one under Reusable sections.</p>
+              </div>
             </template>
 
             <template x-if="f.type === 'checkbox'">
@@ -294,6 +308,7 @@ function sectionBuilder() {
     LABELS: {},
     siteColors: [],    // [{ label, value, hex }]
     collections: [],   // [{ slug, title }]
+    blocks: [],        // [{ id, name }] reusable blocks
     init(ds) {
       this.uploadUrl = ds.uploadUrl || '';
       this.canUpload = ds.canUpload === 'true';
@@ -301,6 +316,7 @@ function sectionBuilder() {
       try { this.schemas = JSON.parse(ds.schemas || '[]'); } catch { this.schemas = []; }
       try { this.siteColors = JSON.parse(ds.sitecolors || '[]'); } catch { this.siteColors = []; }
       try { this.collections = JSON.parse(ds.collections || '[]'); } catch { this.collections = []; }
+      try { this.blocks = JSON.parse(ds.blocks || '[]'); } catch { this.blocks = []; }
       this.schemaMap = {}; this.LABELS = {};
       for (const sc of this.schemas) { this.schemaMap[sc.type] = sc; this.LABELS[sc.type] = sc.name; }
       try { this.sections = JSON.parse(ds.sections || '[]').map(s => ({ ...s, _open: true })); } catch { this.sections = []; }
