@@ -7,6 +7,7 @@ import { productRoutes } from './products';
 import { collectionRoutes } from './collections';
 import { pageRoutes } from './pages';
 import { blockRoutes } from './blocks';
+import { templateRoutes } from './templates';
 import { postRoutes } from './posts';
 import { orderRoutes } from './orders';
 import { settingsRoutes } from './settings';
@@ -62,6 +63,7 @@ export async function adminRoutes(fastify: FastifyInstance): Promise<void> {
       await app.register(collectionRoutes);
       await app.register(pageRoutes);
       await app.register(blockRoutes);
+      await app.register(templateRoutes);
       await app.register(postRoutes);
       await app.register(orderRoutes);
       await app.register(customersRoutes);

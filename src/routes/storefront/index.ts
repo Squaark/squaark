@@ -10,7 +10,7 @@ import { findDiscountByCode } from '../../db/queries/discounts';
 import { validateDiscount, type DiscountValidation } from '../../commerce/discounts';
 import { findAllPages, findPageBySlug, getHomepage, isHomepage, type PageRow } from '../../db/queries/pages';
 import { findPublishedPosts, countPublishedPosts, findPublishedPostBySlug } from '../../db/queries/posts';
-import { getAllSettings } from '../../db/queries/admin';
+import { getAllSettings, getSetting } from '../../db/queries/admin';
 import { resolveSections } from '../../commerce/section-render';
 import { addSuppression } from '../../db/queries/suppressions';
 import { verifyUnsubscribeToken } from '../../email/unsubscribe';
@@ -287,12 +287,16 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
     // Escape '<' so the JSON can't break out of the <script> block.
     const productJsonLd = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
 
+    // Global product-page template sections (+ this product's own, added in the
+    // per-item stage), rendered below the product detail.
+    const contentSections = await resolveSections(getSetting('product_template_sections'));
     await render(registry, reply, 'product', {
       ...ctx,
       pageTitle: product.seoTitle || product.title,
       metaDescription: product.seoDescription || product.description || '',
       ogImage: product.images[0]?.large ?? null,
       product,
+      contentSections,
       reviews,
       reviewSummary,
       reviewFlash: flash,
@@ -333,11 +337,13 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
         await registry.currentEngine.render('404', { ...ctx, pageTitle: 'Page Not Found' }),
       );
     }
+    const contentSections = await resolveSections(getSetting('collection_template_sections'));
     await render(registry, reply, 'collection', {
       ...ctx,
       pageTitle: collection.seoTitle || collection.title,
       metaDescription: collection.seoDescription || collection.description || '',
       collection,
+      contentSections,
     });
   });
 
