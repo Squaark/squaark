@@ -11,7 +11,9 @@
   <nav class="settings-nav">
     <ul>
       <li><button @click="tab = 'store'" :class="tab === 'store' ? 'settings-tab settings-tab--active' : 'settings-tab'" class="settings-tab">Store</button></li>
+      {{#unless cloudMode}}
       <li><button @click="tab = 'email'" :class="tab === 'email' ? 'settings-tab settings-tab--active' : 'settings-tab'" class="settings-tab">Email</button></li>
+      {{/unless}}
       <li><button @click="tab = 'payments'" :class="tab === 'payments' ? 'settings-tab settings-tab--active' : 'settings-tab'" class="settings-tab">Payments</button></li>
       <li><button @click="tab = 'tax'" :class="tab === 'tax' ? 'settings-tab settings-tab--active' : 'settings-tab'" class="settings-tab">Tax</button></li>
       <li><button @click="tab = 'marketing'" :class="tab === 'marketing' ? 'settings-tab settings-tab--active' : 'settings-tab'" class="settings-tab">Marketing</button></li>
@@ -93,6 +95,9 @@
       </form>
     </div>
 
+    {{!-- Email delivery is configured at the cloud level, by the control plane,
+          so a managed store never sees these fields. --}}
+    {{#unless cloudMode}}
     <!-- Email -->
     <div x-show="tab === 'email'" x-cloak>
       <form method="POST" action="/admin/settings/email">
@@ -177,7 +182,10 @@
       </form>
     </div>
 
+    {{/unless}}
+
     <!-- Payments -->
+
     <div x-show="tab === 'payments'" x-cloak>
       <div class="card--no-overflow card-body stack-sm">
         <h2 class="font-semibold">Payments</h2>
@@ -500,6 +508,14 @@
 
     <!-- Server -->
     <div x-show="tab === 'server'" x-cloak class="stack-sm">
+      {{#if cloudMode}}
+      <div class="card--no-overflow card-body stack-sm">
+        <h2 class="font-semibold mb-1">Updates</h2>
+        <p class="form-hint">
+          Squaark Cloud keeps this store up to date for you — there is nothing to do here.
+        </p>
+      </div>
+      {{else}}
       <div class="card--no-overflow card-body stack-sm">
         <h2 class="font-semibold mb-1">Updates</h2>
         {{#if (eq updateJob.state 'failed')}}
@@ -533,6 +549,8 @@
           <span id="update-step">Working…</span>
         </div>
       </div>
+
+      {{/if}}
 
       <div class="card--no-overflow card-body">
         <h2 class="font-semibold mb-1">Server</h2>

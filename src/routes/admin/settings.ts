@@ -10,6 +10,7 @@ import { sendTestEmail } from '../../email/send';
 import { listRecentEmailLog } from '../../db/queries/email';
 import { listLogs } from '../../db/queries/system-log';
 import Handlebars from 'handlebars';
+import config from '../../config';
 
 // Settings keys holding secrets: the form always renders these blank (see
 // settings.hbs), so an empty submitted value means "left untouched" and must
@@ -38,10 +39,20 @@ export async function settingsRoutes(fastify: FastifyInstance): Promise<void> {
 }
 
 async function updateHandler(_req: FastifyRequest, reply: FastifyReply) {
+  // Hidden in the UI, refused here. Stores on managed hosting all run from ONE
+  // shared checkout, so a merchant pulling a new build would swap the code
+  // under every other tenant on the box. Updates are the control plane's job —
+  // see its rolling deploy.
+  if (config.cloudMode) {
+    return reply.code(403).send({ ok: false, error: 'Updates are managed by Squaark Cloud.' });
+  }
   return reply.send(startUpdate());
 }
 
 async function revertHandler(_req: FastifyRequest, reply: FastifyReply) {
+  if (config.cloudMode) {
+    return reply.code(403).send({ ok: false, error: 'Updates are managed by Squaark Cloud.' });
+  }
   return reply.send(await startRevert());
 }
 

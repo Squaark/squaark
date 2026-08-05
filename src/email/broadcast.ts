@@ -1,3 +1,4 @@
+import { storeUrl as resolveStoreUrl } from '../store-url';
 import { getActiveTransport, getEmailSettings } from './transport';
 import { renderEmailPreview } from './templates';
 import { logEmailAttempt } from '../db/queries/email';
@@ -31,7 +32,7 @@ export async function sendBroadcast(broadcastId: string): Promise<{ sent: number
     throw new Error('No sender address configured — set "Email from address" (or Store email) in Settings → Email.');
   }
 
-  const storeUrl = getAllSettings().store_url ?? 'http://localhost:3000';
+  const storeUrl = resolveStoreUrl();
   const storeName = settings.fromName;
   const recipients = listSubscribedEmails();
 

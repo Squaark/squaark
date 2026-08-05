@@ -3,6 +3,7 @@ import '../../types';
 import { verifyLogin, getAdminById, createFirstAdmin, adminExists } from '../../admin/auth';
 import { renderAuth } from '../../admin/render';
 import { newChallenge, codeMatches, isExpired, sendLoginCode, MAX_ATTEMPTS } from '../../admin/two-factor';
+import config from '../../config';
 
 export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.addHook('preHandler', (req: FastifyRequest, reply: FastifyReply, done: (err?: Error) => void) => {
@@ -115,7 +116,16 @@ async function logout(req: FastifyRequest, reply: FastifyReply) {
 
 async function setupPage(req: FastifyRequest, reply: FastifyReply) {
   if (adminExists()) return reply.redirect('/admin/login');
-  return reply.type('text/html').send(await renderAuth('setup', { pageTitle: 'Create admin account' }, reply));
+
+  // On managed hosting everything except the login itself is already
+  // configured, so this is not a first-run wizard — it is one form, pre-filled
+  // with the account that bought the store.
+  return reply.type('text/html').send(await renderAuth('setup', {
+    pageTitle: config.cloudMode ? 'Create your login' : 'Create admin account',
+    values: config.cloudMode
+      ? { email: config.cloudOwnerEmail, name: config.cloudOwnerName }
+      : undefined,
+  }, reply));
 }
 
 async function setupSubmit(

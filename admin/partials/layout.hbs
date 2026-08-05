@@ -101,6 +101,13 @@
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
           {{admin.name}}
         </a>
+        {{#if cloudMode}}
+        <a href="https://cloud.squaark.com" target="_blank" rel="noopener"
+           class="sidebar-link" style="font-size:0.75rem;opacity:0.65;">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2A4.002 4.002 0 003 15z"/></svg>
+          Hosted by Squaark Cloud
+        </a>
+        {{/if}}
         <form method="POST" action="/admin/logout">
           {{csrf_field}}
           <button type="submit" class="sidebar-link btn-link--danger" style="width:100%;text-align:left;color:#ef4444">
@@ -113,7 +120,7 @@
 
     <!-- Main content -->
     <main class="admin-main">
-      {{#if update.updateAvailable}}
+      {{#if (and update.updateAvailable (not cloudMode))}}
       <div style="background:#eff6ff;border-bottom:1px solid #bfdbfe;padding:0.6rem 1.5rem;font-size:0.85rem;color:#1e40af;display:flex;align-items:center;justify-content:center;gap:0.75rem;flex-wrap:wrap;">
         <span>⬆︎ An update is available — you're <strong>{{update.behind}}</strong> commit{{#unless (eq update.behind 1)}}s{{/unless}} behind.</span>
         <a href="https://github.com/Squaark/squaark/compare/{{update.currentSha}}...master" target="_blank" rel="noopener" style="color:#1d4ed8;text-decoration:underline;">See what's changed</a>

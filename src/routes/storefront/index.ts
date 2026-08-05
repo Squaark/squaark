@@ -20,6 +20,7 @@ import { accountRoutes } from './account';
 import { downloadRoutes } from './downloads';
 import { feedRoutes } from './feed';
 import { findCustomerById } from '../../db/queries/customers';
+import { storeUrl as resolveStoreUrl } from '../../store-url';
 
 // Shown on the homepage when the theme's value-props haven't been customised.
 // Kept in sync with the manifest default in themes/linen/theme.json.
@@ -396,7 +397,7 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
 
   fastify.get('/blog/rss.xml', async (_req, reply) => {
     const settings = getAllSettings();
-    const storeUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+    const storeUrl = resolveStoreUrl(settings);
     const esc = (s: string | null) => (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const items = findPublishedPosts(50, 0).map((p) => {
       const pub = p.published_at ? `<pubDate>${new Date(p.published_at).toUTCString()}</pubDate>` : '';
@@ -422,7 +423,7 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
     let sections: unknown[] = [];
     try { sections = JSON.parse(post.sections || '[]'); } catch { /* fallback */ }
 
-    const storeUrl = (getAllSettings().store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+    const storeUrl = resolveStoreUrl();
     const jsonLd: Record<string, unknown> = {
       '@context': 'https://schema.org', '@type': 'BlogPosting',
       headline: post.title,
@@ -464,12 +465,12 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
   });
 
   fastify.get('/robots.txt', async (_req, reply) => {
-    const storeUrl = (getAllSettings().store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+    const storeUrl = resolveStoreUrl();
     reply.type('text/plain').send(`User-agent: *\nAllow: /\nSitemap: ${storeUrl}/sitemap.xml\n`);
   });
 
   fastify.get('/sitemap.xml', async (_req, reply) => {
-    const storeUrl = (getAllSettings().store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+    const storeUrl = resolveStoreUrl();
     const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
     const [products, collections, pages] = await Promise.all([

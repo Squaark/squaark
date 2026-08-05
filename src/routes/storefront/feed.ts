@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { findAllProducts, type ProductRow } from '../../db/queries/products';
 import { getAllSettings } from '../../db/queries/admin';
+import { storeUrl as resolveStoreUrl } from '../../store-url';
 
 // Product feed for Google Merchant Center and the Meta (Facebook) commerce
 // catalogue. Both accept the RSS 2.0 + `g:` namespace format, so one feed
@@ -62,7 +63,7 @@ export function feedItem(p: ProductRow, storeUrl: string, currency: string): str
 export async function feedRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get('/feed.xml', async (_req, reply: FastifyReply) => {
     const settings = getAllSettings();
-    const storeUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+    const storeUrl = resolveStoreUrl(settings);
     const currency = settings.store_currency ?? 'GBP';
     const storeName = settings.store_name ?? 'My Store';
 

@@ -11,7 +11,14 @@
     <div class="auth-card">
       <div class="auth-card__header">
         <h1 class="auth-card__title">Squaark</h1>
+        {{#if cloudMode}}
+        {{!-- On managed hosting everything else is already configured; this is
+              the one step the control plane cannot do, because it holds a hash
+              of the dashboard password rather than the password. --}}
+        <p class="auth-card__sub">Choose a password for your shop's admin</p>
+        {{else}}
         <p class="auth-card__sub">Create your admin account</p>
+        {{/if}}
       </div>
       <div class="auth-card__body">
         {{#if error}}

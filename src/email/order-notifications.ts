@@ -2,6 +2,7 @@ import { sendTemplatedEmail } from './send';
 import { buildOrderEmailContext } from './order-context';
 import { getAllSettings } from '../db/queries/admin';
 import { findOrderStockLevels, type OrderRow, type OrderItemRow } from '../db/queries/orders';
+import { storeUrl as resolveStoreUrl } from '../store-url';
 
 /**
  * Notifies the store owner of a new paid order via the admin_new_order
@@ -13,7 +14,7 @@ export async function sendMerchantNewOrderEmail(order: OrderRow, items: OrderIte
   const settings = getAllSettings();
   const to = settings.store_email?.trim();
   if (!to) return;
-  const storeUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+  const storeUrl = resolveStoreUrl(settings);
   await sendTemplatedEmail('admin_new_order', to, {
     order: buildOrderEmailContext(order, items),
     store: { name: settings.store_name, url: storeUrl },
@@ -56,7 +57,7 @@ export async function notifyLowStock(orderId: string): Promise<void> {
   );
   if (crossed.length === 0) return;
 
-  const storeUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+  const storeUrl = resolveStoreUrl(settings);
   await sendTemplatedEmail('low_stock', to, {
     store: { name: settings.store_name, url: storeUrl },
     threshold,

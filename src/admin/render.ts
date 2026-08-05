@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import type { FastifyReply } from 'fastify';
 import { getCachedUpdateStatus } from './updates';
+import config from '../config';
 
 const ADMIN_VIEWS = path.resolve(process.cwd(), 'admin');
 
@@ -185,7 +186,14 @@ export async function render(template: string, context: Record<string, unknown>,
   // layout. A page may pass its own freshly-computed `update` (e.g. the Server
   // settings tab, which shouldn't sit on "Checking…" if the cache is cold);
   // only fall back to the cache when it hasn't.
-  const fullContext = { ...context, csrfToken, update: context.update ?? getCachedUpdateStatus() };
+  // cloudMode is injected globally so any template can hide what the control
+  // plane manages, without every handler having to remember to pass it.
+  const fullContext = {
+    ...context,
+    csrfToken,
+    cloudMode: config.cloudMode,
+    update: context.update ?? getCachedUpdateStatus(),
+  };
 
   const file = path.join(ADMIN_VIEWS, `${template}.hbs`);
   const src = fs.readFileSync(file, 'utf-8');
@@ -200,7 +208,7 @@ export async function renderAuth(template: string, context: Record<string, unkno
   const csrfToken = await reply.generateCsrf();
   const file = path.join(ADMIN_VIEWS, `${template}.hbs`);
   const src = fs.readFileSync(file, 'utf-8');
-  return hbs.compile(src)({ ...context, csrfToken });
+  return hbs.compile(src)({ ...context, csrfToken, cloudMode: config.cloudMode });
 }
 
 /** Renders a template without the admin layout — for htmx fragment responses (polling, inline swaps). */

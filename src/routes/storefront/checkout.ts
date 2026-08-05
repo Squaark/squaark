@@ -20,6 +20,7 @@ import { findStockShortfalls } from '../../commerce/inventory';
 import { generateVerificationToken, isAccountClaimed, sendVerificationEmail } from '../../commerce/customer-verification';
 import { pixelSettings, buildPurchasePixel } from '../../marketing/pixels';
 import argon2 from 'argon2';
+import { storeUrl as resolveStoreUrl } from '../../store-url';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -195,7 +196,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     }
 
     const address = parseAddress(body);
-    const storeUrl = settings.store_url?.replace(/\/$/, '') || 'http://localhost:3000';
+    const storeUrl = resolveStoreUrl(settings);
     const currency = (settings.store_currency || 'GBP').toLowerCase();
 
     // Resolve shipping server-side — never trust the client's claim that a
@@ -302,7 +303,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
 
       if (order) {
         const settings = getAllSettings();
-        const storeUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+        const storeUrl = resolveStoreUrl(settings);
         const items = findOrderItems(orderId);
         const downloads = createOrderDownloads(orderId);
         sendTemplatedEmail('order_confirmation', order.email, {
@@ -360,7 +361,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
               total: order?.total, sessionId: session.id,
             });
             if (order) {
-              const storeUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+              const storeUrl = resolveStoreUrl(settings);
               const items = findOrderItems(orderId);
               const downloads = createOrderDownloads(orderId);
               sendTemplatedEmail('order_confirmation', order.email, {
@@ -554,7 +555,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
         paypalOrderId: data.id,
       });
 
-      const ppStoreUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+      const ppStoreUrl = resolveStoreUrl(settings);
       const ppItems = findOrderItems(order.id);
       const ppDownloads = createOrderDownloads(order.id);
       sendTemplatedEmail('order_confirmation', snapshot.email, {
@@ -592,7 +593,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     const canCreateAccount = accountsEnabled && !alreadyLoggedIn && !emailHasAccount;
     const accountStatus = (req.query as Record<string, string>).account ?? null;
 
-    const storeUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+    const storeUrl = resolveStoreUrl(settings);
     const orderDownloads = findDownloadsForOrder(orderId).map(d => ({
       productTitle: d.product_title,
       originalName: d.original_name,

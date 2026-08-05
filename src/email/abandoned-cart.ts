@@ -3,6 +3,7 @@ import { buildOrderEmailContext } from './order-context';
 import { unsubscribeToken } from './unsubscribe';
 import { getAllSettings } from '../db/queries/admin';
 import { findAbandonedOrders, markAbandonedReminderSent, findOrderItems } from '../db/queries/orders';
+import { storeUrl as resolveStoreUrl } from '../store-url';
 
 const SWEEP_INTERVAL_MS = 15 * 60 * 1000;  // scan every 15 minutes
 const MAX_AGE_DAYS = 7;                     // don't chase orders older than a week (avoids a first-run backlog blast)
@@ -22,7 +23,7 @@ export async function sendAbandonedCartReminders(): Promise<number> {
   const hours = parseInt(raw ?? '1', 10);
   if (!Number.isFinite(hours) || hours <= 0) return 0;    // off / invalid
 
-  const storeUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+  const storeUrl = resolveStoreUrl(settings);
   let sent = 0;
 
   for (const order of findAbandonedOrders(hours, MAX_AGE_DAYS)) {

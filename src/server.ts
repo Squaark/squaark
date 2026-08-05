@@ -14,6 +14,7 @@ import { db } from './db/connection';
 import { runMigrations } from './db/migrate';
 import { themeRegistry } from './theme/registry';
 import { storefrontRoutes } from './routes/storefront/index';
+import { cloudRoutes } from './routes/cloud';
 import { adminRoutes } from './routes/admin/index';
 import { ensureCart } from './commerce/cart';
 import { writeLog } from './db/queries/system-log';
@@ -27,6 +28,7 @@ const SKIP_PREFIX = ['/admin', '/public/', '/uploads/', '/webhooks', '/health'];
 const SKIP_EXT   = /\.(js|css|ico|png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf|map)$/i;
 
 import './types';
+import { storeUrl as resolveStoreUrl } from './store-url';
 
 async function build() {
   // trustProxy: the app runs behind Caddy, which terminates TLS and forwards
@@ -166,7 +168,7 @@ async function build() {
     if (rawRef) {
       try {
         const refHost = new URL(rawRef as string).hostname;
-        const storeUrl = getSetting('store_url') ?? 'http://localhost';
+        const storeUrl = resolveStoreUrl();
         const ownHost = new URL(storeUrl).hostname;
         if (refHost && refHost !== ownHost) referrer = refHost;
       } catch { /* malformed referrer — ignore */ }
@@ -191,6 +193,8 @@ async function build() {
   });
 
   // ── Routes ─────────────────────────────────────────────────────────────────
+  // No-op unless CLOUD_MODE=true.
+  await cloudRoutes(fastify);
   await adminRoutes(fastify);
   await storefrontRoutes(fastify, themeRegistry);
 

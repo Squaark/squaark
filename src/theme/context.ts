@@ -4,6 +4,7 @@ import { getActiveBanner } from '../db/queries/banners';
 import { pixelSettings, buildPixelHead, buildPixelNoscript } from '../marketing/pixels';
 import { listFeaturedProducts } from '../commerce/collections';
 import { findCollectionBySlug } from '../db/queries/collections';
+import { storeUrl as resolveStoreUrl } from '../store-url';
 
 export interface Money {
   amount: number;      // Minor units (cents)
@@ -253,7 +254,7 @@ export async function buildGlobalContext(
     store: {
       name: settings.store_name ?? 'My Store',
       tagline: settings.store_tagline ?? '',
-      url: settings.store_url ?? 'http://localhost:3000',
+      url: resolveStoreUrl(settings),
       logo: settings.store_logo || null,
       icon: settings.store_icon || null,
       cartLabel: settings.cart_label || 'Cart',

@@ -8,6 +8,7 @@
   {{#if (eq error 'email_taken')}}That email address is already in use.{{/if}}
   {{#if (eq error 'missing_fields')}}Name, email and password are all required.{{/if}}
   {{#if (eq error 'last_admin')}}There must be at least one admin — promote another user first.{{/if}}
+  {{#if (eq error 'staff_limit')}}You've reached the number of staff accounts your plan includes. Upgrade in Squaark Cloud to add more.{{/if}}
   {{#if (eq error 'cannot_delete_self')}}You can't delete your own account. Edit it under <a href="/admin/account">My account</a>.{{/if}}
   {{#if (eq error 'cannot_change_own_role')}}You can't change your own role.{{/if}}
   {{#if (eq error 'too_short')}}Passwords must be at least 8 characters.{{/if}}
@@ -84,6 +85,16 @@
   <div class="stack-sm">
     <div class="card--no-overflow card-body stack-sm">
       <h2 class="font-semibold">Add user</h2>
+
+      {{#if atStaffLimit}}
+        {{!-- The button is disabled AND the server refuses; this is the
+              courtesy, the check in the route is the rule. --}}
+        <p class="form-hint" style="color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:0.375rem;padding:0.5rem 0.65rem;">
+          Staff account limit reached. Upgrade your plan at
+          <a href="https://cloud.squaark.com/billing" target="_blank" rel="noopener" style="color:#92400e;text-decoration:underline;">cloud.squaark.com</a>.
+        </p>
+      {{/if}}
+
       <form method="POST" action="/admin/users" class="stack-sm">
         {{csrf_field}}
         <div>
@@ -105,7 +116,8 @@
             <option value="admin">Admin — full access</option>
           </select>
         </div>
-        <button type="submit" class="btn btn-primary btn-block">Add user</button>
+        <button type="submit" class="btn btn-primary btn-block"
+                {{#if atStaffLimit}}disabled title="Staff account limit reached"{{/if}}>Add user</button>
       </form>
     </div>
     <p class="text-xs text-muted">

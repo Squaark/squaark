@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { sendTemplatedEmail } from '../email/send';
 import { getAllSettings } from '../db/queries/admin';
+import { storeUrl as resolveStoreUrl } from '../store-url';
 
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1h — matches the password_reset email copy
@@ -47,7 +48,7 @@ export async function sendVerificationEmail(
   token: string,
 ): Promise<void> {
   const settings = getAllSettings();
-  const storeUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+  const storeUrl = resolveStoreUrl(settings);
   await sendTemplatedEmail('email_verification', customer.email, {
     customer_name: customer.first_name || null,
     store: { name: settings.store_name },
@@ -60,7 +61,7 @@ export async function sendPasswordResetEmail(
   token: string,
 ): Promise<void> {
   const settings = getAllSettings();
-  const storeUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+  const storeUrl = resolveStoreUrl(settings);
   await sendTemplatedEmail('password_reset', customer.email, {
     customer_name: customer.first_name || null,
     store: { name: settings.store_name },

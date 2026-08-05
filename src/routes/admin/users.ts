@@ -2,7 +2,8 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import '../../types';
 import { render } from '../../admin/render';
 import { getAdminById, hashPassword } from '../../admin/auth';
-import { getAllSettings, listAdminUsers, createAdminUser, updateAdminUserRole, updateAdminPassword, deleteAdminUser, countAdminsByRole } from '../../db/queries/admin';
+import { getAllSettings, listAdminUsers, createAdminUser, updateAdminUserRole, updateAdminPassword, deleteAdminUser, countAdminsByRole, countAdminUsers } from '../../db/queries/admin';
+import config from '../../config';
 
 export async function usersRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get('/users', listUsers);
@@ -19,6 +20,9 @@ async function listUsers(req: FastifyRequest<{ Querystring: { saved?: string; er
       admin,
       settings: getAllSettings(),
       users: listAdminUsers(),
+      staffLimit: config.staffLimit,
+      // 0 means no cap: a self-hosted install never sees any of this.
+      atStaffLimit: config.staffLimit > 0 && countAdminUsers() >= config.staffLimit,
       saved: 'saved' in (req.query as Record<string, string>),
       error: req.query.error,
       pageTitle: 'Users',
@@ -33,6 +37,17 @@ async function createUser(
 ) {
   const { name, email, password, role } = req.body;
   if (!name || !email || !password) return reply.redirect('/admin/users?error=missing_fields');
+
+  // The one hard limit on a managed plan. Products and storage are soft — going
+  // over just shows an upgrade prompt in the Cloud dashboard — but staff seats
+  // are billed per head, so the cap is enforced at the point of creation.
+  // STAFF_LIMIT is unset (so 0) on a self-hosted install, and this never fires.
+  //
+  // Checked on the server as well as hidden in the UI: the disabled button is a
+  // courtesy, the check is the rule.
+  if (config.staffLimit > 0 && countAdminUsers() >= config.staffLimit) {
+    return reply.redirect('/admin/users?error=staff_limit');
+  }
 
   const safeRole = role === 'staff' ? 'staff' : 'admin';
   const hash = await hashPassword(password);

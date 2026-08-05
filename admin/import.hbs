@@ -119,6 +119,14 @@
 </div>
 {{/if}}
 
+{{#if cloudMode}}
+<h2 class="font-semibold mb-3 mt-8" style="padding-top:1.5rem;border-top:1px solid #e5e7eb;">Store backup</h2>
+<p class="text-sm text-muted mb-4">
+  Squaark Cloud backs this store up automatically every night, without downtime.
+  You can see and trigger backups from
+  <a href="https://cloud.squaark.com" target="_blank" rel="noopener">your Squaark Cloud dashboard</a>.
+</p>
+{{else}}
 <h2 class="font-semibold mb-3 mt-8" style="padding-top:1.5rem;border-top:1px solid #e5e7eb;">Store backup &amp; transfer</h2>
 <p class="text-sm text-muted mb-4">Move this entire squaark store to another install, or keep a full backup.</p>
 
@@ -151,3 +159,4 @@
     </form>
   </div>
 </div>
+{{/if}}

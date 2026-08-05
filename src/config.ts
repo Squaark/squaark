@@ -34,6 +34,39 @@ const config = {
   paypalClientId: process.env.PAYPAL_CLIENT_ID || '',
   paypalClientSecret: process.env.PAYPAL_CLIENT_SECRET || '',
   paypalMode: (process.env.PAYPAL_MODE || 'sandbox') as 'sandbox' | 'live',
+
+  // ── Managed hosting (Squaark Cloud) ──────────────────────────────────────
+  // Set by the control plane in a managed store's .env. A self-hosted install
+  // leaves these unset and behaves exactly as before.
+  cloudMode: process.env.CLOUD_MODE === 'true',
+  /**
+   * Shared secret the control plane presents to GET /api/usage, as
+   * X-Cloud-Secret. CLOUD_INTERNAL_TOKEN is the name an earlier control-plane
+   * release wrote; accepted so a store provisioned before the rename keeps
+   * reporting usage until its .env is refreshed.
+   */
+  cloudSecret: process.env.CLOUD_SECRET || process.env.CLOUD_INTERNAL_TOKEN || '',
+  /** Staff-account cap for the store's plan. 0 means no cap. */
+  staffLimit: parseInt(process.env.STAFF_LIMIT || process.env.CLOUD_MAX_STAFF || '0', 10) || 0,
+  /**
+   * The store's public URL, set by the control plane.
+   *
+   * Overrides the `store_url` setting when present: on managed hosting the
+   * control plane owns the address — it is the thing that assigned the
+   * subdomain and verified the custom domain — so a stale value typed into
+   * Settings must not win and start signing download links for the wrong host.
+   */
+  storeUrl: (process.env.STORE_URL || '').replace(/\/$/, ''),
+  /**
+   * The Squaark Cloud account that owns this store.
+   *
+   * Used to pre-fill the one first-run step that cannot be skipped — creating
+   * the admin login. The control plane cannot create it for them: it holds an
+   * argon2 hash of the dashboard password, not the password, and reusing one
+   * credential across two systems would be worse than asking once.
+   */
+  cloudOwnerEmail: process.env.CLOUD_OWNER_EMAIL || '',
+  cloudOwnerName: process.env.CLOUD_OWNER_NAME || '',
 };
 
 // Every placeholder here is checked into this open-source repo, so anyone
