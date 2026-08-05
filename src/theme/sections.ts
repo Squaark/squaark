@@ -21,7 +21,9 @@ export type FieldType =
   | 'url'       // link/path text input
   | 'select'    // one of a fixed set of options
   | 'checkbox'  // boolean
-  | 'color';    // a CSS colour — a hex, or a site-colour token like var(--color-accent)
+  | 'color'     // a CSS colour — a hex, or a site-colour token like var(--color-accent)
+  | 'collection'// a collection slug, chosen from a dropdown of the store's collections
+  | 'repeater'; // an ordered list of sub-items, each with its own itemFields (one level deep)
 
 export interface SectionField {
   id: string;                 // settings key (stored at the top level of the section)
@@ -33,6 +35,8 @@ export interface SectionField {
   default?: string | boolean;
   rows?: number;              // textarea/html height
   options?: { value: string; label: string }[]; // select
+  itemFields?: SectionField[];// repeater — the sub-fields of each item (no nested repeaters)
+  itemLabel?: string;         // repeater — singular label, e.g. "Slide"
 }
 
 export interface SectionSchema {
@@ -61,10 +65,28 @@ const SECTION_SCHEMAS: SectionSchema[] = [
     ],
   },
   {
+    type: 'featured_products',
+    name: 'Featured products',
+    fields: [
+      { id: 'heading',    type: 'text',       label: 'Heading', default: 'Featured products' },
+      { id: 'collection', type: 'collection', label: 'Collection', optional: true,
+        help: 'Leave blank to show featured products from across the store.' },
+      { id: 'count',      type: 'select',     label: 'How many', default: '8',
+        options: [{ value: '4', label: '4' }, { value: '8', label: '8' }, { value: '12', label: '12' }] },
+      { id: 'columns',    type: 'select',     label: 'Columns', default: '4',
+        options: [{ value: '2', label: '2' }, { value: '3', label: '3' }, { value: '4', label: '4' }] },
+      { id: 'bgColor',    type: 'color',      label: 'Background colour', optional: true,
+        help: 'Give the section a background to set it apart from those around it.' },
+      { id: 'textColor',  type: 'color',      label: 'Heading colour', optional: true },
+    ],
+  },
+  {
     type: 'text',
     name: 'Text',
     fields: [
       { id: 'content', type: 'html', label: 'Content', rows: 8, placeholder: '<p>Your text here…</p>' },
+      { id: 'bgColor',   type: 'color', label: 'Background colour', optional: true },
+      { id: 'textColor', type: 'color', label: 'Text colour', optional: true },
     ],
   },
   {
@@ -74,6 +96,8 @@ const SECTION_SCHEMAS: SectionSchema[] = [
       { id: 'src',     type: 'image', label: 'Image' },
       { id: 'alt',     type: 'text',  label: 'Alt text', placeholder: 'Describe the image' },
       { id: 'caption', type: 'text',  label: 'Caption', optional: true },
+      { id: 'bgColor',   type: 'color', label: 'Background colour', optional: true },
+      { id: 'textColor', type: 'color', label: 'Caption colour', optional: true },
     ],
   },
   {
@@ -85,6 +109,8 @@ const SECTION_SCHEMAS: SectionSchema[] = [
       { id: 'imagePosition', type: 'select', label: 'Image position', default: 'left',
         options: [{ value: 'left', label: 'Left' }, { value: 'right', label: 'Right' }] },
       { id: 'content',       type: 'html',   label: 'Text content', rows: 6, placeholder: '<p>Your text here…</p>' },
+      { id: 'bgColor',   type: 'color', label: 'Background colour', optional: true },
+      { id: 'textColor', type: 'color', label: 'Text colour', optional: true },
     ],
   },
   {
@@ -97,6 +123,8 @@ const SECTION_SCHEMAS: SectionSchema[] = [
       { id: 'buttonUrl',   type: 'url',      label: 'Button URL', default: '/collections/all' },
       { id: 'align',       type: 'select',   label: 'Alignment', default: 'center',
         options: [{ value: 'center', label: 'Center' }, { value: 'left', label: 'Left' }] },
+      { id: 'bgColor',   type: 'color', label: 'Background colour', optional: true, help: 'Defaults to your primary colour.' },
+      { id: 'textColor', type: 'color', label: 'Text colour', optional: true },
     ],
   },
   {
@@ -105,6 +133,112 @@ const SECTION_SCHEMAS: SectionSchema[] = [
     fields: [
       { id: 'leftContent',  type: 'html', label: 'Left column',  rows: 8, placeholder: '<p>Left column…</p>' },
       { id: 'rightContent', type: 'html', label: 'Right column', rows: 8, placeholder: '<p>Right column…</p>' },
+      { id: 'bgColor',   type: 'color', label: 'Background colour', optional: true },
+      { id: 'textColor', type: 'color', label: 'Text colour', optional: true },
+    ],
+  },
+  {
+    type: 'gallery',
+    name: 'Gallery',
+    fields: [
+      { id: 'heading', type: 'text',   label: 'Heading', optional: true },
+      { id: 'columns', type: 'select', label: 'Columns', default: '3',
+        options: [{ value: '2', label: '2' }, { value: '3', label: '3' }, { value: '4', label: '4' }] },
+      { id: 'images',  type: 'repeater', label: 'Images', itemLabel: 'Image', itemFields: [
+        { id: 'image',   type: 'image', label: 'Image' },
+        { id: 'alt',     type: 'text',  label: 'Alt text', optional: true },
+        { id: 'caption', type: 'text',  label: 'Caption', optional: true },
+      ] },
+      { id: 'bgColor',   type: 'color', label: 'Background colour', optional: true },
+      { id: 'textColor', type: 'color', label: 'Heading colour', optional: true },
+    ],
+  },
+  {
+    type: 'testimonials',
+    name: 'Testimonials',
+    fields: [
+      { id: 'heading', type: 'text', label: 'Heading', optional: true, default: 'What our customers say' },
+      { id: 'items',   type: 'repeater', label: 'Testimonials', itemLabel: 'Testimonial', itemFields: [
+        { id: 'quote',  type: 'textarea', label: 'Quote', rows: 3 },
+        { id: 'author', type: 'text',     label: 'Author' },
+        { id: 'role',   type: 'text',     label: 'Role / company', optional: true },
+        { id: 'image',  type: 'image',    label: 'Avatar', optional: true },
+      ] },
+      { id: 'bgColor',   type: 'color', label: 'Background colour', optional: true },
+      { id: 'textColor', type: 'color', label: 'Text colour', optional: true },
+    ],
+  },
+  {
+    type: 'logo_row',
+    name: 'Logo row',
+    fields: [
+      { id: 'heading', type: 'text', label: 'Heading', optional: true, placeholder: 'As seen in' },
+      { id: 'logos',   type: 'repeater', label: 'Logos', itemLabel: 'Logo', itemFields: [
+        { id: 'image', type: 'image', label: 'Logo image' },
+        { id: 'alt',   type: 'text',  label: 'Name / alt text', optional: true },
+        { id: 'url',   type: 'url',   label: 'Link', optional: true },
+      ] },
+      { id: 'bgColor',   type: 'color', label: 'Background colour', optional: true },
+      { id: 'textColor', type: 'color', label: 'Heading colour', optional: true },
+    ],
+  },
+  {
+    type: 'slideshow',
+    name: 'Slideshow',
+    fields: [
+      { id: 'slides', type: 'repeater', label: 'Slides', itemLabel: 'Slide', itemFields: [
+        { id: 'image',       type: 'image',    label: 'Image' },
+        { id: 'heading',     type: 'text',     label: 'Heading', optional: true },
+        { id: 'subheading',  type: 'textarea', label: 'Subheading', optional: true, rows: 2 },
+        { id: 'buttonLabel', type: 'text',     label: 'Button label', optional: true },
+        { id: 'buttonUrl',   type: 'url',      label: 'Button URL', optional: true },
+      ] },
+      { id: 'autoplay', type: 'checkbox', label: 'Auto-advance', help: 'Advance slides automatically' },
+    ],
+  },
+  {
+    type: 'faq',
+    name: 'FAQ',
+    fields: [
+      { id: 'heading', type: 'text', label: 'Heading', optional: true, default: 'Frequently asked questions' },
+      { id: 'items',   type: 'repeater', label: 'Questions', itemLabel: 'Question', itemFields: [
+        { id: 'question', type: 'text', label: 'Question' },
+        { id: 'answer',   type: 'html', label: 'Answer', rows: 3 },
+      ] },
+      { id: 'bgColor',   type: 'color', label: 'Background colour', optional: true },
+      { id: 'textColor', type: 'color', label: 'Text colour', optional: true },
+    ],
+  },
+  {
+    type: 'newsletter',
+    name: 'Newsletter',
+    fields: [
+      { id: 'heading',     type: 'text',     label: 'Heading', default: 'Join our newsletter' },
+      { id: 'body',        type: 'textarea', label: 'Body text', optional: true, rows: 2, default: 'Sign up for occasional updates and offers.' },
+      { id: 'buttonLabel', type: 'text',     label: 'Button label', default: 'Subscribe' },
+      { id: 'placeholder', type: 'text',     label: 'Email placeholder', default: 'you@example.com' },
+      { id: 'bgColor',     type: 'color',    label: 'Background colour', optional: true },
+      { id: 'textColor',   type: 'color',    label: 'Text colour', optional: true },
+    ],
+  },
+  {
+    type: 'video',
+    name: 'Video',
+    fields: [
+      { id: 'heading', type: 'text', label: 'Heading', optional: true },
+      { id: 'url',     type: 'url',  label: 'Video URL', placeholder: 'YouTube or Vimeo link',
+        help: 'Paste a YouTube or Vimeo link — it becomes an embedded player.' },
+      { id: 'bgColor', type: 'color', label: 'Background colour', optional: true },
+    ],
+  },
+  {
+    type: 'spacer',
+    name: 'Spacer / divider',
+    fields: [
+      { id: 'style', type: 'select', label: 'Style', default: 'space',
+        options: [{ value: 'space', label: 'Empty space' }, { value: 'line', label: 'Divider line' }] },
+      { id: 'size',  type: 'select', label: 'Size', default: 'medium',
+        options: [{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }] },
     ],
   },
 ];
@@ -131,21 +265,31 @@ export function getSectionSchema(type: string): SectionSchema | undefined {
   return SCHEMA_BY_TYPE.get(type);
 }
 
+export type RepeaterItem = Record<string, string | boolean>;
+export type SettingValue = string | boolean | RepeaterItem[];
+
 /** The default settings object for a section type (from each field's `default`). */
-export function sectionDefaults(type: string): Record<string, string | boolean> {
+export function sectionDefaults(type: string): Record<string, SettingValue> {
   const schema = SCHEMA_BY_TYPE.get(type);
   if (!schema) return {};
-  const out: Record<string, string | boolean> = {};
+  const out: Record<string, SettingValue> = {};
   for (const f of schema.fields) {
-    out[f.id] = f.default ?? (f.type === 'checkbox' ? false : '');
+    out[f.id] = f.type === 'repeater' ? [] : (f.default ?? (f.type === 'checkbox' ? false : ''));
   }
   return out;
+}
+
+/** Coerces one raw value to its field's stored shape (scalars only; not repeaters). */
+function coerceValue(f: SectionField, v: unknown): string | boolean {
+  if (f.type === 'checkbox') return v === true || v === 'true' || v === 'on' || v === '1';
+  if (f.type === 'color') return sanitizeColor(v);
+  return v == null ? (typeof f.default === 'string' ? f.default : '') : String(v);
 }
 
 export interface StoredSection {
   id: string;
   type: string;
-  [key: string]: string | boolean;
+  [key: string]: SettingValue;
 }
 
 /**
@@ -181,12 +325,16 @@ export function sanitizeSections(raw: unknown): StoredSection[] {
     };
     for (const f of schema.fields) {
       const v = e[f.id];
-      if (f.type === 'checkbox') {
-        section[f.id] = v === true || v === 'true' || v === 'on' || v === '1';
-      } else if (f.type === 'color') {
-        section[f.id] = sanitizeColor(v);
+      if (f.type === 'repeater') {
+        const items = Array.isArray(v) ? v : [];
+        section[f.id] = items.map((rawItem) => {
+          const it = rawItem && typeof rawItem === 'object' ? rawItem as Record<string, unknown> : {};
+          const item: RepeaterItem = {};
+          for (const itf of f.itemFields ?? []) item[itf.id] = coerceValue(itf, it[itf.id]);
+          return item;
+        });
       } else {
-        section[f.id] = v == null ? (typeof f.default === 'string' ? f.default : '') : String(v);
+        section[f.id] = coerceValue(f, v);
       }
     }
     out.push(section);

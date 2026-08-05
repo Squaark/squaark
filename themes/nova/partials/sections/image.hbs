@@ -1,5 +1,5 @@
 {{#if src}}
-<div class="section-image">
+<div class="section-image"{{#if (or bgColor textColor)}} style="{{#if bgColor}}--section-bg:{{bgColor}};{{/if}}{{#if textColor}}--section-text:{{textColor}};{{/if}}"{{/if}}>
   <figure>
     <img src="{{src}}" alt="{{alt}}">
     {{#if caption}}<figcaption>{{caption}}</figcaption>{{/if}}

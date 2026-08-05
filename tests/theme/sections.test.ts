@@ -74,6 +74,40 @@ describe('sanitizeColor', () => {
   });
 });
 
+describe('repeater fields', () => {
+  it('sanitises repeater items — whitelists sub-fields, applies defaults, coerces', () => {
+    const [g] = sanitizeSections([{
+      type: 'gallery',
+      columns: '4',
+      images: [
+        { image: '/a.jpg', alt: 'A', caption: 'first', evil: '<script>' },
+        { image: '/b.jpg' }, // missing optional fields → defaulted to ''
+      ],
+    }]);
+    expect(Array.isArray(g.images)).toBe(true);
+    const imgs = g.images as Array<Record<string, unknown>>;
+    expect(imgs).toHaveLength(2);
+    expect(imgs[0]).toEqual({ image: '/a.jpg', alt: 'A', caption: 'first' }); // junk 'evil' dropped
+    expect(imgs[1]).toEqual({ image: '/b.jpg', alt: '', caption: '' });
+  });
+
+  it('defaults a repeater to an empty array and tolerates non-arrays', () => {
+    const [g1] = sanitizeSections([{ type: 'gallery' }]);
+    expect(g1.images).toEqual([]);
+    const [g2] = sanitizeSections([{ type: 'gallery', images: 'not-an-array' }]);
+    expect(g2.images).toEqual([]);
+    expect(sectionDefaults('gallery').images).toEqual([]);
+  });
+
+  it('drops non-object repeater items', () => {
+    const [t] = sanitizeSections([{ type: 'testimonials', items: [null, 'x', { quote: 'Great', author: 'Sam' }] }]);
+    const items = t.items as Array<Record<string, unknown>>;
+    // null/'x' become empty objects with defaulted fields (not dropped), the real one keeps its values
+    expect(items).toHaveLength(3);
+    expect(items[2]).toEqual({ quote: 'Great', author: 'Sam', role: '', image: '' });
+  });
+});
+
 describe('section registry', () => {
   it('every schema field id is unique within its section', () => {
     for (const schema of listSectionSchemas()) {

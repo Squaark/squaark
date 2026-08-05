@@ -1,0 +1,420 @@
+{{!--
+  Reusable section builder. Host pages include it inside their own <form> and
+  provide these context vars:
+    sectionsSafe, sectionSchemasSafe, siteColorsSafe, collectionsSafe  (JSON, &#39;-escaped)
+    builderUploadUrl    — POST endpoint for section image uploads
+    builderCanUpload     — 'true' | 'false' (uploads need a saved parent first)
+    builderPreviewUrl    — POST endpoint returning rendered HTML for the live preview ('' = no preview)
+    builderLegacy        — truthy to show the legacy plain-HTML `content` fallback (pages only)
+    builderLegacyContent — the current `content` value (pages only)
+  The hidden `sections` input below is what the host form submits.
+--}}
+<div class="section-builder-root"
+     x-data="sectionBuilder()"
+     x-init="init($el.dataset)"
+     data-sections='{{sectionsSafe}}'
+     data-schemas='{{sectionSchemasSafe}}'
+     data-sitecolors='{{siteColorsSafe}}'
+     data-collections='{{collectionsSafe}}'
+     data-upload-url='{{builderUploadUrl}}'
+     data-can-upload='{{builderCanUpload}}'
+     data-preview-url='{{builderPreviewUrl}}'>
+
+  <div class="builder-layout{{#if builderPreviewUrl}} builder-layout--preview{{/if}}" :class="panelOpen ? '' : 'builder-layout--collapsed'">
+  <div class="builder-controls" @input="schedulePreview()" @change="schedulePreview()">
+
+  {{!-- Host-supplied form content (page details, SEO, publish) sits above the sections. --}}
+  {{> @partial-block}}
+
+  <div class="card--no-overflow card-body">
+  <div class="row-between mb-4">
+    <h2 class="font-semibold">Sections</h2>
+    <div style="position:relative;" x-data="{ open: false }">
+      <button type="button" @click="open = !open" class="btn btn-primary btn-sm">
+        + Add section
+        <svg style="width:0.75rem;height:0.75rem;margin-left:0.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </button>
+      <div x-show="open" @click.outside="open = false" x-cloak
+        style="position:absolute;right:0;margin-top:0.25rem;width:11rem;background:#fff;border:1px solid #e5e7eb;border-radius:0.75rem;box-shadow:0 4px 12px rgba(0,0,0,.08);z-index:10;padding:0.25rem 0;font-size:0.875rem;">
+        <template x-for="sc in schemas" :key="sc.type">
+          <button type="button" @click="add(sc.type); open = false"
+            style="width:100%;text-align:left;padding:0.5rem 1rem;" class="dropdown-item" x-text="sc.name"></button>
+        </template>
+      </div>
+    </div>
+  </div>
+
+  {{#if builderLegacy}}
+  <!-- Legacy plain-HTML content, shown only when there are no sections (pages). -->
+  <template x-if="sections.length === 0">
+    <div>
+      <label class="form-label">Content <span class="form-optional">— shown when no sections are added. Accepts HTML.</span></label>
+      <textarea name="content" rows="16" class="form-textarea font-mono"
+        placeholder="<p>Page content here…</p>">{{builderLegacyContent}}</textarea>
+    </div>
+  </template>
+  <template x-if="sections.length > 0">
+    <input type="hidden" name="content" value="{{builderLegacyContent}}">
+  </template>
+  {{/if}}
+
+  <!-- Section cards (drag the handle to reorder) -->
+  <template x-for="(s, i) in sections" :key="s.id">
+    <div style="border:1px solid #e5e7eb;border-radius:0.75rem;margin-bottom:0.75rem;overflow:hidden;"
+         :style="dragFrom === i ? 'opacity:0.4;' : (dragOver === i ? 'border-color:var(--admin-accent,#6366f1);box-shadow:0 0 0 1px var(--admin-accent,#6366f1);' : '')"
+         @dragover.prevent="dragOver = i" @dragleave="dragOver === i && (dragOver = null)" @drop.prevent="onDrop(i)">
+      <div style="display:flex;align-items:center;gap:0.5rem;padding:0.625rem 1rem;background:#f9fafb;border-bottom:1px solid #f3f4f6;">
+        <span draggable="true" @dragstart="dragFrom = i" @dragend="dragFrom = null; dragOver = null"
+          style="cursor:grab;color:#9ca3af;font-size:1rem;line-height:1;user-select:none;" title="Drag to reorder">⠿</span>
+        <span class="text-sm font-medium" x-text="LABELS[s.type] || s.type"></span>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:0.25rem;">
+          <button type="button" @click="remove(i)"
+            style="padding:0.25rem;border-radius:0.25rem;color:#9ca3af;margin-left:0.25rem;" title="Remove">
+            <svg style="width:1rem;height:1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+          <button type="button" @click="s._open = !s._open"
+            style="padding:0.25rem;border-radius:0.25rem;color:#9ca3af;margin-left:0.25rem;">
+            <svg style="width:1rem;height:1rem;transition:transform 0.15s;" :style="s._open ? 'transform:rotate(180deg)' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Card body — fields generated from the section's schema -->
+      <div x-show="s._open" class="card-body stack-sm">
+        <template x-for="f in fieldsFor(s.type)" :key="f.id">
+          <div>
+            <label class="form-label-xs">
+              <span x-text="f.label"></span>
+              <span x-show="f.optional" class="form-optional">(optional)</span>
+            </label>
+
+            <template x-if="f.type === 'text' || f.type === 'url'">
+              <input type="text" x-model="s[f.id]" :placeholder="f.placeholder || ''" class="form-input">
+            </template>
+
+            <template x-if="f.type === 'textarea'">
+              <textarea x-model="s[f.id]" :rows="f.rows || 3" :placeholder="f.placeholder || ''" class="form-textarea"></textarea>
+            </template>
+
+            <template x-if="f.type === 'html'">
+              <textarea x-model="s[f.id]" :rows="f.rows || 6" :placeholder="f.placeholder || ''" class="form-textarea font-mono"></textarea>
+            </template>
+
+            <template x-if="f.type === 'select'">
+              <select x-model="s[f.id]" class="form-select">
+                <template x-for="opt in f.options" :key="opt.value">
+                  <option :value="opt.value" x-text="opt.label"></option>
+                </template>
+              </select>
+            </template>
+
+            <template x-if="f.type === 'collection'">
+              <select x-model="s[f.id]" class="form-select">
+                <option value="">All / featured</option>
+                <template x-for="c in collections" :key="c.slug">
+                  <option :value="c.slug" x-text="c.title"></option>
+                </template>
+              </select>
+            </template>
+
+            <template x-if="f.type === 'checkbox'">
+              <label class="form-check"><input type="checkbox" x-model="s[f.id]"> <span x-text="f.help || ''"></span></label>
+            </template>
+
+            <template x-if="f.type === 'color'">
+              <div style="display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;">
+                <template x-for="c in siteColors" :key="c.value">
+                  <button type="button" @click="s[f.id] = c.value; schedulePreview()" :title="c.label"
+                    :style="'width:1.6rem;height:1.6rem;border-radius:9999px;cursor:pointer;background:'+c.hex+';border:2px solid '+(s[f.id]===c.value ? '#111827' : '#e5e7eb')+';'"></button>
+                </template>
+                <label title="Custom colour"
+                  style="display:inline-flex;align-items:center;justify-content:center;width:1.6rem;height:1.6rem;border-radius:0.375rem;border:1px dashed #cbd5e1;cursor:pointer;position:relative;overflow:hidden;">
+                  <span style="font-size:0.85rem;line-height:1;">🎨</span>
+                  <input type="color" :value="swatchHex(s[f.id]) || '#000000'" @input="s[f.id] = $event.target.value"
+                    style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+                </label>
+                <button type="button" @click="s[f.id] = ''; schedulePreview()" x-show="s[f.id]" class="btn-link btn-link--xs">Clear</button>
+                <span class="text-xs text-muted" x-text="colorLabel(s[f.id])"></span>
+              </div>
+            </template>
+
+            <template x-if="f.type === 'image'">
+              <div class="stack-sm">
+                <div x-show="s[f.id]" style="display:flex;align-items:flex-start;gap:0.75rem;">
+                  <img :src="s[f.id]" style="height:6rem;border-radius:0.5rem;object-fit:contain;border:1px solid #e5e7eb;background:#f9fafb;padding:0.25rem;">
+                  <button type="button" @click="s[f.id] = ''; schedulePreview()" class="btn-link btn-link--danger btn-link--xs" style="margin-top:0.25rem;">Remove</button>
+                </div>
+                <template x-if="!canUpload">
+                  <p class="alert alert-warning" style="font-size:0.75rem;">Save first to enable image uploads.</p>
+                </template>
+                <template x-if="canUpload">
+                  <input type="file" accept="image/*" @change="uploadImage(i, f.id, $event)" class="form-file">
+                </template>
+              </div>
+            </template>
+
+            <!-- repeater: an ordered list of sub-items -->
+            <template x-if="f.type === 'repeater'">
+              <div class="stack-sm">
+                <template x-for="(item, ri) in (s[f.id] || [])" :key="item._id || ri">
+                  <div style="border:1px solid #e5e7eb;border-radius:0.5rem;padding:0.55rem 0.7rem;background:#fcfcfd;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.35rem;">
+                      <span class="text-xs font-medium" style="color:#6b7280;" x-text="(f.itemLabel || 'Item') + ' ' + (ri + 1)"></span>
+                      <span style="display:flex;gap:0.25rem;">
+                        <button type="button" @click="repMove(s, f.id, ri, -1)" :disabled="ri === 0" style="color:#9ca3af;padding:0.1rem 0.3rem;" title="Move up">↑</button>
+                        <button type="button" @click="repMove(s, f.id, ri, 1)" :disabled="ri === (s[f.id].length - 1)" style="color:#9ca3af;padding:0.1rem 0.3rem;" title="Move down">↓</button>
+                        <button type="button" @click="repRemove(s, f.id, ri)" style="color:#9ca3af;padding:0.1rem 0.3rem;" title="Remove">✕</button>
+                      </span>
+                    </div>
+                    <div class="stack-sm">
+                      <template x-for="itf in f.itemFields" :key="itf.id">
+                        <div>
+                          <label class="form-label-xs"><span x-text="itf.label"></span> <span x-show="itf.optional" class="form-optional">(optional)</span></label>
+                          <template x-if="itf.type === 'text' || itf.type === 'url'">
+                            <input type="text" x-model="item[itf.id]" :placeholder="itf.placeholder || ''" class="form-input">
+                          </template>
+                          <template x-if="itf.type === 'textarea'">
+                            <textarea x-model="item[itf.id]" :rows="itf.rows || 3" class="form-textarea"></textarea>
+                          </template>
+                          <template x-if="itf.type === 'html'">
+                            <textarea x-model="item[itf.id]" :rows="itf.rows || 3" class="form-textarea font-mono"></textarea>
+                          </template>
+                          <template x-if="itf.type === 'select'">
+                            <select x-model="item[itf.id]" class="form-select">
+                              <template x-for="opt in itf.options" :key="opt.value"><option :value="opt.value" x-text="opt.label"></option></template>
+                            </select>
+                          </template>
+                          <template x-if="itf.type === 'image'">
+                            <div class="stack-sm">
+                              <div x-show="item[itf.id]" style="display:flex;align-items:flex-start;gap:0.5rem;">
+                                <img :src="item[itf.id]" style="height:3.5rem;border-radius:0.375rem;object-fit:contain;border:1px solid #e5e7eb;background:#f9fafb;padding:0.2rem;">
+                                <button type="button" @click="item[itf.id] = ''; schedulePreview()" class="btn-link btn-link--danger btn-link--xs">Remove</button>
+                              </div>
+                              <template x-if="!canUpload"><p class="text-xs text-muted">Save the page first to upload images.</p></template>
+                              <template x-if="canUpload"><input type="file" accept="image/*" @change="uploadItemImage(i, f.id, ri, itf.id, $event)" class="form-file"></template>
+                            </div>
+                          </template>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                </template>
+                <button type="button" @click="repAdd(s, f)" class="btn btn-secondary btn-sm">+ Add <span x-text="f.itemLabel || 'item'"></span></button>
+              </div>
+            </template>
+
+            <template x-if="f.help && f.type !== 'checkbox' && f.type !== 'color'">
+              <p class="form-hint" x-text="f.help"></p>
+            </template>
+          </div>
+        </template>
+      </div>
+    </div>
+  </template>
+
+  <!-- Hidden field — submitted with the host form -->
+  <input type="hidden" name="sections" :value="JSON.stringify(sections.map(({_open, ...rest}) => rest))">
+  </div>{{!-- .card (sections) --}}
+  </div>{{!-- .builder-controls --}}
+
+  {{#if builderPreviewUrl}}
+  <div class="builder-preview">
+    <div class="builder-preview__bar">
+      <span style="display:flex;gap:0.5rem;align-items:center;">
+        <button type="button" @click="panelOpen = !panelOpen" class="builder-preview__toggle" :title="panelOpen ? 'Collapse editor' : 'Show editor'" x-text="panelOpen ? '⤢' : '⤡'"></button>
+        <span class="text-sm font-medium">Live preview</span>
+      </span>
+      <span style="display:flex;gap:0.75rem;align-items:center;">
+        <button type="button" @click="previewWidth = ''" :class="previewWidth ? '' : 'builder-preview__dev--on'" class="builder-preview__dev">Desktop</button>
+        <button type="button" @click="previewWidth = '414px'" :class="previewWidth ? 'builder-preview__dev--on' : ''" class="builder-preview__dev">Mobile</button>
+        <button type="button" @click="refreshPreview()" class="btn-link btn-link--xs">↻ Refresh</button>
+      </span>
+    </div>
+    <div class="builder-preview__stage">
+      <iframe x-ref="preview" class="builder-preview__frame" :style="previewWidth ? ('max-width:'+previewWidth) : 'max-width:100%'" title="Live preview of your storefront"></iframe>
+    </div>
+  </div>
+  {{/if}}
+
+  </div>{{!-- .builder-layout --}}
+</div>
+
+<style>
+  /* Controls take a fixed, comfortable column; the preview fills the rest of
+     the (full-width) editor — the whole right-hand side of the screen. It can be
+     collapsed to give the preview the full width. */
+  .builder-layout { display: grid; gap: 1.5rem; grid-template-columns: 1fr; align-items: start; }
+  @media (min-width: 1024px) { .builder-layout--preview { grid-template-columns: minmax(340px, 460px) minmax(0, 1fr); } }
+  .builder-layout--collapsed { grid-template-columns: 1fr !important; }
+  .builder-layout--collapsed .builder-controls { display: none; }
+  .builder-controls { min-width: 0; display: flex; flex-direction: column; gap: 1rem; }
+  .builder-preview { position: sticky; top: 1rem; align-self: start; }
+  .builder-preview__bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+  .builder-preview__toggle { font-size: 1rem; line-height: 1; color: #6b7280; background: none; border: 1px solid #e5e7eb; border-radius: 0.375rem; width: 1.75rem; height: 1.75rem; cursor: pointer; }
+  .builder-preview__toggle:hover { background: #f3f4f6; }
+  .builder-preview__dev { font-size: 0.75rem; color: #6b7280; background: none; border: none; cursor: pointer; padding: 0; }
+  .builder-preview__dev--on { color: #111827; font-weight: 600; }
+  .builder-preview__stage { display: flex; justify-content: center; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 0.5rem; }
+  .builder-preview__frame { width: 100%; height: calc(100vh - 8rem); min-height: 32rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; background: #fff; transition: max-width 0.2s ease; }
+
+  /* Collapsible meta panels in the controls column */
+  .editor-panel { border: 1px solid #e5e7eb; border-radius: 0.75rem; background: #fff; overflow: hidden; }
+  .editor-panel > summary { list-style: none; cursor: pointer; padding: 0.85rem 1.1rem; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; justify-content: space-between; }
+  .editor-panel > summary::-webkit-details-marker { display: none; }
+  .editor-panel > summary::after { content: '⌄'; color: #9ca3af; transition: transform 0.15s; }
+  .editor-panel[open] > summary::after { transform: rotate(180deg); }
+  .editor-panel__body { padding: 0 1.1rem 1.1rem; }
+</style>
+
+<script>
+function sectionBuilder() {
+  return {
+    uploadUrl: '',
+    canUpload: false,
+    previewUrl: '',
+    previewWidth: '',
+    panelOpen: true,   // left controls panel visible (false = preview full width)
+    dragFrom: null,    // section index being dragged
+    dragOver: null,    // section index currently hovered as a drop target
+    _previewTimer: null,
+    sections: [],
+    schemas: [],       // [{ type, name, fields:[...] }]
+    schemaMap: {},
+    LABELS: {},
+    siteColors: [],    // [{ label, value, hex }]
+    collections: [],   // [{ slug, title }]
+    init(ds) {
+      this.uploadUrl = ds.uploadUrl || '';
+      this.canUpload = ds.canUpload === 'true';
+      this.previewUrl = ds.previewUrl || '';
+      try { this.schemas = JSON.parse(ds.schemas || '[]'); } catch { this.schemas = []; }
+      try { this.siteColors = JSON.parse(ds.sitecolors || '[]'); } catch { this.siteColors = []; }
+      try { this.collections = JSON.parse(ds.collections || '[]'); } catch { this.collections = []; }
+      this.schemaMap = {}; this.LABELS = {};
+      for (const sc of this.schemas) { this.schemaMap[sc.type] = sc; this.LABELS[sc.type] = sc.name; }
+      try { this.sections = JSON.parse(ds.sections || '[]').map(s => ({ ...s, _open: true })); } catch { this.sections = []; }
+      if (this.previewUrl) this.$nextTick(() => this.refreshPreview());
+    },
+    fieldsFor(type) { const sc = this.schemaMap[type]; return sc ? sc.fields : []; },
+    defaultsFor(type) {
+      const out = {};
+      for (const f of this.fieldsFor(type)) {
+        out[f.id] = (f.default !== undefined && f.default !== null) ? f.default : (f.type === 'checkbox' ? false : '');
+      }
+      return out;
+    },
+    swatchHex(value) {
+      if (!value) return '';
+      if (value.indexOf('var(') === 0) { const c = this.siteColors.find(c => c.value === value); return c ? c.hex : ''; }
+      return value;
+    },
+    colorLabel(value) {
+      if (!value) return 'Default';
+      const c = this.siteColors.find(c => c.value === value);
+      return c ? c.label : value;
+    },
+    add(type) { this.sections.push({ id: crypto.randomUUID(), type, _open: true, ...this.defaultsFor(type) }); this.schedulePreview(); },
+    // Drag-to-reorder: move the dragged section to the drop target's position.
+    onDrop(to) {
+      const from = this.dragFrom;
+      this.dragFrom = null; this.dragOver = null;
+      if (from === null || from === to) return;
+      const [moved] = this.sections.splice(from, 1);
+      this.sections.splice(to, 0, moved);
+      this.sections = [...this.sections];
+      this.schedulePreview();
+    },
+    remove(index) { if (confirm('Remove this section?')) { this.sections.splice(index, 1); this.schedulePreview(); } },
+    moveUp(index) {
+      if (index === 0) return;
+      [this.sections[index - 1], this.sections[index]] = [this.sections[index], this.sections[index - 1]];
+      this.sections = [...this.sections]; this.schedulePreview();
+    },
+    moveDown(index) {
+      if (index === this.sections.length - 1) return;
+      [this.sections[index], this.sections[index + 1]] = [this.sections[index + 1], this.sections[index]];
+      this.sections = [...this.sections]; this.schedulePreview();
+    },
+    async uploadImage(index, fieldId, event) {
+      const url = await this._upload(event);
+      if (url != null) { this.sections[index][fieldId] = url; this.sections = [...this.sections]; this.schedulePreview(); }
+    },
+    // ── Repeater (list of sub-items) helpers ──────────────────────────────
+    repAdd(s, f) {
+      if (!Array.isArray(s[f.id])) s[f.id] = [];
+      const item = { _id: crypto.randomUUID() };
+      for (const itf of (f.itemFields || [])) {
+        item[itf.id] = (itf.default !== undefined && itf.default !== null) ? itf.default : (itf.type === 'checkbox' ? false : '');
+      }
+      s[f.id].push(item);
+      this.sections = [...this.sections];
+      this.schedulePreview();
+    },
+    repRemove(s, fieldId, ri) {
+      s[fieldId].splice(ri, 1);
+      this.sections = [...this.sections];
+      this.schedulePreview();
+    },
+    repMove(s, fieldId, ri, dir) {
+      const arr = s[fieldId]; const ni = ri + dir;
+      if (ni < 0 || ni >= arr.length) return;
+      [arr[ri], arr[ni]] = [arr[ni], arr[ri]];
+      this.sections = [...this.sections];
+      this.schedulePreview();
+    },
+    async uploadItemImage(sectionIndex, fieldId, itemIndex, itemFieldId, event) {
+      const url = await this._upload(event);
+      if (url != null) { this.sections[sectionIndex][fieldId][itemIndex][itemFieldId] = url; this.sections = [...this.sections]; this.schedulePreview(); }
+    },
+    // Shared upload. Multipart bodies never populate req.body, so the CSRF token
+    // rides in the query string — the same pattern every other upload in the
+    // admin uses (see the server's csrf getToken + the product/media forms).
+    async _upload(event) {
+      const file = event.target.files[0];
+      if (!file || !this.canUpload || !this.uploadUrl) return null;
+      const fd = new FormData();
+      fd.append('file', file);
+      const tokenEl = document.querySelector('input[name="_csrf"]');
+      const sep = this.uploadUrl.indexOf('?') >= 0 ? '&' : '?';
+      const url = tokenEl ? this.uploadUrl + sep + '_csrf=' + encodeURIComponent(tokenEl.value) : this.uploadUrl;
+      const res = await fetch(url, { method: 'POST', body: fd });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.url;
+    },
+    // Debounced live-preview refresh — re-renders the storefront in the iframe
+    // through the real render pipeline (POST draft sections → HTML → srcdoc).
+    schedulePreview() {
+      if (!this.previewUrl) return;
+      clearTimeout(this._previewTimer);
+      this._previewTimer = setTimeout(() => this.refreshPreview(), 500);
+    },
+    async refreshPreview() {
+      if (!this.previewUrl || !this.$refs.preview) return;
+      const payload = this.sections.map(({ _open, ...rest }) => rest);
+      // Pull the page's title/content too so plain (section-less) pages preview.
+      const titleEl = document.querySelector('input[name="title"]');
+      const contentEl = document.querySelector('[name="content"]');
+      try {
+        // Read-only, admin-gated, CSRF-exempt endpoint (see storefront preHandler).
+        const res = await fetch(this.previewUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sections: payload,
+            title: titleEl ? titleEl.value : '',
+            content: contentEl ? contentEl.value : '',
+          }),
+        });
+        if (res.ok) this.$refs.preview.srcdoc = await res.text();
+      } catch (e) { /* leave the last good preview in place */ }
+    }
+  };
+}
+</script>

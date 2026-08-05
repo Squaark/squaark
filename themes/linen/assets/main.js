@@ -23,3 +23,37 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+// Slideshow section — dependency-free carousel (dots, arrows, optional autoplay)
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("[data-slideshow]").forEach((root) => {
+    const slides = Array.from(root.querySelectorAll(".slideshow__slide"));
+    if (!slides.length) return;
+    let idx = 0;
+    const dotsWrap = root.querySelector(".slideshow__dots");
+    const show = (i) => {
+      idx = (i + slides.length) % slides.length;
+      slides.forEach((s, n) => s.classList.toggle("is-active", n === idx));
+      if (dotsWrap) Array.from(dotsWrap.children).forEach((d, n) => d.classList.toggle("is-active", n === idx));
+    };
+    if (slides.length > 1) {
+      root.classList.add("section-slideshow--multi");
+      slides.forEach((_, n) => {
+        const dot = document.createElement("button");
+        dot.type = "button"; dot.className = "slideshow__dot"; dot.setAttribute("aria-label", "Go to slide " + (n + 1));
+        dot.addEventListener("click", () => show(n));
+        if (dotsWrap) dotsWrap.appendChild(dot);
+      });
+      const prev = root.querySelector(".slideshow__nav--prev");
+      const next = root.querySelector(".slideshow__nav--next");
+      if (prev) prev.addEventListener("click", () => show(idx - 1));
+      if (next) next.addEventListener("click", () => show(idx + 1));
+      if (root.dataset.autoplay) {
+        let timer = setInterval(() => show(idx + 1), 5000);
+        root.addEventListener("mouseenter", () => clearInterval(timer));
+        root.addEventListener("mouseleave", () => { timer = setInterval(() => show(idx + 1), 5000); });
+      }
+    }
+    show(0);
+  });
+});

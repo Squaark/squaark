@@ -18,12 +18,31 @@
 <form method="POST" action="/admin/pages/{{#if page}}{{page.id}}{{else}}new{{/if}}">
   {{csrf_field}}
 
-  <div class="grid-form">
-    <div class="stack">
+  {{#> section-builder}}
+    <!-- Publish bar — always visible, keeps Save reachable -->
+    <div class="card--no-overflow card-body editor-publish stack-sm">
+      <div class="row-between" style="gap:0.75rem;">
+        <label class="form-check" style="margin:0;">
+          <input type="checkbox" name="status" value="published" {{#if (eq page.status 'published')}}checked{{/if}}>
+          Published
+        </label>
+        <button type="submit" class="btn btn-primary btn-sm">
+          {{#if page}}Save changes{{else}}Create page{{/if}}
+        </button>
+      </div>
+      <label class="form-check" style="margin:0;">
+        <input type="checkbox" name="use_as_homepage" value="1" {{#if isHomepage}}checked{{/if}}>
+        Use as home page
+      </label>
+      {{#if page}}
+      <a href="/{{page.slug}}" target="_blank" class="text-xs text-muted">View page ↗</a>
+      {{/if}}
+    </div>
 
-      <!-- Details -->
-      <div class="card--no-overflow card-body stack-sm">
-        <h2 class="font-semibold">Details</h2>
+    <!-- Page details (collapsible) -->
+    <details class="editor-panel" open>
+      <summary>Page details</summary>
+      <div class="editor-panel__body stack-sm">
         <div>
           <label class="form-label">Title <span class="form-required">*</span></label>
           <input type="text" name="title" value="{{page.title}}" required class="form-input">
@@ -36,174 +55,16 @@
           </div>
         </div>
         <div>
-          <label class="form-label">Excerpt <span class="form-optional">— shown in search results and meta descriptions</span></label>
+          <label class="form-label">Excerpt <span class="form-optional">— search snippet</span></label>
           <textarea name="excerpt" rows="2" class="form-textarea">{{page.excerpt}}</textarea>
         </div>
       </div>
+    </details>
 
-      <!-- Section builder -->
-      <div class="card--no-overflow card-body"
-           x-data="sectionBuilder('{{page.id}}')"
-           x-init="init($el.dataset.sections, $el.dataset.schemas, $el.dataset.sitecolors)"
-           data-sections='{{sectionsSafe}}'
-           data-schemas='{{sectionSchemasSafe}}'
-           data-sitecolors='{{siteColorsSafe}}'>
-
-        <div class="row-between mb-4">
-          <h2 class="font-semibold">Page sections</h2>
-          <div style="position:relative;" x-data="{ open: false }">
-            <button type="button" @click="open = !open" class="btn btn-primary btn-sm">
-              + Add section
-              <svg style="width:0.75rem;height:0.75rem;margin-left:0.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-              </svg>
-            </button>
-            <div x-show="open" @click.outside="open = false" x-cloak
-              style="position:absolute;right:0;margin-top:0.25rem;width:11rem;background:#fff;border:1px solid #e5e7eb;border-radius:0.75rem;box-shadow:0 4px 12px rgba(0,0,0,.08);z-index:10;padding:0.25rem 0;font-size:0.875rem;">
-              <template x-for="sc in schemas" :key="sc.type">
-                <button type="button" @click="add(sc.type); open = false"
-                  style="width:100%;text-align:left;padding:0.5rem 1rem;" class="dropdown-item" x-text="sc.name"></button>
-              </template>
-            </div>
-          </div>
-        </div>
-
-        <!-- Empty state / legacy content editor. Uses x-if (not x-show) so the
-             textarea is removed from the DOM when sections exist — otherwise it
-             would stay hidden but still submit, sending `content` twice and
-             breaking the save (the value arrives as an array). -->
-        <template x-if="sections.length === 0">
-          <div>
-            <label class="form-label">Content <span class="form-optional">— shown when no sections are added. Accepts HTML.</span></label>
-            <textarea name="content" rows="16" class="form-textarea font-mono"
-              placeholder="<p>Page content here…</p>">{{page.content}}</textarea>
-          </div>
-        </template>
-
-        <!-- When sections exist, preserve any legacy content as hidden so it isn't lost -->
-        <template x-if="sections.length > 0">
-          <input type="hidden" name="content" value="{{page.content}}">
-        </template>
-
-        <!-- Section cards -->
-        <template x-for="(s, i) in sections" :key="s.id">
-          <div style="border:1px solid #e5e7eb;border-radius:0.75rem;margin-bottom:0.75rem;overflow:hidden;">
-
-            <!-- Card header -->
-            <div style="display:flex;align-items:center;gap:0.5rem;padding:0.625rem 1rem;background:#f9fafb;border-bottom:1px solid #f3f4f6;">
-              <span class="text-sm font-medium" x-text="LABELS[s.type]"></span>
-              <div style="margin-left:auto;display:flex;align-items:center;gap:0.25rem;">
-                <button type="button" @click="moveUp(i)" :disabled="i === 0"
-                  style="padding:0.25rem;border-radius:0.25rem;color:#9ca3af;" title="Move up">↑</button>
-                <button type="button" @click="moveDown(i)" :disabled="i === sections.length - 1"
-                  style="padding:0.25rem;border-radius:0.25rem;color:#9ca3af;" title="Move down">↓</button>
-                <button type="button" @click="remove(i)"
-                  style="padding:0.25rem;border-radius:0.25rem;color:#9ca3af;margin-left:0.25rem;" title="Remove">
-                  <svg style="width:1rem;height:1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                  </svg>
-                </button>
-                <button type="button" @click="s._open = !s._open"
-                  style="padding:0.25rem;border-radius:0.25rem;color:#9ca3af;margin-left:0.25rem;">
-                  <svg style="width:1rem;height:1rem;transition:transform 0.15s;" :style="s._open ? 'transform:rotate(180deg)' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <!-- Card body — fields generated from the section's schema -->
-            <div x-show="s._open" class="card-body stack-sm">
-              <template x-for="f in fieldsFor(s.type)" :key="f.id">
-                <div>
-                  <label class="form-label-xs">
-                    <span x-text="f.label"></span>
-                    <span x-show="f.optional" class="form-optional">(optional)</span>
-                  </label>
-
-                  <!-- text / url -->
-                  <template x-if="f.type === 'text' || f.type === 'url'">
-                    <input type="text" x-model="s[f.id]" :placeholder="f.placeholder || ''" class="form-input">
-                  </template>
-
-                  <!-- multi-line plain text -->
-                  <template x-if="f.type === 'textarea'">
-                    <textarea x-model="s[f.id]" :rows="f.rows || 3" :placeholder="f.placeholder || ''" class="form-textarea"></textarea>
-                  </template>
-
-                  <!-- HTML (rendered through sanitized_html on the storefront) -->
-                  <template x-if="f.type === 'html'">
-                    <textarea x-model="s[f.id]" :rows="f.rows || 6" :placeholder="f.placeholder || ''" class="form-textarea font-mono"></textarea>
-                  </template>
-
-                  <!-- select -->
-                  <template x-if="f.type === 'select'">
-                    <select x-model="s[f.id]" class="form-select">
-                      <template x-for="opt in f.options" :key="opt.value">
-                        <option :value="opt.value" x-text="opt.label"></option>
-                      </template>
-                    </select>
-                  </template>
-
-                  <!-- checkbox -->
-                  <template x-if="f.type === 'checkbox'">
-                    <label class="form-check"><input type="checkbox" x-model="s[f.id]"> <span x-text="f.help || ''"></span></label>
-                  </template>
-
-                  <!-- colour: site-colour swatches + a custom picker -->
-                  <template x-if="f.type === 'color'">
-                    <div style="display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;">
-                      <template x-for="c in siteColors" :key="c.value">
-                        <button type="button" @click="s[f.id] = c.value" :title="c.label"
-                          :style="'width:1.6rem;height:1.6rem;border-radius:9999px;cursor:pointer;background:'+c.hex+';border:2px solid '+(s[f.id]===c.value ? '#111827' : '#e5e7eb')+';'"></button>
-                      </template>
-                      <label :title="'Custom colour'"
-                        style="display:inline-flex;align-items:center;justify-content:center;width:1.6rem;height:1.6rem;border-radius:0.375rem;border:1px dashed #cbd5e1;cursor:pointer;position:relative;overflow:hidden;">
-                        <span style="font-size:0.85rem;line-height:1;">🎨</span>
-                        <input type="color" :value="swatchHex(s[f.id]) || '#000000'" @input="s[f.id] = $event.target.value"
-                          style="position:absolute;inset:0;opacity:0;cursor:pointer;">
-                      </label>
-                      <button type="button" @click="s[f.id] = ''" x-show="s[f.id]" class="btn-link btn-link--xs">Clear</button>
-                      <span class="text-xs text-muted" x-text="colorLabel(s[f.id])"></span>
-                    </div>
-                  </template>
-
-                  <!-- image (upload widget; stores a URL) -->
-                  <template x-if="f.type === 'image'">
-                    <div class="stack-sm">
-                      <div x-show="s[f.id]" style="display:flex;align-items:flex-start;gap:0.75rem;">
-                        <img :src="s[f.id]" style="height:6rem;border-radius:0.5rem;object-fit:contain;border:1px solid #e5e7eb;background:#f9fafb;padding:0.25rem;">
-                        <button type="button" @click="s[f.id] = ''" class="btn-link btn-link--danger btn-link--xs" style="margin-top:0.25rem;">Remove</button>
-                      </div>
-                      <template x-if="!pageId">
-                        <p class="alert alert-warning" style="font-size:0.75rem;">Save the page first to enable image uploads.</p>
-                      </template>
-                      <template x-if="pageId">
-                        <input type="file" accept="image/*" @change="uploadImage(i, f.id, $event)" class="form-file">
-                      </template>
-                    </div>
-                  </template>
-
-                  <template x-if="f.help && f.type !== 'checkbox'">
-                    <p class="form-hint" x-text="f.help"></p>
-                  </template>
-                </div>
-              </template>
-            </div>
-          </div>
-        </template>
-
-        <!-- Hidden field — submitted with the main form -->
-        <input type="hidden" name="sections" :value="JSON.stringify(sections.map(({_open, ...rest}) => rest))">
-      </div>
-
-
-    </div>
-
-    <!-- Sidebar -->
-    <div class="stack-sm">
-      <div class="card--no-overflow card-body stack-sm">
-        <h2 class="font-semibold text-sm">SEO</h2>
+    <!-- SEO (collapsible) -->
+    <details class="editor-panel">
+      <summary>SEO</summary>
+      <div class="editor-panel__body stack-sm">
         <div>
           <label class="form-label">Meta title <span class="form-optional">50–60 chars</span></label>
           <input type="text" name="seo_title" value="{{page.seo_title}}" class="form-input" maxlength="120" placeholder="{{page.title}}">
@@ -213,104 +74,7 @@
           <textarea name="seo_description" rows="3" class="form-textarea" maxlength="320" placeholder="Describe this page for search engines…">{{page.seo_description}}</textarea>
         </div>
       </div>
-      <div class="card--no-overflow card-body stack-sm">
-        <h2 class="font-semibold text-sm">Publish</h2>
-        <label class="form-check">
-          <input type="checkbox" name="status" value="published" {{#if (eq page.status 'published')}}checked{{/if}}>
-          Published
-        </label>
-        <button type="submit" class="btn btn-primary btn-block">
-          {{#if page}}Save changes{{else}}Create page{{/if}}
-        </button>
-        {{#if page}}
-        <a href="/{{page.slug}}" target="_blank" class="text-xs text-muted" style="display:block;text-align:center;">View page ↗</a>
-        {{/if}}
-      </div>
-      {{#if page}}
-      <div class="card--no-overflow card-body text-xs text-muted stack-xs">
-        <p>Created {{date_short page.created_at}}</p>
-        <p>Updated {{date_short page.updated_at}}</p>
-      </div>
-      {{/if}}
-    </div>
-  </div>
+    </details>
+  {{/section-builder}}
 
 </form>
-
-<script>
-function sectionBuilder(pageId) {
-  return {
-    pageId: pageId || '',
-    sections: [],
-    schemas: [],       // [{ type, name, fields:[...] }] from the server registry
-    schemaMap: {},     // type -> schema
-    LABELS: {},        // type -> display name (used in the card header)
-    siteColors: [],    // [{ label, value, hex }] palette for colour fields
-    init(sectionsJson, schemasJson, siteColorsJson) {
-      try { this.schemas = JSON.parse(schemasJson || '[]'); } catch { this.schemas = []; }
-      try { this.siteColors = JSON.parse(siteColorsJson || '[]'); } catch { this.siteColors = []; }
-      this.schemaMap = {};
-      this.LABELS = {};
-      for (const sc of this.schemas) { this.schemaMap[sc.type] = sc; this.LABELS[sc.type] = sc.name; }
-      try {
-        const parsed = JSON.parse(sectionsJson || '[]');
-        this.sections = parsed.map(s => ({ ...s, _open: true }));
-      } catch { this.sections = []; }
-    },
-    // The hex to show in the native picker for a value that may be a site-colour token.
-    swatchHex(value) {
-      if (!value) return '';
-      if (value.indexOf('var(') === 0) {
-        const c = this.siteColors.find(c => c.value === value);
-        return c ? c.hex : '';
-      }
-      return value;
-    },
-    // A friendly label for the current colour (site-colour name, hex, or "Default").
-    colorLabel(value) {
-      if (!value) return 'Default';
-      const c = this.siteColors.find(c => c.value === value);
-      return c ? c.label : value;
-    },
-    fieldsFor(type) {
-      const sc = this.schemaMap[type];
-      return sc ? sc.fields : [];
-    },
-    defaultsFor(type) {
-      const out = {};
-      for (const f of this.fieldsFor(type)) {
-        out[f.id] = (f.default !== undefined && f.default !== null) ? f.default : (f.type === 'checkbox' ? false : '');
-      }
-      return out;
-    },
-    add(type) {
-      this.sections.push({ id: crypto.randomUUID(), type, _open: true, ...this.defaultsFor(type) });
-    },
-    remove(index) {
-      if (confirm('Remove this section?')) this.sections.splice(index, 1);
-    },
-    moveUp(index) {
-      if (index === 0) return;
-      [this.sections[index - 1], this.sections[index]] = [this.sections[index], this.sections[index - 1]];
-      this.sections = [...this.sections];
-    },
-    moveDown(index) {
-      if (index === this.sections.length - 1) return;
-      [this.sections[index], this.sections[index + 1]] = [this.sections[index + 1], this.sections[index]];
-      this.sections = [...this.sections];
-    },
-    async uploadImage(index, fieldId, event) {
-      const file = event.target.files[0];
-      if (!file || !this.pageId) return;
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await fetch('/admin/pages/' + this.pageId + '/sections/image', { method: 'POST', body: fd });
-      if (res.ok) {
-        const data = await res.json();
-        this.sections[index][fieldId] = data.url;
-        this.sections = [...this.sections];
-      }
-    }
-  };
-}
-</script>

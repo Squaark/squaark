@@ -1,0 +1,18 @@
+{{#if slides.length}}
+<section class="section-slideshow" data-slideshow{{#if autoplay}} data-autoplay="1"{{/if}}>
+  <div class="slideshow__viewport">
+    {{#each slides}}
+    <div class="slideshow__slide"{{#if this.image}} style="background-image:url('{{this.image}}')"{{/if}}>
+      <div class="slideshow__content">
+        {{#if this.heading}}<h2 class="slideshow__heading">{{this.heading}}</h2>{{/if}}
+        {{#if this.subheading}}<p class="slideshow__subheading">{{this.subheading}}</p>{{/if}}
+        {{#if this.buttonLabel}}<a href="{{this.buttonUrl}}" class="slideshow__btn">{{this.buttonLabel}}</a>{{/if}}
+      </div>
+    </div>
+    {{/each}}
+  </div>
+  <button type="button" class="slideshow__nav slideshow__nav--prev" aria-label="Previous slide">‹</button>
+  <button type="button" class="slideshow__nav slideshow__nav--next" aria-label="Next slide">›</button>
+  <div class="slideshow__dots"></div>
+</section>
+{{/if}}

@@ -5,26 +5,25 @@ import { getAdminById } from '../../admin/auth';
 import { getAllSettings } from '../../db/queries/admin';
 import { execute, query, queryOne } from '../../db/connection';
 import { savePageImage } from '../../admin/store-media';
-import { listSectionSchemas, sanitizeSections } from '../../theme/sections';
-import { themeRegistry } from '../../theme/registry';
+import { sanitizeSections } from '../../theme/sections';
+import { sectionBuilderVars } from '../../admin/section-builder-ctx';
+import { setHomepage, isHomepage } from '../../db/queries/pages';
 
-// Schemas are static — serialise once, single-quote-escaped for the data-attr.
-const SECTION_SCHEMAS_SAFE = JSON.stringify(listSectionSchemas()).replace(/'/g, '&#39;');
+/** Builder context for a page form (upload URL + legacy content depend on the page). */
+function pageBuilderVars(page: { id?: string; content?: string } | null | undefined) {
+  const id = page?.id;
+  return sectionBuilderVars({
+    uploadUrl: id ? `/admin/pages/${id}/sections/image` : '',
+    canUpload: !!id,
+    previewUrl: '/__preview/page',
+    legacy: true,
+    legacyContent: page?.content ?? '',
+  });
+}
 
-/**
- * The palette offered by `color` fields: the live theme brand colours (stored as
- * `var(--color-*)` tokens so a hero follows a later brand-colour change) plus
- * black/white. Built per request since theme colours can change.
- */
-function siteColorsSafe(): string {
-  const colors = (themeRegistry.currentThemeConfig?.colors ?? {}) as Record<string, string>;
-  const list: { label: string; value: string; hex: string }[] = [];
-  if (colors.accent)     list.push({ label: 'Highlight', value: 'var(--color-accent)',     hex: colors.accent });
-  if (colors.primary)    list.push({ label: 'Primary',   value: 'var(--color-primary)',    hex: colors.primary });
-  if (colors.background) list.push({ label: 'Background', value: 'var(--color-background)', hex: colors.background });
-  list.push({ label: 'White', value: '#ffffff', hex: '#ffffff' });
-  list.push({ label: 'Dark',  value: '#111827', hex: '#111827' });
-  return JSON.stringify(list).replace(/'/g, '&#39;');
+/** Whether the "Use as home page" box was ticked on the submitted form. */
+function homepageChecked(body: Record<string, string>): boolean {
+  return body.use_as_homepage === '1' || body.use_as_homepage === 'on';
 }
 
 interface PageRow {
@@ -83,8 +82,8 @@ async function newPagePage(req: FastifyRequest, reply: FastifyReply) {
   return reply.type('text/html').send(
     await render('pages/form', {
       ...adminCtx(req), page: null,
-      sectionsSafe: '[]', sectionSchemasSafe: SECTION_SCHEMAS_SAFE, siteColorsSafe: siteColorsSafe(),
-      pageTitle: 'New page', pageSection: 'pages',
+      sectionsSafe: '[]', ...pageBuilderVars(null),
+      pageTitle: 'New page', pageSection: 'pages', fullWidth: true,
     }, reply),
   );
 }
@@ -96,10 +95,11 @@ async function editPagePage(req: FastifyRequest<{ Params: { id: string } }>, rep
   return reply.type('text/html').send(
     await render('pages/form', {
       ...adminCtx(req), page,
-      sectionsSafe: safeSectionsAttr(sections), sectionSchemasSafe: SECTION_SCHEMAS_SAFE, siteColorsSafe: siteColorsSafe(),
+      sectionsSafe: safeSectionsAttr(sections), ...pageBuilderVars(page),
+      isHomepage: isHomepage(page.id),
       saved: 'saved' in (req.query as Record<string, string>),
       created: 'created' in (req.query as Record<string, string>),
-      pageTitle: page.title, pageSection: 'pages',
+      pageTitle: page.title, pageSection: 'pages', fullWidth: true,
     }, reply),
   );
 }
@@ -120,8 +120,8 @@ async function createPage(
     return reply.type('text/html').send(
       await render('pages/form', {
         ...adminCtx(req), page: req.body, sectionsSafe: safeSectionsAttr(parseSections(sections)),
-        sectionSchemasSafe: SECTION_SCHEMAS_SAFE, siteColorsSafe: siteColorsSafe(),
-        error: validationError, pageTitle: 'New page', pageSection: 'pages',
+        ...pageBuilderVars(req.body),
+        error: validationError, pageTitle: 'New page', pageSection: 'pages', fullWidth: true,
       }, reply),
     );
   }
@@ -134,6 +134,7 @@ async function createPage(
     [id, title.trim(), slugTrimmed, content || '', sectionsJson || '[]', excerpt || '', status === 'published' ? 'published' : 'draft',
      seo_title || null, seo_description || null],
   );
+  if (homepageChecked(req.body)) setHomepage(id);
   return reply.redirect(`/admin/pages/${id}?created=1`);
 }
 
@@ -149,9 +150,9 @@ async function updatePage(
     return reply.type('text/html').send(
       await render('pages/form', {
         ...adminCtx(req), page: { ...page, ...req.body },
-        sectionsSafe: safeSectionsAttr(parseSections(sections)), sectionSchemasSafe: SECTION_SCHEMAS_SAFE, siteColorsSafe: siteColorsSafe(),
+        sectionsSafe: safeSectionsAttr(parseSections(sections)), ...pageBuilderVars({ ...page, ...req.body }),
         error: `"${slugTrimmed.split('/')[0]}" is a reserved path and cannot be used as a slug`,
-        pageTitle: title, pageSection: 'pages',
+        pageTitle: title, pageSection: 'pages', fullWidth: true,
       }, reply),
     );
   }
@@ -163,10 +164,15 @@ async function updatePage(
     [title, slugTrimmed, content || '', sectionsJson || '[]', excerpt || '', status === 'published' ? 'published' : 'draft',
      seo_title || null, seo_description || null, req.params.id],
   );
+  // Toggle this page's home-page designation: set when ticked, clear when
+  // unticked but it was previously the home page (leave other pages alone).
+  if (homepageChecked(req.body)) setHomepage(req.params.id);
+  else if (isHomepage(req.params.id)) setHomepage(null);
   return reply.redirect(`/admin/pages/${req.params.id}?saved=1`);
 }
 
 async function deletePage(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+  if (isHomepage(req.params.id)) setHomepage(null); // fall back to the default home
   execute('DELETE FROM pages WHERE id = ?', [req.params.id]);
   return reply.redirect('/admin/pages?deleted=1');
 }
