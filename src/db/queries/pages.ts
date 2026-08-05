@@ -7,6 +7,7 @@ export interface PageRow {
   slug: string;
   content: string;
   sections: string;
+  draft_sections: string | null;
   excerpt: string;
   status: string;
   created_at: string;

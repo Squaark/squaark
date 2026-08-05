@@ -14,28 +14,38 @@
 {{#if error}}<div class="alert alert-error">{{error}}</div>{{/if}}
 {{#if saved}}<div class="alert alert-success">Saved.</div>{{/if}}
 {{#if created}}<div class="alert alert-success">Page created.</div>{{/if}}
+{{#if published}}<div class="alert alert-success">Published — your changes are live.</div>{{/if}}
+{{#if draftSaved}}<div class="alert alert-success">Draft saved — not live until you publish.</div>{{/if}}
+{{#if discarded}}<div class="alert alert-success">Draft discarded; reverted to the published version.</div>{{/if}}
 
 <form method="POST" action="/admin/pages/{{#if page}}{{page.id}}{{else}}new{{/if}}">
   {{csrf_field}}
 
   {{#> section-builder}}
-    <!-- Publish bar — always visible, keeps Save reachable -->
+    <!-- Publish bar — always visible, keeps Save/Publish reachable -->
     <div class="card--no-overflow card-body editor-publish stack-sm">
-      <div class="row-between" style="gap:0.75rem;">
-        <label class="form-check" style="margin:0;">
-          <input type="checkbox" name="status" value="published" {{#if (eq page.status 'published')}}checked{{/if}}>
-          Published
-        </label>
-        <button type="submit" class="btn btn-primary btn-sm">
-          {{#if page}}Save changes{{else}}Create page{{/if}}
-        </button>
-      </div>
+      {{#if hasDraft}}<p class="editor-draft-badge">● Unpublished section changes</p>{{/if}}
+      <label class="form-check" style="margin:0;">
+        <input type="checkbox" name="status" value="published" {{#if (eq page.status 'published')}}checked{{/if}}>
+        Page visible (published)
+      </label>
       <label class="form-check" style="margin:0;">
         <input type="checkbox" name="use_as_homepage" value="1" {{#if isHomepage}}checked{{/if}}>
         Use as home page
       </label>
       {{#if page}}
-      <a href="/{{page.slug}}" target="_blank" class="text-xs text-muted">View page ↗</a>
+        <div class="row" style="gap:0.5rem;">
+          <button type="submit" name="action" value="draft" class="btn btn-secondary btn-sm flex-1">Save draft</button>
+          <button type="submit" name="action" value="publish" class="btn btn-primary btn-sm flex-1">Publish</button>
+        </div>
+        {{#if hasDraft}}
+        <button type="submit" name="action" value="discard" formnovalidate
+          onclick="return confirm('Discard the draft and revert to the published version?')"
+          class="btn-link btn-link--danger btn-link--xs">Discard draft</button>
+        {{/if}}
+        <a href="/{{page.slug}}" target="_blank" class="text-xs text-muted">View published page ↗</a>
+      {{else}}
+        <button type="submit" name="action" value="publish" class="btn btn-primary btn-sm btn-block">Create page</button>
       {{/if}}
     </div>
 

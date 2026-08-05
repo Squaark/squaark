@@ -28,7 +28,7 @@ function homepageChecked(body: Record<string, string>): boolean {
 
 interface PageRow {
   id: string; title: string; slug: string; content: string; sections: string;
-  excerpt: string; status: string; created_at: string; updated_at: string;
+  draft_sections: string | null; excerpt: string; status: string; created_at: string; updated_at: string;
 }
 
 // Top-level paths reserved by the storefront router
@@ -91,14 +91,18 @@ async function newPagePage(req: FastifyRequest, reply: FastifyReply) {
 async function editPagePage(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
   const page = queryOne<PageRow>('SELECT * FROM pages WHERE id = ?', [req.params.id]);
   if (!page) return reply.code(404).type('text/html').send(await render('404', { pageTitle: 'Not found' }, reply));
-  const sections = parseSections(page.sections);
+  // Edit the draft when one exists; otherwise the published sections.
+  const hasDraft = page.draft_sections != null;
+  const sections = parseSections(hasDraft ? page.draft_sections! : page.sections);
+  const q = req.query as Record<string, string>;
   return reply.type('text/html').send(
     await render('pages/form', {
       ...adminCtx(req), page,
       sectionsSafe: safeSectionsAttr(sections), ...pageBuilderVars(page),
       isHomepage: isHomepage(page.id),
-      saved: 'saved' in (req.query as Record<string, string>),
-      created: 'created' in (req.query as Record<string, string>),
+      hasDraft,
+      saved: 'saved' in q, created: 'created' in q,
+      draftSaved: q.draft === '1', published: q.published === '1', discarded: q.discarded === '1',
       pageTitle: page.title, pageSection: 'pages', fullWidth: true,
     }, reply),
   );
@@ -143,8 +147,16 @@ async function updatePage(
   reply: FastifyReply,
 ) {
   const { title, slug, excerpt, status, sections, seo_title, seo_description } = req.body;
+  const action = req.body.action === 'draft' ? 'draft' : req.body.action === 'discard' ? 'discard' : 'publish';
   const content = one(req.body.content); // may arrive twice from the form
   const slugTrimmed = slug?.trim();
+
+  // Discard: drop the working draft and keep the published sections. Nothing else changes.
+  if (action === 'discard') {
+    execute(`UPDATE pages SET draft_sections=NULL, updated_at=datetime('now') WHERE id=?`, [req.params.id]);
+    return reply.redirect(`/admin/pages/${req.params.id}?discarded=1`);
+  }
+
   if (isReservedSlug(slugTrimmed)) {
     const page = queryOne<PageRow>('SELECT * FROM pages WHERE id = ?', [req.params.id]);
     return reply.type('text/html').send(
@@ -159,16 +171,25 @@ async function updatePage(
   // Normalise against the section schema — whitelists known types/fields and
   // applies defaults, so stored section data is always clean regardless of input.
   const sectionsJson = JSON.stringify(sanitizeSections(sections));
-  execute(
-    `UPDATE pages SET title=?, slug=?, content=?, sections=?, excerpt=?, status=?, seo_title=?, seo_description=?, updated_at=datetime('now') WHERE id=?`,
-    [title, slugTrimmed, content || '', sectionsJson || '[]', excerpt || '', status === 'published' ? 'published' : 'draft',
-     seo_title || null, seo_description || null, req.params.id],
-  );
+  const meta = [title, slugTrimmed, content || '', excerpt || '', status === 'published' ? 'published' : 'draft', seo_title || null, seo_description || null];
+  if (action === 'draft') {
+    // Save meta + stash the sections as a draft; the live (published) sections stay put.
+    execute(
+      `UPDATE pages SET title=?, slug=?, content=?, excerpt=?, status=?, seo_title=?, seo_description=?, draft_sections=?, updated_at=datetime('now') WHERE id=?`,
+      [...meta, sectionsJson, req.params.id],
+    );
+  } else {
+    // Publish: sections go live and the draft is cleared.
+    execute(
+      `UPDATE pages SET title=?, slug=?, content=?, excerpt=?, status=?, seo_title=?, seo_description=?, sections=?, draft_sections=NULL, updated_at=datetime('now') WHERE id=?`,
+      [...meta, sectionsJson || '[]', req.params.id],
+    );
+  }
   // Toggle this page's home-page designation: set when ticked, clear when
   // unticked but it was previously the home page (leave other pages alone).
   if (homepageChecked(req.body)) setHomepage(req.params.id);
   else if (isHomepage(req.params.id)) setHomepage(null);
-  return reply.redirect(`/admin/pages/${req.params.id}?saved=1`);
+  return reply.redirect(`/admin/pages/${req.params.id}?${action === 'draft' ? 'draft' : 'published'}=1`);
 }
 
 async function deletePage(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
