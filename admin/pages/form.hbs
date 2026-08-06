@@ -14,16 +14,45 @@
 {{#if error}}<div class="alert alert-error">{{error}}</div>{{/if}}
 {{#if saved}}<div class="alert alert-success">Saved.</div>{{/if}}
 {{#if created}}<div class="alert alert-success">Page created.</div>{{/if}}
+{{#if published}}<div class="alert alert-success">Published — your changes are live.</div>{{/if}}
+{{#if draftSaved}}<div class="alert alert-success">Draft saved — not live until you publish.</div>{{/if}}
+{{#if discarded}}<div class="alert alert-success">Draft discarded; reverted to the published version.</div>{{/if}}
 
 <form method="POST" action="/admin/pages/{{#if page}}{{page.id}}{{else}}new{{/if}}">
   {{csrf_field}}
 
-  <div class="grid-form">
-    <div class="stack">
+  {{#> section-builder}}
+    <!-- Publish bar — always visible, keeps Save/Publish reachable -->
+    <div class="card--no-overflow card-body editor-publish stack-sm">
+      {{#if hasDraft}}<p class="editor-draft-badge">● Unpublished section changes</p>{{/if}}
+      <label class="form-check" style="margin:0;">
+        <input type="checkbox" name="status" value="published" {{#if (eq page.status 'published')}}checked{{/if}}>
+        Page visible (published)
+      </label>
+      <label class="form-check" style="margin:0;">
+        <input type="checkbox" name="use_as_homepage" value="1" {{#if isHomepage}}checked{{/if}}>
+        Use as home page
+      </label>
+      {{#if page}}
+        <div class="row" style="gap:0.5rem;">
+          <button type="submit" name="action" value="draft" class="btn btn-secondary btn-sm flex-1">Save draft</button>
+          <button type="submit" name="action" value="publish" class="btn btn-primary btn-sm flex-1">Publish</button>
+        </div>
+        {{#if hasDraft}}
+        <button type="submit" name="action" value="discard" formnovalidate
+          onclick="return confirm('Discard the draft and revert to the published version?')"
+          class="btn-link btn-link--danger btn-link--xs">Discard draft</button>
+        {{/if}}
+        <a href="/{{page.slug}}" target="_blank" class="text-xs text-muted">View published page ↗</a>
+      {{else}}
+        <button type="submit" name="action" value="publish" class="btn btn-primary btn-sm btn-block">Create page</button>
+      {{/if}}
+    </div>
 
-      <!-- Details -->
-      <div class="card--no-overflow card-body stack-sm">
-        <h2 class="font-semibold">Details</h2>
+    <!-- Page details (collapsible) -->
+    <details class="editor-panel" open>
+      <summary>Page details</summary>
+      <div class="editor-panel__body stack-sm">
         <div>
           <label class="form-label">Title <span class="form-required">*</span></label>
           <input type="text" name="title" value="{{page.title}}" required class="form-input">
@@ -36,217 +65,16 @@
           </div>
         </div>
         <div>
-          <label class="form-label">Excerpt <span class="form-optional">— shown in search results and meta descriptions</span></label>
+          <label class="form-label">Excerpt <span class="form-optional">— search snippet</span></label>
           <textarea name="excerpt" rows="2" class="form-textarea">{{page.excerpt}}</textarea>
         </div>
       </div>
+    </details>
 
-      <!-- Section builder -->
-      <div class="card--no-overflow card-body"
-           x-data="sectionBuilder('{{page.id}}')"
-           x-init="init($el.dataset.sections)"
-           data-sections='{{sectionsSafe}}'>
-
-        <div class="row-between mb-4">
-          <h2 class="font-semibold">Page sections</h2>
-          <div style="position:relative;" x-data="{ open: false }">
-            <button type="button" @click="open = !open" class="btn btn-primary btn-sm">
-              + Add section
-              <svg style="width:0.75rem;height:0.75rem;margin-left:0.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-              </svg>
-            </button>
-            <div x-show="open" @click.outside="open = false" x-cloak
-              style="position:absolute;right:0;margin-top:0.25rem;width:11rem;background:#fff;border:1px solid #e5e7eb;border-radius:0.75rem;box-shadow:0 4px 12px rgba(0,0,0,.08);z-index:10;padding:0.25rem 0;font-size:0.875rem;">
-              <button type="button" @click="add('text'); open = false" style="width:100%;text-align:left;padding:0.5rem 1rem;" class="dropdown-item">Text</button>
-              <button type="button" @click="add('image'); open = false" style="width:100%;text-align:left;padding:0.5rem 1rem;" class="dropdown-item">Image</button>
-              <button type="button" @click="add('image_text'); open = false" style="width:100%;text-align:left;padding:0.5rem 1rem;" class="dropdown-item">Image + Text</button>
-              <button type="button" @click="add('cta'); open = false" style="width:100%;text-align:left;padding:0.5rem 1rem;" class="dropdown-item">Call to Action</button>
-              <button type="button" @click="add('columns'); open = false" style="width:100%;text-align:left;padding:0.5rem 1rem;" class="dropdown-item">Two Columns</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Empty state / legacy content editor. Uses x-if (not x-show) so the
-             textarea is removed from the DOM when sections exist — otherwise it
-             would stay hidden but still submit, sending `content` twice and
-             breaking the save (the value arrives as an array). -->
-        <template x-if="sections.length === 0">
-          <div>
-            <label class="form-label">Content <span class="form-optional">— shown when no sections are added. Accepts HTML.</span></label>
-            <textarea name="content" rows="16" class="form-textarea font-mono"
-              placeholder="<p>Page content here…</p>">{{page.content}}</textarea>
-          </div>
-        </template>
-
-        <!-- When sections exist, preserve any legacy content as hidden so it isn't lost -->
-        <template x-if="sections.length > 0">
-          <input type="hidden" name="content" value="{{page.content}}">
-        </template>
-
-        <!-- Section cards -->
-        <template x-for="(s, i) in sections" :key="s.id">
-          <div style="border:1px solid #e5e7eb;border-radius:0.75rem;margin-bottom:0.75rem;overflow:hidden;">
-
-            <!-- Card header -->
-            <div style="display:flex;align-items:center;gap:0.5rem;padding:0.625rem 1rem;background:#f9fafb;border-bottom:1px solid #f3f4f6;">
-              <span class="text-sm font-medium" x-text="LABELS[s.type]"></span>
-              <div style="margin-left:auto;display:flex;align-items:center;gap:0.25rem;">
-                <button type="button" @click="moveUp(i)" :disabled="i === 0"
-                  style="padding:0.25rem;border-radius:0.25rem;color:#9ca3af;" title="Move up">↑</button>
-                <button type="button" @click="moveDown(i)" :disabled="i === sections.length - 1"
-                  style="padding:0.25rem;border-radius:0.25rem;color:#9ca3af;" title="Move down">↓</button>
-                <button type="button" @click="remove(i)"
-                  style="padding:0.25rem;border-radius:0.25rem;color:#9ca3af;margin-left:0.25rem;" title="Remove">
-                  <svg style="width:1rem;height:1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                  </svg>
-                </button>
-                <button type="button" @click="s._open = !s._open"
-                  style="padding:0.25rem;border-radius:0.25rem;color:#9ca3af;margin-left:0.25rem;">
-                  <svg style="width:1rem;height:1rem;transition:transform 0.15s;" :style="s._open ? 'transform:rotate(180deg)' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <!-- Card body -->
-            <div x-show="s._open" class="card-body stack-sm">
-
-              <!-- TEXT -->
-              <template x-if="s.type === 'text'">
-                <div>
-                  <label class="form-label-xs">Content <span class="form-optional">(HTML)</span></label>
-                  <textarea x-model="s.content" rows="8" class="form-textarea font-mono"
-                    placeholder="<p>Your text here...</p>"></textarea>
-                </div>
-              </template>
-
-              <!-- IMAGE -->
-              <template x-if="s.type === 'image'">
-                <div class="stack-sm">
-                  <div x-show="s.src" style="display:flex;align-items:flex-start;gap:0.75rem;">
-                    <img :src="s.src" style="height:6rem;border-radius:0.5rem;object-fit:contain;border:1px solid #e5e7eb;background:#f9fafb;padding:0.25rem;">
-                    <button type="button" @click="s.src = ''" class="btn-link btn-link--danger btn-link--xs" style="margin-top:0.25rem;">Remove</button>
-                  </div>
-                  <div>
-                    <label class="form-label-xs">Upload image</label>
-                    <template x-if="!pageId">
-                      <p class="alert alert-warning" style="font-size:0.75rem;">Save the page first to enable image uploads.</p>
-                    </template>
-                    <template x-if="pageId">
-                      <input type="file" accept="image/*" @change="uploadImage(i, $event)" class="form-file">
-                    </template>
-                  </div>
-                  <div>
-                    <label class="form-label-xs">Alt text</label>
-                    <input x-model="s.alt" type="text" placeholder="Describe the image" class="form-input">
-                  </div>
-                  <div>
-                    <label class="form-label-xs">Caption <span class="form-optional">(optional)</span></label>
-                    <input x-model="s.caption" type="text" placeholder="Optional caption shown below image" class="form-input">
-                  </div>
-                </div>
-              </template>
-
-              <!-- IMAGE + TEXT -->
-              <template x-if="s.type === 'image_text'">
-                <div class="stack-sm">
-                  <div x-show="s.src" style="display:flex;align-items:flex-start;gap:0.75rem;">
-                    <img :src="s.src" style="height:6rem;border-radius:0.5rem;object-fit:contain;border:1px solid #e5e7eb;background:#f9fafb;padding:0.25rem;">
-                    <button type="button" @click="s.src = ''" class="btn-link btn-link--danger btn-link--xs" style="margin-top:0.25rem;">Remove</button>
-                  </div>
-                  <div>
-                    <label class="form-label-xs">Upload image</label>
-                    <template x-if="!pageId">
-                      <p class="alert alert-warning" style="font-size:0.75rem;">Save the page first to enable image uploads.</p>
-                    </template>
-                    <template x-if="pageId">
-                      <input type="file" accept="image/*" @change="uploadImage(i, $event)" class="form-file">
-                    </template>
-                  </div>
-                  <div>
-                    <label class="form-label-xs">Alt text</label>
-                    <input x-model="s.alt" type="text" class="form-input">
-                  </div>
-                  <div>
-                    <label class="form-label-xs">Image position</label>
-                    <select x-model="s.imagePosition" class="form-select">
-                      <option value="left">Left</option>
-                      <option value="right">Right</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="form-label-xs">Text content <span class="form-optional">(HTML)</span></label>
-                    <textarea x-model="s.content" rows="6" class="form-textarea font-mono"
-                      placeholder="<p>Your text here...</p>"></textarea>
-                  </div>
-                </div>
-              </template>
-
-              <!-- CTA -->
-              <template x-if="s.type === 'cta'">
-                <div class="stack-sm">
-                  <div>
-                    <label class="form-label-xs">Heading</label>
-                    <input x-model="s.heading" type="text" placeholder="Ready to get started?" class="form-input">
-                  </div>
-                  <div>
-                    <label class="form-label-xs">Body text</label>
-                    <textarea x-model="s.body" rows="3" placeholder="Supporting paragraph..." class="form-textarea"></textarea>
-                  </div>
-                  <div class="form-row form-row--2">
-                    <div>
-                      <label class="form-label-xs">Button label</label>
-                      <input x-model="s.buttonLabel" type="text" placeholder="Shop Now" class="form-input">
-                    </div>
-                    <div>
-                      <label class="form-label-xs">Button URL</label>
-                      <input x-model="s.buttonUrl" type="text" placeholder="/collections/all" class="form-input">
-                    </div>
-                  </div>
-                  <div>
-                    <label class="form-label-xs">Alignment</label>
-                    <select x-model="s.align" class="form-select">
-                      <option value="center">Center</option>
-                      <option value="left">Left</option>
-                    </select>
-                  </div>
-                </div>
-              </template>
-
-              <!-- COLUMNS -->
-              <template x-if="s.type === 'columns'">
-                <div class="form-row form-row--2">
-                  <div>
-                    <label class="form-label-xs">Left column <span class="form-optional">(HTML)</span></label>
-                    <textarea x-model="s.leftContent" rows="8" class="form-textarea font-mono"
-                      placeholder="<p>Left column content...</p>"></textarea>
-                  </div>
-                  <div>
-                    <label class="form-label-xs">Right column <span class="form-optional">(HTML)</span></label>
-                    <textarea x-model="s.rightContent" rows="8" class="form-textarea font-mono"
-                      placeholder="<p>Right column content...</p>"></textarea>
-                  </div>
-                </div>
-              </template>
-
-            </div>
-          </div>
-        </template>
-
-        <!-- Hidden field — submitted with the main form -->
-        <input type="hidden" name="sections" :value="JSON.stringify(sections.map(({_open, ...rest}) => rest))">
-      </div>
-
-
-    </div>
-
-    <!-- Sidebar -->
-    <div class="stack-sm">
-      <div class="card--no-overflow card-body stack-sm">
-        <h2 class="font-semibold text-sm">SEO</h2>
+    <!-- SEO (collapsible) -->
+    <details class="editor-panel">
+      <summary>SEO</summary>
+      <div class="editor-panel__body stack-sm">
         <div>
           <label class="form-label">Meta title <span class="form-optional">50–60 chars</span></label>
           <input type="text" name="seo_title" value="{{page.seo_title}}" class="form-input" maxlength="120" placeholder="{{page.title}}">
@@ -256,83 +84,7 @@
           <textarea name="seo_description" rows="3" class="form-textarea" maxlength="320" placeholder="Describe this page for search engines…">{{page.seo_description}}</textarea>
         </div>
       </div>
-      <div class="card--no-overflow card-body stack-sm">
-        <h2 class="font-semibold text-sm">Publish</h2>
-        <label class="form-check">
-          <input type="checkbox" name="status" value="published" {{#if (eq page.status 'published')}}checked{{/if}}>
-          Published
-        </label>
-        <button type="submit" class="btn btn-primary btn-block">
-          {{#if page}}Save changes{{else}}Create page{{/if}}
-        </button>
-        {{#if page}}
-        <a href="/{{page.slug}}" target="_blank" class="text-xs text-muted" style="display:block;text-align:center;">View page ↗</a>
-        {{/if}}
-      </div>
-      {{#if page}}
-      <div class="card--no-overflow card-body text-xs text-muted stack-xs">
-        <p>Created {{date_short page.created_at}}</p>
-        <p>Updated {{date_short page.updated_at}}</p>
-      </div>
-      {{/if}}
-    </div>
-  </div>
+    </details>
+  {{/section-builder}}
 
 </form>
-
-<script>
-function sectionBuilder(pageId) {
-  return {
-    pageId: pageId || '',
-    sections: [],
-    LABELS: {
-      text: 'Text',
-      image: 'Image',
-      image_text: 'Image + Text',
-      cta: 'Call to Action',
-      columns: 'Two Columns'
-    },
-    DEFAULTS: {
-      text:       { content: '' },
-      image:      { src: '', alt: '', caption: '' },
-      image_text: { src: '', alt: '', content: '', imagePosition: 'left' },
-      cta:        { heading: '', body: '', buttonLabel: 'Shop Now', buttonUrl: '/collections/all', align: 'center' },
-      columns:    { leftContent: '', rightContent: '' }
-    },
-    init(sectionsJson) {
-      try {
-        const parsed = JSON.parse(sectionsJson || '[]');
-        this.sections = parsed.map(s => ({ ...s, _open: true }));
-      } catch { this.sections = []; }
-    },
-    add(type) {
-      this.sections.push({ id: crypto.randomUUID(), type, _open: true, ...(this.DEFAULTS[type] || {}) });
-    },
-    remove(index) {
-      if (confirm('Remove this section?')) this.sections.splice(index, 1);
-    },
-    moveUp(index) {
-      if (index === 0) return;
-      [this.sections[index - 1], this.sections[index]] = [this.sections[index], this.sections[index - 1]];
-      this.sections = [...this.sections];
-    },
-    moveDown(index) {
-      if (index === this.sections.length - 1) return;
-      [this.sections[index], this.sections[index + 1]] = [this.sections[index + 1], this.sections[index]];
-      this.sections = [...this.sections];
-    },
-    async uploadImage(index, event) {
-      const file = event.target.files[0];
-      if (!file || !this.pageId) return;
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await fetch('/admin/pages/' + this.pageId + '/sections/image', { method: 'POST', body: fd });
-      if (res.ok) {
-        const data = await res.json();
-        this.sections[index].src = data.url;
-        this.sections = [...this.sections];
-      }
-    }
-  };
-}
-</script>

@@ -1,0 +1,11 @@
+{{#if (video_embed url)}}
+<section class="section-video"{{#if bgColor}} style="--section-bg:{{bgColor}};"{{/if}}>
+  <div class="container--md">
+    {{#if heading}}<h2 class="section-video__title">{{heading}}</h2>{{/if}}
+    <div class="section-video__frame">
+      <iframe src="{{video_embed url}}" title="{{#if heading}}{{heading}}{{else}}Video{{/if}}"
+        frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+    </div>
+  </div>
+</section>
+{{/if}}

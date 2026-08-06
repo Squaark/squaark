@@ -1,0 +1,18 @@
+{{#if logos.length}}
+<section class="section-logos"{{#if (or bgColor textColor)}} style="{{#if bgColor}}--section-bg:{{bgColor}};{{/if}}{{#if textColor}}--section-text:{{textColor}};{{/if}}"{{/if}}>
+  <div class="container">
+    {{#if heading}}<p class="section-logos__title">{{heading}}</p>{{/if}}
+    <div class="section-logos__row">
+      {{#each logos}}
+        {{#if this.image}}
+          {{#if this.url}}
+          <a href="{{this.url}}" class="section-logos__item"><img src="{{this.image}}" alt="{{this.alt}}" loading="lazy"></a>
+          {{else}}
+          <span class="section-logos__item"><img src="{{this.image}}" alt="{{this.alt}}" loading="lazy"></span>
+          {{/if}}
+        {{/if}}
+      {{/each}}
+    </div>
+  </div>
+</section>
+{{/if}}

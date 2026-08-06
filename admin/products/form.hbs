@@ -4,10 +4,13 @@
     <h1 class="page-title">{{#if product}}{{product.title}}{{else}}New product{{/if}}</h1>
   </div>
   {{#if product}}
-  <form method="POST" action="/admin/products/{{product.id}}/delete" onsubmit="return confirm('Delete this product?')">
-    {{csrf_field}}
-    <button type="submit" class="btn-link btn-link--danger btn-link--sm">Delete</button>
-  </form>
+  <div class="row" style="gap:0.75rem;align-items:center;">
+    <a href="/admin/products/{{product.id}}/sections" class="btn btn-secondary btn-sm">Edit page sections</a>
+    <form method="POST" action="/admin/products/{{product.id}}/delete" onsubmit="return confirm('Delete this product?')">
+      {{csrf_field}}
+      <button type="submit" class="btn-link btn-link--danger btn-link--sm">Delete</button>
+    </form>
+  </div>
   {{/if}}
 </div>
 

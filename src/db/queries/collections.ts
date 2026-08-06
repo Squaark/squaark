@@ -1,4 +1,4 @@
-import { query, queryOne } from '../connection';
+import { query, queryOne, execute } from '../connection';
 
 export interface CollectionRow {
   id: string;
@@ -34,4 +34,15 @@ export function findAllCollections(): CollectionRow[] {
     GROUP BY c.id
     ORDER BY c.title
   `);
+}
+
+// ── Per-item page sections (collection page builder) ─────────────────────────
+export function findCollectionForSections(id: string): { id: string; title: string; slug: string } | null {
+  return queryOne<{ id: string; title: string; slug: string }>('SELECT id, title, slug FROM collections WHERE id = ?', [id]);
+}
+export function getCollectionSectionsRaw(id: string): string | null {
+  return queryOne<{ sections: string | null }>('SELECT sections FROM collections WHERE id = ?', [id])?.sections ?? null;
+}
+export function setCollectionSections(id: string, json: string): void {
+  execute('UPDATE collections SET sections = ? WHERE id = ?', [json, id]);
 }

@@ -8,9 +8,12 @@ import { getCartSummary, getCartPage, addToCart, updateCartItem, removeFromCart 
 import { setCartDiscount, clearCartDiscount } from '../../db/queries/cart';
 import { findDiscountByCode } from '../../db/queries/discounts';
 import { validateDiscount, type DiscountValidation } from '../../commerce/discounts';
-import { findAllPages, findPageBySlug } from '../../db/queries/pages';
+import { findAllPages, findPageBySlug, getHomepage, isHomepage, type PageRow } from '../../db/queries/pages';
+import { getProductSectionsRaw } from '../../db/queries/products';
+import { getCollectionSectionsRaw } from '../../db/queries/collections';
 import { findPublishedPosts, countPublishedPosts, findPublishedPostBySlug } from '../../db/queries/posts';
-import { getAllSettings } from '../../db/queries/admin';
+import { getAllSettings, getSetting } from '../../db/queries/admin';
+import { resolveSections } from '../../commerce/section-render';
 import { addSuppression } from '../../db/queries/suppressions';
 import { verifyUnsubscribeToken } from '../../email/unsubscribe';
 import { addSubscriber, unsubscribeEmail } from '../../db/queries/newsletter';
@@ -111,6 +114,11 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
   fastify.addHook('preHandler', (req: FastifyRequest, reply: FastifyReply, done: (err?: Error) => void) => {
     if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return done();
     if (req.url.split('?')[0].startsWith('/webhooks/')) return done();
+    // The admin live-preview endpoints are read-only (they render HTML, never
+    // mutate) and are authorised by the admin session inside the handler. A
+    // cross-origin forgery can't read the response, so CSRF adds nothing here —
+    // exempt them like webhooks.
+    if (req.url.split('?')[0].startsWith('/__preview/')) return done();
     fastify.csrfProtection(req, reply, done);
   });
 
@@ -172,7 +180,27 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
   const CART_SLUGS = ['cart', 'basket', 'bag'];
   const activeCartSlug = (): string => (getAllSettings().cart_label || 'Cart').toLowerCase();
 
+  // Renders a section-built page (CMS page or the designated home page) through
+  // the `page` template, resolving dynamic sections (e.g. featured_products).
+  async function renderPage(
+    req: FastifyRequest, reply: FastifyReply, page: PageRow, path: string,
+  ): Promise<void> {
+    const ctx = await base(req, reply, path, registry);
+    const sections = await resolveSections(page.sections);
+    await render(registry, reply, 'page', {
+      ...ctx,
+      pageTitle: page.seo_title || page.title,
+      metaDescription: page.seo_description || page.excerpt || '',
+      page: { ...page, sections },
+    });
+  }
+
   fastify.get('/', async (req, reply) => {
+    // If a page is set as the home page, render it here; otherwise fall back to
+    // the theme's default home (hero + featured product rows + value props).
+    const home = getHomepage();
+    if (home) return renderPage(req, reply, home, '/');
+
     const ctx = await base(req, reply, '/', registry);
     const layout = ctx.theme.config.layout ?? {};
     const sectionsConfig = Array.isArray(layout.featuredSections)
@@ -197,10 +225,24 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
       heroHeading: layout.heroHeading ?? 'Welcome to our store',
       heroSubheading: layout.heroSubheading ?? 'Curated goods for considered living.',
       showValueProps: layout.showValueProps ?? true,
-      // Un-customised stores (no override yet) get the three defaults; a store
-      // that has customised and removed every row keeps an empty array (no section).
       valueProps: Array.isArray(layout.valueProps) ? layout.valueProps : DEFAULT_VALUE_PROPS,
     });
+  });
+
+  // POST /__preview/page — admin live preview: render a page from *draft*
+  // sections (from the section builder) and return the HTML for an iframe.
+  // Read-only + admin-gated + CSRF-exempt (see the storefront CSRF preHandler).
+  fastify.post('/__preview/page', async (req, reply) => {
+    if (!req.session.adminId) return reply.code(403).type('text/html').send('Forbidden');
+    const body = (req.body ?? {}) as { sections?: unknown; title?: string; content?: string };
+    const ctx = await base(req, reply, '/__preview', registry);
+    ctx.marketing = { pixelHead: '', pixelNoscript: '' }; // don't fire pixels while previewing
+    const sections = await resolveSections(body.sections);
+    const html = await registry.currentEngine.render('page', {
+      ...ctx,
+      page: { title: body.title || '', content: body.content || '', sections },
+    });
+    return reply.type('text/html').send(html);
   });
 
   fastify.get('/products/:slug', async (req, reply) => {
@@ -247,12 +289,19 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
     // Escape '<' so the JSON can't break out of the <script> block.
     const productJsonLd = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
 
+    // Global product-page template sections, then this product's own, rendered
+    // below the product detail.
+    const contentSections = [
+      ...await resolveSections(getSetting('product_template_sections')),
+      ...await resolveSections(getProductSectionsRaw(product.id)),
+    ];
     await render(registry, reply, 'product', {
       ...ctx,
       pageTitle: product.seoTitle || product.title,
       metaDescription: product.seoDescription || product.description || '',
       ogImage: product.images[0]?.large ?? null,
       product,
+      contentSections,
       reviews,
       reviewSummary,
       reviewFlash: flash,
@@ -293,11 +342,16 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
         await registry.currentEngine.render('404', { ...ctx, pageTitle: 'Page Not Found' }),
       );
     }
+    const contentSections = [
+      ...await resolveSections(getSetting('collection_template_sections')),
+      ...await resolveSections(getCollectionSectionsRaw(collection.id)),
+    ];
     await render(registry, reply, 'collection', {
       ...ctx,
       pageTitle: collection.seoTitle || collection.title,
       metaDescription: collection.seoDescription || collection.description || '',
       collection,
+      contentSections,
     });
   });
 
@@ -456,21 +510,16 @@ export async function storefrontRoutes(fastify: FastifyInstance, registry: Theme
 
   fastify.get('/*', async (req, reply) => {
     const slug = (req.params as { '*': string })['*'];
-    const ctx = await base(req, reply, `/${slug}`, registry);
     const page = findPageBySlug(slug);
     if (!page) {
+      const ctx = await base(req, reply, `/${slug}`, registry);
       return reply.code(404).type('text/html').send(
         await registry.currentEngine.render('404', { ...ctx, pageTitle: 'Page Not Found' }),
       );
     }
-    let sections: unknown[] = [];
-    try { sections = JSON.parse((page as unknown as { sections: string }).sections || '[]'); } catch { /* fallback */ }
-    await render(registry, reply, 'page', {
-      ...ctx,
-      pageTitle: page.seo_title || page.title,
-      metaDescription: page.seo_description || page.excerpt || '',
-      page: { ...page, sections },
-    });
+    // The home page is canonical at "/" — send its own slug there.
+    if (isHomepage(page.id)) return reply.redirect('/');
+    await renderPage(req, reply, page, `/${slug}`);
   });
 
   fastify.get('/robots.txt', async (_req, reply) => {

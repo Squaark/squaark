@@ -1,0 +1,23 @@
+<div class="page-header">
+  <div class="page-header__left">
+    <a href="{{backUrl}}" class="page-back">← {{itemTitle}}</a>
+    <h1 class="page-title">{{itemTitle}} — page sections</h1>
+  </div>
+  <a href="{{viewUrl}}" target="_blank" class="btn btn-secondary btn-sm">View ↗</a>
+</div>
+
+{{#if saved}}<div class="alert alert-success">Saved.</div>{{/if}}
+
+<p class="text-sm text-muted" style="margin-bottom:1rem;max-width:44rem;">
+  Sections shown only on this {{kind}}'s page, below the {{kind}} content and after the shared
+  <a href="/admin/templates/{{kind}}" class="link">{{kind}} template</a>.
+</p>
+
+<form method="POST" action="{{formUrl}}">
+  {{csrf_field}}
+  {{#> section-builder}}
+    <div class="card--no-overflow card-body editor-publish stack-sm">
+      <button type="submit" class="btn btn-primary btn-sm btn-block">Save sections</button>
+    </div>
+  {{/section-builder}}
+</form>

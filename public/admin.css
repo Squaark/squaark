@@ -44,6 +44,7 @@ svg { display: block; }
 
 .admin-main { flex: 1; overflow: auto; background: #f9fafb; }
 .admin-content { padding: 2rem; max-width: 1152px; }
+.admin-content--wide { padding: 2rem; }
 
 /* ── Sidebar nav links ──────────────────────────────────────────────────── */
 .sidebar-link {

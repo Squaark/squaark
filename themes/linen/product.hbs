@@ -229,4 +229,8 @@
 
   </div>
 
+{{#if contentSections.length}}
+{{#each contentSections}}{{renderSection this}}{{/each}}
+{{/if}}
+
 {{> footer}}

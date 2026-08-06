@@ -1,0 +1,17 @@
+{{#if products.length}}
+<section class="featured-section"{{#if (or bgColor textColor)}} style="{{#if bgColor}}--section-bg:{{bgColor}};{{/if}}{{#if textColor}}--section-text:{{textColor}};{{/if}}"{{/if}}>
+  <div class="container">
+    <div class="featured-section__head">
+      <h2 class="featured-section__title">{{heading}}</h2>
+      <a href="{{#if collectionSlug}}/collections/{{collectionSlug}}{{else}}/collections/all{{/if}}" class="featured-section__link">
+        View all →
+      </a>
+    </div>
+    <div class="product-grid" style="grid-template-columns: repeat({{columns}}, minmax(0, 1fr))">
+      {{#each products}}
+        {{> product-card}}
+      {{/each}}
+    </div>
+  </div>
+</section>
+{{/if}}
