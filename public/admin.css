@@ -61,6 +61,9 @@ svg { display: block; }
 .sidebar-link:hover { background: #f3f4f6; color: #111827; }
 .sidebar-link.active { background: #111827; color: #fff; }
 .sidebar-link svg { width: 1rem; height: 1rem; flex-shrink: 0; }
+/* Sidebar group headings + nested sub-links */
+.sidebar-group { padding: 0.85rem 0.75rem 0.2rem; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #9ca3af; }
+.sidebar-link--sub { padding-left: 2.25rem; font-size: 0.8125rem; }
 .sidebar-divider { height: 1px; background: #e5e7eb; margin: 0.5rem 0; }
 
 /* ── Page header ────────────────────────────────────────────────────────── */
