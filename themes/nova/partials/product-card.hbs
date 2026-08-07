@@ -19,7 +19,15 @@
 
       <!-- Badges -->
       <div class="product-card__badges">
-        {{#if this.onSale}}
+        {{#if (eq this.availability.status 'upcoming')}}
+          {{#if this.availability.preorder}}
+            <span class="badge-sale" style="background:#1e40af">Pre-order</span>
+          {{else}}
+            <span class="badge-sale" style="background:#2563eb">Coming soon</span>
+          {{/if}}
+        {{else if (eq this.availability.status 'ended')}}
+          <span class="badge-sale" style="background:#6b7280">Unavailable</span>
+        {{else if this.onSale}}
           <span class="badge-sale">Sale</span>
         {{/if}}
         {{#unless this.available}}

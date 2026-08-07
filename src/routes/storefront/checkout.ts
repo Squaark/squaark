@@ -2,10 +2,10 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import Stripe from 'stripe';
 import type { ThemeRegistry } from '../../theme/registry';
 import { buildGlobalContext } from '../../theme/context';
-import { getCartPage, getCartSummary } from '../../commerce/cart';
+import { getCartPage, getCartSummary, cartRequiresSlot, findUnavailableItems } from '../../commerce/cart';
 import { clearCart } from '../../db/queries/cart';
 import { getAllSettings } from '../../db/queries/admin';
-import { createOrder, markOrderPaid, findOrderById, findOrderByPaymentReference, findOrderItems, getOrderProductIds, type Address } from '../../db/queries/orders';
+import { createOrder, markOrderPaid, confirmInvoiceOrder, findOrderById, findOrderByPaymentReference, findOrderItems, getOrderProductIds, type Address } from '../../db/queries/orders';
 import { createOrderDownloads, findDownloadsForOrder } from '../../db/queries/downloads';
 import { sendTemplatedEmail } from '../../email/send';
 import { buildOrderEmailContext } from '../../email/order-context';
@@ -14,8 +14,10 @@ import config from '../../config';
 import { writeLog } from '../../db/queries/system-log';
 import { findCustomerByEmail, createCustomer, deleteCustomer } from '../../db/queries/customers';
 import { getRatesForCountry } from '../../db/queries/shipping';
+import { getGroupForCustomer } from '../../db/queries/customer-groups';
 import { calculateItemsTax } from '../../commerce/tax';
 import { resolveShipping } from '../../commerce/shipping';
+import { availableDates, isValidSlot } from '../../commerce/scheduling';
 import { findStockShortfalls } from '../../commerce/inventory';
 import { generateVerificationToken, isAccountClaimed, sendVerificationEmail } from '../../commerce/customer-verification';
 import { pixelSettings, buildPurchasePixel } from '../../marketing/pixels';
@@ -60,6 +62,10 @@ interface PendingPaypalOrder {
   shippingAmount: number;
   shippingTitle: string | null;
   shippingRateId: string | null;
+  pickupAddress: string | null;
+  pickupInstructions: string | null;
+  fulfilmentDate: string | null;
+  fulfilmentWindow: string | null;
   taxAmount: number;
   total: number;
   currency: string;
@@ -82,6 +88,17 @@ function one(v: unknown): string {
   return typeof v === 'string' ? v.trim() : '';
 }
 
+/** YYYY-MM-DD `days` from today in local time, or null for due-on-receipt. */
+function dueDateFromTerms(days: number | null): string | null {
+  if (days == null || days <= 0) return null;
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function parseAddress(body: Record<string, string>): Address {
   return {
     firstName: body.firstName?.trim() ?? '',
@@ -96,9 +113,29 @@ function parseAddress(body: Record<string, string>): Address {
   };
 }
 
+/**
+ * Validates the booked slot against the chosen rate's schedule. Returns the
+ * {date, window} to store, or null if invalid — i.e. a scheduled rate with a
+ * bad/empty slot, or a cart that requires a slot but a non-scheduled rate.
+ */
+function resolveSlot(
+  shipping: { schedule: import('../../commerce/scheduling').FulfilmentSchedule | null },
+  body: Record<string, string>,
+  requiresSlot: boolean,
+): { date: string | null; window: string | null } | null {
+  const date = one(body.fulfilmentDate);
+  const window = one(body.fulfilmentWindow);
+  if (shipping.schedule) {
+    return isValidSlot(shipping.schedule, date, window) ? { date, window } : null;
+  }
+  return requiresSlot ? null : { date: null, window: null };
+}
+
 async function base(req: FastifyRequest, reply: FastifyReply, registry: ThemeRegistry) {
   const cartSummary = await getCartSummary(req.cartId);
   const global = await buildGlobalContext('/checkout', registry.currentThemeConfig);
+  const group = getGroupForCustomer(req.session.customerId);
+  if (group?.tax_display) global.tax.displayMode = group.tax_display as 'inc' | 'ex';
   return { ...global, cart: cartSummary, csrfToken: reply.generateCsrf(), cssVars: registry.currentCssVars };
 }
 
@@ -113,7 +150,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
 
   // GET /checkout — show address + payment form
   fastify.get('/checkout', async (req, reply) => {
-    const cart = await getCartPage(req.cartId);
+    const cart = await getCartPage(req.cartId, req.session.customerId ?? null);
     if (cart.empty) return reply.redirect(`/${(getAllSettings().cart_label || 'Cart').toLowerCase()}`);
 
     const settings = getAllSettings();
@@ -128,17 +165,24 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     const taxEnabled = settings.tax_enabled === '1';
     const itemsTaxAmount = calculateItemsTax(cart.items, taxEnabled);
 
+    // Pay-on-account: only offered to a logged-in customer whose group allows it.
+    const invoiceGroup = getGroupForCustomer(req.session.customerId);
+    const canInvoice = !!invoiceGroup && invoiceGroup.pay_on_account === 1;
+
     await render(registry, reply, 'checkout', {
       ...ctx, cart, pageTitle: 'Checkout',
       stripeEnabled, paypalEnabled, stripePk, paypalClientId, paypalMode,
       itemsTaxAmount,
+      requiresSlot: cartRequiresSlot(cart.items),
+      canInvoice,
+      invoiceTermsDays: canInvoice ? invoiceGroup!.payment_terms_days : null,
     });
   });
 
   // GET /checkout/shipping-rates — htmx fragment: rate options for a given country
   fastify.get('/checkout/shipping-rates', async (req, reply) => {
     const country = one((req.query as { country?: unknown }).country);
-    const cart = await getCartPage(req.cartId);
+    const cart = await getCartPage(req.cartId, req.session.customerId ?? null);
     const settings = getAllSettings();
     const currencyCode = settings.store_currency ?? 'GBP';
     const symbols: Record<string, string> = { GBP: '£', USD: '$', EUR: '€' };
@@ -163,13 +207,24 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       return '';
     }
 
+    const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
     const html = rates.map((r, i) => {
       const label = r.isFree ? 'Free' : `${sym}${(r.amount / 100).toFixed(2)}`;
       const checked = i === 0 ? ' checked' : '';
-      return `<label class="shipping-rate-option">
-  <input type="radio" name="shippingRateId" value="${r.id}" data-amount="${r.amount}"${checked}
-         onchange="document.dispatchEvent(new CustomEvent('shipping-rate-changed',{detail:{id:'${r.id}',amount:${r.amount},label:'${label}'}}))">
-  <span class="shipping-rate-name">${r.name}</span>
+      const isPickup = 'isPickup' in r && r.isPickup ? 1 : 0;
+      const addr = isPickup ? ('pickupAddress' in r ? r.pickupAddress : null) : null;
+      const instr = isPickup ? ('pickupInstructions' in r ? r.pickupInstructions : null) : null;
+      const schedule = 'schedule' in r ? r.schedule : null;
+      const schedData = schedule ? { dates: availableDates(schedule), windows: schedule.windows } : null;
+      const schedAttr = schedData ? ` data-schedule='${esc(JSON.stringify(schedData))}'` : '';
+      const note = isPickup && (addr || instr)
+        ? `<span class="shipping-rate-pickup">${esc(addr || '')}${addr && instr ? ' — ' : ''}${esc(instr || '')}</span>`
+        : (schedData ? `<span class="shipping-rate-pickup">Choose a date &amp; time below</span>` : '');
+      return `<label class="shipping-rate-option${isPickup ? ' shipping-rate-option--pickup' : ''}">
+  <input type="radio" name="shippingRateId" value="${r.id}" data-amount="${r.amount}" data-pickup="${isPickup}"${schedAttr}${checked}
+         onchange="document.dispatchEvent(new CustomEvent('shipping-rate-changed',{detail:{id:'${r.id}',amount:${r.amount},label:'${label}',pickup:${isPickup},schedule:this.dataset.schedule||''}}))">
+  <span class="shipping-rate-name">${esc(r.name)}${note}</span>
   <span class="shipping-rate-price">${label}</span>
 </label>`;
     }).join('\n');
@@ -181,7 +236,7 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
   // POST /checkout — create Stripe session and redirect
   fastify.post('/checkout', async (req, reply) => {
     const body = req.body as Record<string, string>;
-    const cart = await getCartPage(req.cartId);
+    const cart = await getCartPage(req.cartId, req.session.customerId ?? null);
     if (cart.empty) return reply.redirect(`/${(getAllSettings().cart_label || 'Cart').toLowerCase()}`);
 
     const settings = getAllSettings();
@@ -193,6 +248,11 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     const shortfalls = findStockShortfalls(cart.items);
     if (shortfalls.length) {
       return reply.redirect(`/${(settings.cart_label || 'Cart').toLowerCase()}?error=out_of_stock`);
+    }
+    // Re-check availability windows too — an item's window may have closed since
+    // it was added.
+    if (findUnavailableItems(cart.items).length) {
+      return reply.redirect(`/${(settings.cart_label || 'Cart').toLowerCase()}?error=unavailable`);
     }
 
     const address = parseAddress(body);
@@ -206,6 +266,11 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     const shippingTitle = shipping.title;
     const orderTotal = cart.total.amount + shippingAmount;
     const taxAmount = calculateItemsTax(cart.items, settings.tax_enabled === '1');
+
+    // Validate a booked delivery/collection slot when the rate schedules one, or
+    // the cart requires one.
+    const slot = resolveSlot(shipping, body, cartRequiresSlot(cart.items));
+    if (!slot) return reply.redirect(`/${(settings.cart_label || 'Cart').toLowerCase()}?error=slot_required`);
 
     // Create a pending order first so we have an ID for metadata
     const order = createOrder({
@@ -223,6 +288,10 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
       shippingRateId: shipping.rateId,
       shippingTitle,
       taxAmount,
+      pickupAddress: shipping.pickupAddress,
+      pickupInstructions: shipping.pickupInstructions,
+      fulfilmentDate: slot.date,
+      fulfilmentWindow: slot.window,
       items: cart.items.map(i => ({
         variantId: i.variantId,
         productTitle: i.productTitle,
@@ -266,6 +335,87 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
 
     req.session.pendingOrderId = order.id;
     return reply.redirect(session.url!);
+  });
+
+  // POST /checkout/invoice — B2B pay-on-account: place the order unpaid and
+  // email an invoice, instead of taking a card payment.
+  fastify.post('/checkout/invoice', async (req, reply) => {
+    const body = req.body as Record<string, string>;
+    const settings = getAllSettings();
+    const cartSlug = (settings.cart_label || 'Cart').toLowerCase();
+
+    // Authorise server-side — never trust the button. The customer must be
+    // logged in and their group must permit pay-on-account.
+    const group = getGroupForCustomer(req.session.customerId);
+    if (!group || group.pay_on_account !== 1) {
+      return reply.code(403).send('Pay on account is not available for this account.');
+    }
+
+    const cart = await getCartPage(req.cartId, req.session.customerId ?? null);
+    if (cart.empty) return reply.redirect(`/${cartSlug}`);
+
+    // Same live re-checks as the card path.
+    if (findStockShortfalls(cart.items).length) return reply.redirect(`/${cartSlug}?error=out_of_stock`);
+    if (findUnavailableItems(cart.items).length) return reply.redirect(`/${cartSlug}?error=unavailable`);
+
+    const address = parseAddress(body);
+    const shipping = resolveShipping(cart, address.country, body.shippingRateId ?? '');
+    const orderTotal = cart.total.amount + shipping.amount;
+    const taxAmount = calculateItemsTax(cart.items, settings.tax_enabled === '1');
+
+    const slot = resolveSlot(shipping, body, cartRequiresSlot(cart.items));
+    if (!slot) return reply.redirect(`/${cartSlug}?error=slot_required`);
+
+    const order = createOrder({
+      email: body.email?.trim() ?? '',
+      subtotal: cart.subtotal.amount,
+      discountAmount: cart.discountAmount?.amount ?? 0,
+      shipping: shipping.amount,
+      total: orderTotal,
+      currency: settings.store_currency || 'GBP',
+      discountCode: cart.discountCode,
+      notes: body.notes?.trim() || null,
+      shippingAddress: address,
+      paymentProvider: 'invoice',
+      paymentReference: null,
+      shippingRateId: shipping.rateId,
+      shippingTitle: shipping.title,
+      taxAmount,
+      pickupAddress: shipping.pickupAddress,
+      pickupInstructions: shipping.pickupInstructions,
+      fulfilmentDate: slot.date,
+      fulfilmentWindow: slot.window,
+      dueDate: dueDateFromTerms(group.payment_terms_days),
+      items: cart.items.map(i => ({
+        variantId: i.variantId,
+        productTitle: i.productTitle,
+        variantTitle: i.variantTitle,
+        sku: null,
+        price: i.price.amount,
+        quantity: i.quantity,
+      })),
+    });
+
+    // Reserve stock now — an on-account order is a committed sale even though
+    // it's unpaid. Leaves the order `pending` for the merchant to mark paid.
+    confirmInvoiceOrder(order.id);
+    clearCart(req.cartId);
+
+    writeLog('payment', 'info', 'Invoice (pay-on-account) order placed', {
+      orderId: order.id, orderNumber: order.order_number, email: order.email, total: order.total,
+      dueDate: order.due_date,
+    });
+
+    const items = findOrderItems(order.id);
+    const storeUrl = (settings.store_url ?? 'http://localhost:3000').replace(/\/$/, '');
+    sendTemplatedEmail('order_invoice', order.email, {
+      order: buildOrderEmailContext(order, items),
+      customer_name: address.firstName || null,
+      store: { name: settings.store_name, url: storeUrl },
+    }).catch(() => {});
+    sendMerchantNewOrderEmail(order, items).catch(() => {});
+
+    return reply.redirect(`/checkout/success/${order.id}`);
   });
 
   // GET /checkout/stripe/return — Stripe redirects here after payment
@@ -390,18 +540,23 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
 
     if (!clientId || !clientSecret) return reply.code(400).send({ error: 'PayPal not configured' });
 
-    const cart = await getCartPage(req.cartId);
+    const cart = await getCartPage(req.cartId, req.session.customerId ?? null);
     if (cart.empty) return reply.code(400).send({ error: 'Cart is empty' });
 
     // Re-check stock against the live count before creating the PayPal order.
     const shortfalls = findStockShortfalls(cart.items);
     if (shortfalls.length) return reply.code(409).send({ error: 'out_of_stock', items: shortfalls });
+    const unavailable = findUnavailableItems(cart.items);
+    if (unavailable.length) return reply.code(409).send({ error: 'unavailable', items: unavailable });
 
     const currency = (settings.store_currency || 'GBP').toUpperCase();
     const address = parseAddress(body);
     const shipping = resolveShipping(cart, address.country, body.shippingRateId ?? '');
     const taxAmount = calculateItemsTax(cart.items, settings.tax_enabled === '1');
     const total = cart.total.amount + shipping.amount;
+
+    const slot = resolveSlot(shipping, body, cartRequiresSlot(cart.items));
+    if (!slot) return reply.code(409).send({ error: 'slot_required' });
 
     try {
       const token = await getPaypalToken(clientId, clientSecret, mode);
@@ -448,6 +603,10 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
         shippingAmount: shipping.amount,
         shippingTitle: shipping.title,
         shippingRateId: shipping.rateId,
+        pickupAddress: shipping.pickupAddress,
+        pickupInstructions: shipping.pickupInstructions,
+        fulfilmentDate: slot.date,
+        fulfilmentWindow: slot.window,
         taxAmount,
         total,
         currency,
@@ -535,6 +694,10 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
         shippingRateId: snapshot.shippingRateId,
         shippingTitle: snapshot.shippingTitle,
         taxAmount: snapshot.taxAmount,
+        pickupAddress: snapshot.pickupAddress,
+        pickupInstructions: snapshot.pickupInstructions,
+        fulfilmentDate: snapshot.fulfilmentDate,
+        fulfilmentWindow: snapshot.fulfilmentWindow,
         items: snapshot.items.map(i => ({
           variantId: i.variantId,
           productTitle: i.productTitle,
@@ -613,7 +776,16 @@ export async function checkoutRoutes(fastify: FastifyInstance, registry: ThemeRe
     await render(registry, reply, 'checkout-success', {
       ...ctx,
       pageTitle: `Order #${order.order_number} confirmed`,
-      order: { ...order, items, shippingAddress },
+      order: {
+        ...order, items, shippingAddress,
+        fulfilmentDateLabel: order.fulfilment_date
+          ? new Date(`${order.fulfilment_date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+          : null,
+        dueDateLabel: order.due_date
+          ? new Date(`${order.due_date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+          : null,
+        isInvoice: order.payment_provider === 'invoice',
+      },
       store: { ...ctx.store, name: settings.store_name },
       canCreateAccount,
       accountCreated: accountStatus === 'created',

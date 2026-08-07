@@ -15,6 +15,7 @@
             <td>
               <p class="cell-title">{{this.product_title}}</p>
               <p class="cell-hint">{{this.variant_title}}{{#if this.sku}} · SKU: {{this.sku}}{{/if}}</p>
+              {{#if this.preorder}}<p class="cell-hint" style="color:#1e40af;font-weight:600;">Pre-order · ships from {{date_short this.preorder_available_from}}</p>{{/if}}
             </td>
             <td class="right text-muted">× {{this.quantity}}</td>
             <td class="right cell-title">£{{money_pence this.line_total}}</td>
@@ -59,6 +60,22 @@
       <p class="text-sm">{{order.email}}</p>
     </div>
 
+    {{#if order.pickup_address}}
+    <div class="card--no-overflow card-body">
+      <h2 class="font-semibold text-sm mb-2">Collection</h2>
+      <p class="text-sm" style="white-space:pre-line;">{{order.pickup_address}}</p>
+      {{#if order.pickup_instructions}}<p class="text-xs text-muted" style="margin-top:0.35rem;white-space:pre-line;">{{order.pickup_instructions}}</p>{{/if}}
+      <p class="text-xs" style="color:#1e40af;margin-top:0.5rem;">Customer is collecting — no delivery.</p>
+    </div>
+    {{/if}}
+
+    {{#if order.fulfilment_date}}
+    <div class="card--no-overflow card-body">
+      <h2 class="font-semibold text-sm mb-2">Booked slot</h2>
+      <p class="text-sm">{{date_short order.fulfilment_date}}{{#if order.fulfilment_window}} · {{order.fulfilment_window}}{{/if}}</p>
+    </div>
+    {{/if}}
+
     <div class="card--no-overflow card-body stack-sm">
       <h2 class="font-semibold text-sm">Fulfillment</h2>
       {{#if fulfilled}}<p class="text-xs text-success">Fulfillment updated.</p>{{/if}}
@@ -88,6 +105,14 @@
       </form>
     </div>
 
+    {{#if isInvoice}}
+    <div class="card--no-overflow card-body">
+      <h2 class="font-semibold text-sm mb-2">Invoice (on account)</h2>
+      <p class="text-sm">{{#if (eq order.status 'paid')}}Paid.{{else}}Awaiting payment.{{/if}}{{#if order.due_date}} Payment due {{date_short order.due_date}}.{{/if}}</p>
+      <p class="text-xs" style="color:#1e40af;margin-top:0.5rem;">No card was taken — mark this order <strong>paid</strong> below once the invoice is settled.</p>
+    </div>
+    {{/if}}
+
     <div class="card--no-overflow card-body stack-sm">
       <h2 class="font-semibold text-sm">Payment status</h2>
       {{#if statusUpdated}}<p class="text-xs text-success">Status updated.</p>{{/if}}
@@ -115,7 +140,7 @@
 
     <div class="card--no-overflow card-body-sm text-xs text-muted stack-xs">
       <p>Placed {{date_short order.created_at}}</p>
-      {{#if order.payment_provider}}<p>Paid via {{order.payment_provider}}</p>{{/if}}
+      {{#if order.payment_provider}}{{#if isInvoice}}<p>Pay on account (invoice)</p>{{else}}<p>Paid via {{order.payment_provider}}</p>{{/if}}{{/if}}
     </div>
   </div>
 </div>

@@ -108,6 +108,7 @@ async function viewOrder(
       refundError: req.query.refund_error,
       canRefund: order.status === 'paid' && !!order.payment_reference
         && (order.payment_provider === 'stripe' || order.payment_provider === 'paypal'),
+      isInvoice: order.payment_provider === 'invoice',
       pageTitle: `Order #${order.order_number}`,
     }, reply),
   );

@@ -1,0 +1,37 @@
+<div class="page-header">
+  <div class="page-header__left">
+    <h1 class="page-title">Reusable sections</h1>
+  </div>
+  <a href="/admin/blocks/new" class="btn btn-primary btn-sm">+ New block</a>
+</div>
+
+{{> pages-nav}}
+
+<p class="text-sm text-muted" style="margin-bottom:1rem;max-width:42rem;">
+  Build a set of sections once, then drop it onto any page with the <strong>Reusable block</strong> section.
+  Editing a block here updates every page that uses it.
+</p>
+
+{{#if blocks.length}}
+<div class="card card-body">
+  <table class="table">
+    <thead><tr><th>Name</th><th>Updated</th><th></th></tr></thead>
+    <tbody>
+      {{#each blocks}}
+      <tr>
+        <td><a href="/admin/blocks/{{this.id}}" class="link">{{this.name}}</a></td>
+        <td class="text-sm text-muted">{{date_short this.updated_at}}</td>
+        <td style="text-align:right;">
+          <form method="POST" action="/admin/blocks/{{this.id}}/delete" onsubmit="return confirm('Delete “{{this.name}}”? Pages referencing it will show nothing where it was.')" style="display:inline;">
+            {{csrf_field}}
+            <button type="submit" class="btn-link btn-link--danger btn-link--xs">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+</div>
+{{else}}
+<div class="card card-body text-sm text-muted">No reusable blocks yet. <a href="/admin/blocks/new" class="link">Create one</a>.</div>
+{{/if}}

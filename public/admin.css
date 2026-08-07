@@ -44,6 +44,7 @@ svg { display: block; }
 
 .admin-main { flex: 1; overflow: auto; background: #f9fafb; }
 .admin-content { padding: 2rem; max-width: 1152px; }
+.admin-content--wide { padding: 2rem; }
 
 /* ── Sidebar nav links ──────────────────────────────────────────────────── */
 .sidebar-link {
@@ -60,6 +61,15 @@ svg { display: block; }
 .sidebar-link:hover { background: #f3f4f6; color: #111827; }
 .sidebar-link.active { background: #111827; color: #fff; }
 .sidebar-link svg { width: 1rem; height: 1rem; flex-shrink: 0; }
+/* Sidebar group headings + nested sub-links */
+.sidebar-group { padding: 0.85rem 0.75rem 0.2rem; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #9ca3af; }
+.sidebar-link--sub { padding-left: 2.25rem; font-size: 0.8125rem; }
+
+/* Sub-section tabs (e.g. Pages / Reusable sections / Page templates) */
+.subnav { display: flex; flex-wrap: wrap; gap: 0.25rem; border-bottom: 1px solid #e5e7eb; margin-bottom: 1.5rem; }
+.subnav__tab { padding: 0.6rem 0.9rem; font-size: 0.875rem; font-weight: 500; color: #6b7280; border-bottom: 2px solid transparent; margin-bottom: -1px; text-decoration: none; }
+.subnav__tab:hover { color: #111827; }
+.subnav__tab--active { color: #111827; border-bottom-color: #111827; font-weight: 600; }
 .sidebar-divider { height: 1px; background: #e5e7eb; margin: 0.5rem 0; }
 
 /* ── Page header ────────────────────────────────────────────────────────── */

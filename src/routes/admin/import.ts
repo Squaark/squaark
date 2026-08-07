@@ -32,7 +32,8 @@ async function importPage(req: FastifyRequest<{ Querystring: { job?: string; err
         jobs: listRecentImportJobs(10),
         error: req.query.error,
         pageTitle: 'Import / Export',
-        pageSection: 'import',
+        pageSection: 'settings', // lives under Settings in the nav
+
       },
       reply,
     ),

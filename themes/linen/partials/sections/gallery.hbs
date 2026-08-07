@@ -1,0 +1,17 @@
+{{#if images.length}}
+<section class="section-gallery"{{#if (or bgColor textColor)}} style="{{#if bgColor}}--section-bg:{{bgColor}};{{/if}}{{#if textColor}}--section-text:{{textColor}};{{/if}}"{{/if}}>
+  <div class="container">
+    {{#if heading}}<h2 class="section-gallery__title">{{heading}}</h2>{{/if}}
+    <div class="section-gallery__grid" style="grid-template-columns: repeat({{columns}}, minmax(0, 1fr))">
+      {{#each images}}
+        {{#if this.image}}
+        <figure class="section-gallery__item">
+          <img src="{{this.image}}" alt="{{this.alt}}" loading="lazy">
+          {{#if this.caption}}<figcaption>{{this.caption}}</figcaption>{{/if}}
+        </figure>
+        {{/if}}
+      {{/each}}
+    </div>
+  </div>
+</section>
+{{/if}}

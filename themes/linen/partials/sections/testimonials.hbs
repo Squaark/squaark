@@ -1,0 +1,23 @@
+{{#if items.length}}
+<section class="section-testimonials"{{#if (or bgColor textColor)}} style="{{#if bgColor}}--section-bg:{{bgColor}};{{/if}}{{#if textColor}}--section-text:{{textColor}};{{/if}}"{{/if}}>
+  <div class="container">
+    {{#if heading}}<h2 class="section-testimonials__title">{{heading}}</h2>{{/if}}
+    <div class="section-testimonials__grid">
+      {{#each items}}
+        {{#if this.quote}}
+        <blockquote class="section-testimonials__card">
+          <p class="section-testimonials__quote">{{this.quote}}</p>
+          <footer class="section-testimonials__by">
+            {{#if this.image}}<img src="{{this.image}}" alt="{{this.author}}" class="section-testimonials__avatar" loading="lazy">{{/if}}
+            <span>
+              <span class="section-testimonials__author">{{this.author}}</span>
+              {{#if this.role}}<span class="section-testimonials__role">{{this.role}}</span>{{/if}}
+            </span>
+          </footer>
+        </blockquote>
+        {{/if}}
+      {{/each}}
+    </div>
+  </div>
+</section>
+{{/if}}

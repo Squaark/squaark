@@ -1,0 +1,29 @@
+<div class="page-header">
+  <div class="page-header__left">
+    <a href="/admin/blocks" class="page-back">← Reusable sections</a>
+    <h1 class="page-title">{{#if block}}{{block.name}}{{else}}New block{{/if}}</h1>
+  </div>
+</div>
+
+{{#if saved}}<div class="alert alert-success">Saved.</div>{{/if}}
+{{#if created}}<div class="alert alert-success">Block created.</div>{{/if}}
+
+<form method="POST" action="/admin/blocks/{{#if block}}{{block.id}}{{else}}new{{/if}}">
+  {{csrf_field}}
+
+  {{#> section-builder}}
+    <div class="card--no-overflow card-body editor-publish stack-sm">
+      <div>
+        <label class="form-label">Block name <span class="form-required">*</span></label>
+        <input type="text" name="name" value="{{block.name}}" required class="form-input" placeholder="e.g. Contact block">
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm btn-block">
+        {{#if block}}Save block{{else}}Create block{{/if}}
+      </button>
+      {{#if block}}
+      <p class="form-hint">Referenced by the <strong>Reusable block</strong> section on any page.</p>
+      {{/if}}
+    </div>
+  {{/section-builder}}
+
+</form>

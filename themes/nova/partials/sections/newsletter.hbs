@@ -1,0 +1,11 @@
+<section class="section-newsletter"{{#if (or bgColor textColor)}} style="{{#if bgColor}}--section-bg:{{bgColor}};{{/if}}{{#if textColor}}--section-text:{{textColor}};{{/if}}"{{/if}}>
+  <div class="container--md section-newsletter__inner">
+    {{#if heading}}<h2 class="section-newsletter__title">{{heading}}</h2>{{/if}}
+    {{#if body}}<p class="section-newsletter__body">{{body}}</p>{{/if}}
+    <form class="section-newsletter__form" hx-post="/newsletter/subscribe" hx-swap="outerHTML" method="POST" action="/newsletter/subscribe">
+      <input type="hidden" name="_csrf" value="{{@root.csrfToken}}">
+      <input type="email" name="email" required placeholder="{{placeholder}}" aria-label="Email address" class="section-newsletter__input">
+      <button type="submit" class="section-newsletter__btn">{{buttonLabel}}</button>
+    </form>
+  </div>
+</section>

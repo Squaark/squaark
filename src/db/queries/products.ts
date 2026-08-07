@@ -23,6 +23,10 @@ export interface ProductRow {
   free_shipping: number; // 1 | 0
   tax_band_id: string | null;
   tax_rate: string | null; // resolved from tax_rates JOIN
+  available_from: string | null;  // YYYY-MM-DD or null
+  available_until: string | null; // YYYY-MM-DD or null
+  allow_preorder: number;         // 1 | 0 — orderable during the upcoming window
+  requires_slot: number;          // 1 | 0 — needs a booked delivery/collection slot
 }
 
 export interface ProductImageRow {
@@ -78,7 +82,8 @@ const PRODUCT_SUMMARY_SQL = `
   )
   SELECT
     p.id, p.title, p.slug, p.description, p.vendor, p.tags_text, p.published, p.created_at,
-    p.seo_title, p.seo_description, p.free_shipping,
+    p.seo_title, p.seo_description, p.free_shipping, p.requires_slot,
+    p.available_from, p.available_until, p.allow_preorder,
     p.tax_band_id, tr.rate AS tax_rate,
     fv.price,
     fv.compare_at_price,
@@ -287,4 +292,40 @@ export function getVariantInventory(variantId: string): number | null {
     'SELECT inventory_quantity FROM product_variants WHERE id = ?',
     [variantId],
   )?.inventory_quantity ?? null;
+}
+
+/** True if any of the given variants belongs to a product that needs a booked slot. */
+export function anyVariantRequiresSlot(variantIds: string[]): boolean {
+  const ids = variantIds.filter(Boolean);
+  if (ids.length === 0) return false;
+  const placeholders = ids.map(() => '?').join(',');
+  const row = queryOne<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM product_variants v JOIN products p ON p.id = v.product_id
+      WHERE v.id IN (${placeholders}) AND p.requires_slot = 1`,
+    ids,
+  );
+  return (row?.n ?? 0) > 0;
+}
+
+/** The parent product's availability window + preorder flag for a variant (add-to-cart gating). */
+export function getProductAvailabilityByVariant(
+  variantId: string,
+): { available_from: string | null; available_until: string | null; allow_preorder: number } | null {
+  return queryOne<{ available_from: string | null; available_until: string | null; allow_preorder: number }>(
+    `SELECT p.available_from, p.available_until, p.allow_preorder
+       FROM product_variants v JOIN products p ON p.id = v.product_id
+      WHERE v.id = ?`,
+    [variantId],
+  );
+}
+
+// ── Per-item page sections (product page builder) ────────────────────────────
+export function findProductForSections(id: string): { id: string; title: string; slug: string } | null {
+  return queryOne<{ id: string; title: string; slug: string }>('SELECT id, title, slug FROM products WHERE id = ?', [id]);
+}
+export function getProductSectionsRaw(id: string): string | null {
+  return queryOne<{ sections: string | null }>('SELECT sections FROM products WHERE id = ?', [id])?.sections ?? null;
+}
+export function setProductSections(id: string, json: string): void {
+  execute('UPDATE products SET sections = ? WHERE id = ?', [json, id]);
 }

@@ -8,6 +8,20 @@ import {
   createZone, updateZone, deleteZone,
   createRate, deleteRate,
 } from '../../db/queries/shipping';
+import { parseSchedule } from '../../commerce/scheduling';
+
+/** Builds a validated fulfilment-schedule JSON string from the rate form, or null. */
+function buildScheduleJson(body: Record<string, unknown>): string | null {
+  const wdRaw = body.sched_weekdays;
+  const weekdays = (Array.isArray(wdRaw) ? wdRaw : wdRaw != null ? [wdRaw] : [])
+    .map(v => parseInt(String(v), 10)).filter(n => Number.isInteger(n));
+  const windows = String(body.sched_windows ?? '').split('\n').map(w => w.trim()).filter(Boolean);
+  const leadDays = parseInt(String(body.sched_lead ?? '0'), 10) || 0;
+  const horizonDays = parseInt(String(body.sched_horizon ?? '14'), 10) || 14;
+  const blackouts = String(body.sched_blackouts ?? '').split(',').map(b => b.trim()).filter(Boolean);
+  const json = JSON.stringify({ weekdays, windows, leadDays, horizonDays, blackouts });
+  return parseSchedule(json) ? json : null; // null if the config is empty/invalid
+}
 
 export const COUNTRIES: { code: string; name: string }[] = [
   { code: 'GB', name: 'United Kingdom' },
@@ -135,7 +149,12 @@ async function createRateHandler(
   if (!name || !rate_type) return reply.redirect(`/admin/shipping/${req.params.id}`);
   const amountInt = Math.round(parseFloat(amount || '0') * 100);
   const minInt = min_order_amount ? Math.round(parseFloat(min_order_amount) * 100) : null;
-  createRate(req.params.id, name.trim(), rate_type, amountInt, minInt);
+  const pickup = rate_type === 'pickup'
+    ? { address: (req.body.pickup_address as string)?.trim() || null, instructions: (req.body.pickup_instructions as string)?.trim() || null }
+    : { address: null, instructions: null };
+  const schedule = (req.body as Record<string, unknown>).scheduled === '1'
+    ? buildScheduleJson(req.body as Record<string, unknown>) : null;
+  createRate(req.params.id, name.trim(), rate_type, amountInt, minInt, pickup, schedule);
   return reply.redirect(`/admin/shipping/${req.params.id}?saved=1`);
 }
 

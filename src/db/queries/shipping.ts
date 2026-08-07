@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { query, queryOne, execute } from '../connection';
+import { parseSchedule, type FulfilmentSchedule } from '../../commerce/scheduling';
 
 export interface ShippingZoneRow {
   id: string;
@@ -14,10 +15,13 @@ export interface ShippingRateRow {
   id: string;
   zone_id: string;
   name: string;
-  rate_type: 'flat' | 'free' | 'free_over';
+  rate_type: 'flat' | 'free' | 'free_over' | 'pickup';
   amount: number;           // minor units
   min_order_amount: number | null; // minor units; for free_over type
   position: number;
+  pickup_address: string | null;      // 'pickup' — collection address
+  pickup_instructions: string | null; // 'pickup' — opening hours / notes
+  fulfilment_schedule: string | null; // JSON slot schedule, or null
 }
 
 export function findAllZones(): ShippingZoneRow[] {
@@ -66,6 +70,8 @@ export function createRate(
   rateType: string,
   amount: number,
   minOrderAmount: number | null,
+  pickup: { address: string | null; instructions: string | null } = { address: null, instructions: null },
+  schedule: string | null = null,
 ): ShippingRateRow {
   const id = randomUUID();
   const maxPos = queryOne<{ m: number }>(
@@ -73,8 +79,8 @@ export function createRate(
     [zoneId],
   )?.m ?? 0;
   execute(
-    'INSERT INTO shipping_rates (id, zone_id, name, rate_type, amount, min_order_amount, position) VALUES (?,?,?,?,?,?,?)',
-    [id, zoneId, name, rateType, amount, minOrderAmount, maxPos + 1],
+    'INSERT INTO shipping_rates (id, zone_id, name, rate_type, amount, min_order_amount, position, pickup_address, pickup_instructions, fulfilment_schedule) VALUES (?,?,?,?,?,?,?,?,?,?)',
+    [id, zoneId, name, rateType, amount, minOrderAmount, maxPos + 1, pickup.address, pickup.instructions, schedule],
   );
   return findRateById(id)!;
 }
@@ -88,6 +94,10 @@ export interface ResolvedRate {
   name: string;
   amount: number; // minor units — what will actually be charged
   isFree: boolean;
+  isPickup: boolean;
+  pickupAddress: string | null;
+  pickupInstructions: string | null;
+  schedule: FulfilmentSchedule | null; // set when the rate requires a booked slot
 }
 
 export function getRatesForCountry(country: string, subtotalMinorUnits: number): ResolvedRate[] {
@@ -113,15 +123,21 @@ export function getRatesForCountry(country: string, subtotalMinorUnits: number):
 
   const rates = findRatesForZone(matchedZone.id);
   return rates.map(r => {
+    const base = { id: r.id, name: r.name, isPickup: false, pickupAddress: null, pickupInstructions: null,
+      schedule: parseSchedule(r.fulfilment_schedule) };
+    if (r.rate_type === 'pickup') {
+      return { ...base, amount: r.amount, isFree: r.amount === 0, isPickup: true,
+        pickupAddress: r.pickup_address, pickupInstructions: r.pickup_instructions };
+    }
     if (r.rate_type === 'free') {
-      return { id: r.id, name: r.name, amount: 0, isFree: true };
+      return { ...base, amount: 0, isFree: true };
     }
     if (r.rate_type === 'free_over') {
       const threshold = r.min_order_amount ?? 0;
       const free = subtotalMinorUnits >= threshold;
-      return { id: r.id, name: r.name, amount: free ? 0 : r.amount, isFree: free };
+      return { ...base, amount: free ? 0 : r.amount, isFree: free };
     }
     // flat
-    return { id: r.id, name: r.name, amount: r.amount, isFree: r.amount === 0 };
+    return { ...base, amount: r.amount, isFree: r.amount === 0 };
   });
 }

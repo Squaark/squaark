@@ -5,12 +5,13 @@ Self-hosted ecommerce platform. Keeping it simple with Node.js + SQLite.
 ## Features
 
 **Selling**
-- Products with variants, images, digital downloads, SEO fields, and inventory tracking
+- Products with variants, images, digital downloads, SEO fields, inventory tracking, and optional **availability windows** (a "product calendar" — visible always, purchasable only between set dates, with optional **pre-orders** during the run-up)
 - Collections, search, and genuinely-related "You may also like" (shared-collection, with an optional manual per-product picker) plus cart recommendations
 - Cart + checkout with **Stripe** (hosted Checkout → Apple/Google Pay) and **PayPal**; guest checkout
-- Shipping zones & rates (flat, free, free-over-threshold); tax bands (inc/ex display)
+- Shipping zones & rates (flat, free, free-over-threshold, **local collection/pickup** with per-location address & hours, or **bookable date/time slots**); tax bands (inc/ex display)
 - **Promotions**: discount codes, **automatic discounts** (order % / fixed off over a threshold, and buy-X-get-Y / BOGO), and scheduled **promo banners**
 - **Product reviews** with star ratings, verified-purchase badges, moderation, and rich-result structured data
+- **B2B / wholesale**: customer groups (e.g. Trade) with **group pricing** (a store-wide % off plus inc/ex-tax display) and **pay-on-account checkout** — approved groups place orders as unpaid invoices on net terms; an invoice email is sent and the merchant marks the order paid once settled (order data is structured for a future accounting sync, e.g. Xero)
 
 **Marketing & growth**
 - **Blog** on the page-builder engine (featured image, author, scheduling, RSS, sitemap)
@@ -29,8 +30,8 @@ Self-hosted ecommerce platform. Keeping it simple with Node.js + SQLite.
 - WooCommerce import; full store export/import
 
 **Storefront**
-- Two bundled, fully-configurable themes — **Linen** (clean/editorial) and **Nova** (bold/modern, with a repeater-driven hero slider) — plus uploadable custom themes
-- Configurable cart word (Cart / Basket / Bag), pages with a section builder, editable navigation with optional mega menus (columns of links, categories with pictures, or products)
+- Two bundled, fully-configurable themes — **Linen** (clean/editorial) and **Nova** (bold/modern, with a repeater-driven hero slider) — plus uploadable custom themes. The page builder is theme-agnostic: any theme supports it by shipping a partial per section type and the `renderSection` hooks (the "section contract" — see [`theme_engine_spec.md`](theme_engine_spec.md) §6.5 and each theme's `THEME.md`); sections a theme doesn't implement simply don't render
+- Configurable cart word (Cart / Basket / Bag); a **visual page builder** with **live preview** — every page is built from drag-to-reorder, schema-declared sections (hero, featured products, gallery, testimonials, logo row, slideshow, FAQ, newsletter, video, map/contact, spacer, text, image, image + text, call-to-action, columns — with colour controls) in a two-pane editor with live preview (draft/publish, drag-reorder, reusable blocks); any page can be set as the storefront home page, and product & collection pages take shared templates plus per-item sections; editable navigation with optional mega menus (columns of links, categories with pictures, or products)
 
 ## Requirements
 

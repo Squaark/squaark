@@ -4,6 +4,7 @@ import { getActiveBanner } from '../db/queries/banners';
 import { pixelSettings, buildPixelHead, buildPixelNoscript } from '../marketing/pixels';
 import { listFeaturedProducts } from '../commerce/collections';
 import { findCollectionBySlug } from '../db/queries/collections';
+import type { Availability } from '../commerce/availability';
 import { storeUrl as resolveStoreUrl } from '../store-url';
 
 export interface Money {
@@ -52,6 +53,7 @@ export interface ProductSummary {
   vendor: string | null;
   taxRate: string | null;
   rating?: { average: number; count: number } | null;
+  availability: Availability;
 }
 
 export interface Variant {
@@ -99,7 +101,7 @@ export interface GlobalContext {
     itemCount: number;
     subtotal: Money;
   };
-  customer: { loggedIn: boolean; firstName: string | null } | null;
+  customer: { loggedIn: boolean; firstName: string | null; group?: { name: string; discountPercent: number; taxDisplay: string | null } | null } | null;
   navigation: { main: NavItem[]; footer: NavItem[] };
   banner: {
     id: string;

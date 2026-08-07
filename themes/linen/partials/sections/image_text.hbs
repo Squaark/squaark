@@ -1,4 +1,4 @@
-<div class="section-image-text">
+<div class="section-image-text"{{#if (or bgColor textColor)}} style="{{#if bgColor}}--section-bg:{{bgColor}};{{/if}}{{#if textColor}}--section-text:{{textColor}};{{/if}}"{{/if}}>
   <div class="{{#if (eq imagePosition 'right')}}section-image-text__inner--reverse{{else}}section-image-text__inner{{/if}}">
     {{#if src}}
     <div class="section-image-text__img-wrap">

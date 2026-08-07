@@ -7,7 +7,9 @@ import {
   removeCartItem,
   type CartItemRow,
 } from '../db/queries/cart';
-import { findVariantById, getCollectionIdsForProducts } from '../db/queries/products';
+import { findVariantById, getCollectionIdsForProducts, anyVariantRequiresSlot, getProductAvailabilityByVariant } from '../db/queries/products';
+import { getGroupForCustomer } from '../db/queries/customer-groups';
+import { computeAvailability } from './availability';
 import { findDiscountByCode } from '../db/queries/discounts';
 import { validateDiscount } from './discounts';
 import { listActiveAutomaticDiscounts, rowToPromo } from '../db/queries/automatic-discounts';
@@ -70,7 +72,7 @@ export async function getCartSummary(cartId: string): Promise<CartSummary> {
   return { itemCount, subtotal: money(items.reduce((s, i) => s + i.price * i.quantity, 0)) };
 }
 
-export async function getCartPage(cartId: string): Promise<CartPage> {
+export async function getCartPage(cartId: string, customerId?: string | null): Promise<CartPage> {
   const cart  = findCart(cartId);
   const rows  = findCartItems(cartId);
   const items = rows.map(rowToCartItem);
@@ -99,14 +101,27 @@ export async function getCartPage(cartId: string): Promise<CartPage> {
   const promos = listActiveAutomaticDiscounts().map(rowToPromo);
   const { applied, total: discountTotal } = computeAutomaticDiscounts(dItems, subtotalAmount, promos, codeDiscount);
 
+  // Customer-group (trade/wholesale) discount — a store-wide % off the list
+  // subtotal, shown as its own line and folded into the total.
+  const appliedAll: { name: string; amount: number }[] = applied.map((a) => ({ name: a.name, amount: a.amount }));
+  let discountTotalAll = discountTotal;
+  const group = getGroupForCustomer(customerId);
+  if (group && group.discount_percent > 0 && subtotalAmount > 0) {
+    const groupAmount = Math.round((subtotalAmount * group.discount_percent) / 100);
+    if (groupAmount > 0) {
+      appliedAll.push({ name: `${group.name} discount (${group.discount_percent}%)`, amount: groupAmount });
+      discountTotalAll += groupAmount;
+    }
+  }
+
   return {
     items,
     itemCount,
     subtotal:         money(subtotalAmount),
     discountCode:     cart?.discount_code ?? null,
-    discountAmount:   discountTotal > 0 ? money(discountTotal) : null,
-    appliedDiscounts: applied.map((a) => ({ name: a.name, amount: money(a.amount) })),
-    total:            money(Math.max(0, subtotalAmount - discountTotal)),
+    discountAmount:   discountTotalAll > 0 ? money(discountTotalAll) : null,
+    appliedDiscounts: appliedAll.map((a) => ({ name: a.name, amount: money(a.amount) })),
+    total:            money(Math.max(0, subtotalAmount - discountTotalAll)),
     empty:            items.length === 0,
     checkoutUrl:      '/checkout',
   };
@@ -116,7 +131,33 @@ export async function addToCart(cartId: string, variantId: string, quantity: num
   const variant = findVariantById(variantId);
   if (!variant) throw new Error('Variant not found');
   if (variant.inventory_quantity <= 0) throw new Error('Out of stock');
+  // Availability window ("product calendar"): the product may be visible but not
+  // yet (or no longer) purchasable. Enforce server-side so a direct POST can't
+  // bypass the disabled add-to-cart button.
+  const win = getProductAvailabilityByVariant(variantId);
+  if (win) {
+    const a = computeAvailability(win.available_from, win.available_until, undefined, win.allow_preorder === 1);
+    if (!a.orderable) throw new Error(a.status === 'upcoming' ? 'Not yet available' : 'No longer available');
+  }
   upsertCartItem(cartId, variantId, quantity);
+}
+
+/** True if any item in the cart belongs to a product that needs a booked delivery/collection slot. */
+export function cartRequiresSlot(items: { variantId: string }[]): boolean {
+  return anyVariantRequiresSlot(items.map(i => i.variantId));
+}
+
+/**
+ * Cart items whose product is currently outside its availability window — used
+ * to re-check at checkout, since an item may have been added while purchasable
+ * and its window then opened/closed before the customer paid.
+ */
+export function findUnavailableItems<T extends { variantId: string }>(items: T[]): T[] {
+  return items.filter((it) => {
+    const win = getProductAvailabilityByVariant(it.variantId);
+    if (!win) return false;
+    return !computeAvailability(win.available_from, win.available_until, undefined, win.allow_preorder === 1).orderable;
+  });
 }
 
 export async function updateCartItem(cartId: string, itemId: string, quantity: number): Promise<void> {

@@ -19,7 +19,8 @@
 
       <!-- Shipping address -->
       <div>
-        <h2 class="checkout-section-title">Shipping address</h2>
+        <h2 class="checkout-section-title" x-text="pickup ? 'Your details' : 'Shipping address'">Shipping address</h2>
+        <p class="text-sm" x-show="pickup" x-cloak style="color:#6b7280;margin:-0.5rem 0 0.75rem;">You've chosen to collect your order — no delivery address needed.</p>
         <div class="checkout-fields">
           <div class="checkout-2col">
             <div>
@@ -31,18 +32,18 @@
               <input type="text" id="lastName" name="lastName" required autocomplete="family-name" class="store-input">
             </div>
           </div>
-          <div>
+          <div x-show="!pickup">
             <label class="store-label">Address line 1</label>
-            <input type="text" id="line1" name="line1" required autocomplete="address-line1" class="store-input">
+            <input type="text" id="line1" name="line1" :required="!pickup" autocomplete="address-line1" class="store-input">
           </div>
-          <div>
+          <div x-show="!pickup">
             <label class="store-label">Address line 2 <span style="color:#9ca3af;">(optional)</span></label>
             <input type="text" id="line2" name="line2" autocomplete="address-line2" class="store-input">
           </div>
-          <div class="checkout-2col">
+          <div class="checkout-2col" x-show="!pickup">
             <div>
               <label class="store-label">Town / City</label>
-              <input type="text" id="city" name="city" required autocomplete="address-level2" class="store-input">
+              <input type="text" id="city" name="city" :required="!pickup" autocomplete="address-level2" class="store-input">
             </div>
             <div>
               <label class="store-label">County <span style="color:#9ca3af;">(optional)</span></label>
@@ -50,9 +51,9 @@
             </div>
           </div>
           <div class="checkout-2col">
-            <div>
+            <div x-show="!pickup">
               <label class="store-label">Postcode</label>
-              <input type="text" id="postcode" name="postcode" required autocomplete="postal-code" class="store-input">
+              <input type="text" id="postcode" name="postcode" :required="!pickup" autocomplete="postal-code" class="store-input">
             </div>
             <div>
               <label class="store-label">Country</label>
@@ -87,8 +88,27 @@
       <!-- Shipping method -->
       <div id="shipping-section">
         <div id="shipping-rate-options"
-             @shipping-rate-changed.document="selectRate($event.detail.id, $event.detail.amount, $event.detail.label)"
+             @shipping-rate-changed.document="selectRate($event.detail.id, $event.detail.amount, $event.detail.label, $event.detail.pickup, $event.detail.schedule)"
              @htmx:after-settle.document="autoSelectFirst()">
+        </div>
+      </div>
+
+      <!-- Booked delivery/collection slot (shown for scheduled rates) -->
+      <div id="fulfilment-picker" x-show="scheduleDates.length" x-cloak>
+        <h2 class="checkout-section-title">Delivery / collection slot</h2>
+        <div class="checkout-2col">
+          <div>
+            <label class="store-label">Date</label>
+            <select id="fulfilmentDate" name="fulfilmentDate" class="store-select">
+              <template x-for="d in scheduleDates" :key="d.value"><option :value="d.value" x-text="d.label"></option></template>
+            </select>
+          </div>
+          <div>
+            <label class="store-label">Time</label>
+            <select id="fulfilmentWindow" name="fulfilmentWindow" class="store-select">
+              <template x-for="w in scheduleWindows" :key="w"><option :value="w" x-text="w"></option></template>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -112,6 +132,8 @@
             <input type="hidden" name="country" id="stripe-country">
             <input type="hidden" name="phone" id="stripe-phone">
             <input type="hidden" name="shippingRateId" id="stripe-shippingRateId">
+            <input type="hidden" name="fulfilmentDate" id="stripe-fulfilmentDate">
+            <input type="hidden" name="fulfilmentWindow" id="stripe-fulfilmentWindow">
             <button type="button" onclick="submitStripe()"
               class="btn btn-block"
               style="background:var(--color-accent);color:#fff;margin-bottom:0.75rem;justify-content:center;">
@@ -124,12 +146,40 @@
           <div id="paypal-button-container"></div>
         {{/if}}
 
-        {{#unless stripeEnabled}}{{#unless paypalEnabled}}
+        {{#if canInvoice}}
+          {{#if stripeEnabled}}<div style="text-align:center;color:#9ca3af;font-size:0.8rem;margin:0.5rem 0;">— or —</div>{{else}}{{#if paypalEnabled}}<div style="text-align:center;color:#9ca3af;font-size:0.8rem;margin:0.5rem 0;">— or —</div>{{/if}}{{/if}}
+          <form method="POST" action="/checkout/invoice" id="invoice-form">
+            {{csrf_field}}
+            <input type="hidden" name="email" id="invoice-email">
+            <input type="hidden" name="firstName" id="invoice-firstName">
+            <input type="hidden" name="lastName" id="invoice-lastName">
+            <input type="hidden" name="line1" id="invoice-line1">
+            <input type="hidden" name="line2" id="invoice-line2">
+            <input type="hidden" name="city" id="invoice-city">
+            <input type="hidden" name="county" id="invoice-county">
+            <input type="hidden" name="postcode" id="invoice-postcode">
+            <input type="hidden" name="country" id="invoice-country">
+            <input type="hidden" name="phone" id="invoice-phone">
+            <input type="hidden" name="shippingRateId" id="invoice-shippingRateId">
+            <input type="hidden" name="fulfilmentDate" id="invoice-fulfilmentDate">
+            <input type="hidden" name="fulfilmentWindow" id="invoice-fulfilmentWindow">
+            <button type="button" onclick="submitInvoice()"
+              class="btn btn-block"
+              style="border:1px solid var(--color-accent);color:var(--color-accent);background:#fff;justify-content:center;">
+              Place order — pay by invoice
+            </button>
+          </form>
+          <p class="text-sm" style="color:#666;margin-top:0.5rem;text-align:center;">
+            On account{{#if invoiceTermsDays}} — payment due within {{invoiceTermsDays}} days{{/if}}. We’ll email your invoice.
+          </p>
+        {{/if}}
+
+        {{#unless stripeEnabled}}{{#unless paypalEnabled}}{{#unless canInvoice}}
           <div class="alert alert-warning">
             No payment methods are configured yet. Add Stripe or PayPal keys in
             <a href="/admin/settings#payments">Settings → Payments</a>.
           </div>
-        {{/unless}}{{/unless}}
+        {{/unless}}{{/unless}}{{/unless}}
       </div>
 
     </div>
@@ -190,6 +240,7 @@
 
 <script>
 var CSRF_TOKEN = '{{csrfToken}}';
+var REQUIRES_SLOT = {{#if requiresSlot}}true{{else}}false{{/if}};
 
 function checkoutApp(subtotal, discount, currencySymbol, taxEnabled, itemsTaxAmount, taxLabel) {
   return {
@@ -198,6 +249,9 @@ function checkoutApp(subtotal, discount, currencySymbol, taxEnabled, itemsTaxAmo
     shippingAmount: 0,
     shippingLabel: 'Calculated at checkout',
     selectedRateId: '',
+    pickup: false,
+    scheduleDates: [],
+    scheduleWindows: [],
     taxEnabled: taxEnabled || false,
     itemsTaxAmount: itemsTaxAmount || 0,
     taxLabel: taxLabel || 'VAT',
@@ -211,10 +265,16 @@ function checkoutApp(subtotal, discount, currencySymbol, taxEnabled, itemsTaxAmo
       if (!this.taxEnabled || this.itemsTaxAmount <= 0) return '';
       return currencySymbol + (this.itemsTaxAmount / 100).toFixed(2);
     },
-    selectRate(id, amount, label) {
+    selectRate(id, amount, label, pickup, schedule) {
       this.selectedRateId = id;
       this.shippingAmount = amount;
       this.shippingLabel = label;
+      this.pickup = !!pickup;
+      try {
+        const s = schedule ? JSON.parse(schedule) : null;
+        this.scheduleDates = s && Array.isArray(s.dates) ? s.dates : [];
+        this.scheduleWindows = s && Array.isArray(s.windows) ? s.windows : [];
+      } catch (e) { this.scheduleDates = []; this.scheduleWindows = []; }
       const el = document.getElementById('stripe-shippingRateId');
       if (el) el.value = id;
     },
@@ -245,18 +305,30 @@ function getFormData() {
     country:        document.getElementById('country').value,
     phone:          document.getElementById('phone').value.trim(),
     shippingRateId: rateInput ? rateInput.value : '',
+    fulfilmentDate:   (document.getElementById('fulfilmentDate')   || {}).value || '',
+    fulfilmentWindow: (document.getElementById('fulfilmentWindow') || {}).value || '',
   };
 }
 
 function validateForm() {
   const d = getFormData();
-  if (!d.email || !d.firstName || !d.lastName || !d.line1 || !d.city || !d.postcode || !d.country) {
-    const el = document.getElementById('payment-error');
-    el.textContent = 'Please fill in all required fields.';
-    el.style.display = 'block';
-    return false;
+  const err = document.getElementById('payment-error');
+  const fail = (msg) => { err.textContent = msg; err.style.display = 'block'; return false; };
+  const line1El = document.getElementById('line1');
+  const addrVisible = line1El && line1El.offsetParent !== null; // hidden for collection/pickup
+  if (!d.email || !d.firstName || !d.lastName || !d.country ||
+      (addrVisible && (!d.line1 || !d.city || !d.postcode))) {
+    return fail('Please fill in all required fields.');
   }
-  document.getElementById('payment-error').style.display = 'none';
+  const picker = document.getElementById('fulfilment-picker');
+  const pickerVisible = picker && picker.offsetParent !== null;
+  if (pickerVisible && (!d.fulfilmentDate || !d.fulfilmentWindow)) {
+    return fail('Please choose a delivery/collection date and time.');
+  }
+  if (REQUIRES_SLOT && !pickerVisible) {
+    return fail('This order needs a delivery/collection date — please choose a scheduled option above.');
+  }
+  err.style.display = 'none';
   return true;
 }
 
@@ -269,6 +341,18 @@ function submitStripe() {
   });
   document.getElementById('stripe-form').submit();
 }
+
+{{#if canInvoice}}
+function submitInvoice() {
+  if (!validateForm()) return;
+  const d = getFormData();
+  Object.keys(d).forEach(k => {
+    const el = document.getElementById('invoice-' + k);
+    if (el) el.value = d[k];
+  });
+  document.getElementById('invoice-form').submit();
+}
+{{/if}}
 
 {{#if paypalEnabled}}
 function initPayPal() {

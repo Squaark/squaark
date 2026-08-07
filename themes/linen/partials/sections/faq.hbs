@@ -1,0 +1,17 @@
+{{#if items.length}}
+<section class="section-faq"{{#if (or bgColor textColor)}} style="{{#if bgColor}}--section-bg:{{bgColor}};{{/if}}{{#if textColor}}--section-text:{{textColor}};{{/if}}"{{/if}}>
+  <div class="container--md">
+    {{#if heading}}<h2 class="section-faq__title">{{heading}}</h2>{{/if}}
+    <div class="section-faq__list">
+      {{#each items}}
+        {{#if this.question}}
+        <details class="section-faq__item">
+          <summary class="section-faq__q">{{this.question}}</summary>
+          <div class="section-faq__a">{{sanitized_html this.answer}}</div>
+        </details>
+        {{/if}}
+      {{/each}}
+    </div>
+  </div>
+</section>
+{{/if}}

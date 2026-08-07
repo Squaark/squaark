@@ -35,7 +35,7 @@ INSERT INTO email_templates (key, name, subject, body) VALUES
 <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse:collapse;margin:16px 0;">
   {{#each order.items}}
   <tr style="border-bottom:1px solid #eee;">
-    <td>{{this.product_title}} <span style="color:#888;">({{this.variant_title}}) &times; {{this.quantity}}</span></td>
+    <td>{{this.product_title}} <span style="color:#888;">({{this.variant_title}}) &times; {{this.quantity}}</span>{{#if this.preorder}}<br><span style="color:#1e40af;font-size:13px;">Pre-order &mdash; ships from {{this.preorder_from_formatted}}</span>{{/if}}</td>
     <td align="right">{{this.line_total_formatted}}</td>
   </tr>
   {{/each}}
@@ -44,7 +44,8 @@ INSERT INTO email_templates (key, name, subject, body) VALUES
   <tr><td>Shipping</td><td align="right">{{order.shipping_formatted}}</td></tr>
   <tr style="font-weight:bold;"><td>Total</td><td align="right">{{order.total_formatted}}</td></tr>
 </table>
-<p>We''ll email you again once your order ships.</p>'
+{{#if order.fulfilment_date}}<p style="margin-top:8px;"><strong>Booked for:</strong> {{order.fulfilment_date_formatted}}{{#if order.fulfilment_window}} ({{order.fulfilment_window}}){{/if}}</p>{{/if}}
+{{#if order.pickup_address}}<p style="margin-top:8px;"><strong>Collect from:</strong><br>{{order.pickup_address}}{{#if order.pickup_instructions}}<br><span style="color:#555;">{{order.pickup_instructions}}</span>{{/if}}</p><p>We''ll email you when your order is ready to collect.</p>{{else}}<p>We''ll email you again once your order ships.</p>{{/if}}'
 ),
 (
   'order_shipped',

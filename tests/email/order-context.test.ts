@@ -10,6 +10,8 @@ function order(overrides: Partial<OrderRow> = {}): OrderRow {
     discount_code: null, notes: null, shipping_address: '{}', billing_address: '{}',
     payment_provider: 'stripe', payment_reference: 'cs_1',
     shipping_rate_id: null, shipping_title: null, tax_amount: 0,
+    pickup_address: null, pickup_instructions: null, fulfilment_date: null, fulfilment_window: null,
+    due_date: null, accounting_ref: null,
     tracking_number: null, tracking_url: null, shipped_at: null,
     reminder_sent_at: null,
     created_at: '', updated_at: '',
@@ -18,7 +20,7 @@ function order(overrides: Partial<OrderRow> = {}): OrderRow {
 }
 
 const items: OrderItemRow[] = [
-  { id: 'i1', order_id: 'o1', variant_id: 'v1', product_title: 'Tote', variant_title: 'Natural', sku: null, price: 2100, quantity: 2, line_total: 4200 },
+  { id: 'i1', order_id: 'o1', variant_id: 'v1', product_title: 'Tote', variant_title: 'Natural', sku: null, price: 2100, quantity: 2, line_total: 4200, preorder: 0, preorder_available_from: null },
 ];
 
 describe('buildOrderEmailContext', () => {

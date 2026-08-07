@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import '../../types';
 import { render } from '../../admin/render';
 import { getAdminById } from '../../admin/auth';
-import { getAllSettings } from '../../db/queries/admin';
+import { getAllSettings, getSetting } from '../../db/queries/admin';
 import { processUploadedImage } from '../../admin/images';
 import fs from 'fs';
 import path from 'path';
@@ -10,6 +10,8 @@ import { execute, query, queryOne } from '../../db/connection';
 import { findAllBands } from '../../db/queries/tax';
 import { saveProductFile, deleteProductFile, findFileForProduct } from '../../db/queries/downloads';
 import { findManualRelatedIds, getProductNamesByIds, setRelatedProducts, searchProductsByTitle } from '../../db/queries/products';
+import { productLimitReached } from '../../billing/usage';
+import { getLimits } from '../../billing/limits';
 import type { MultipartFile } from '@fastify/multipart';
 import config from '../../config';
 
@@ -120,6 +122,19 @@ async function createProduct(
     );
   }
 
+  // Quota: block new products once the injected product limit is reached (admin
+  // side only — never the storefront). Existing products keep working. Limits
+  // are set by the host; a standalone install has none, so this never fires.
+  if (productLimitReached()) {
+    const upgradeUrl = getSetting('upgrade_url');
+    return reply.type('text/html').send(
+      await render('products/form', { ...adminCtx(req), product: req.body, variants: [], images: [],
+        taxBands: findAllBands(), pageTitle: 'New product',
+        error: `You've reached this store's product limit of ${getLimits().products}.` +
+          (upgradeUrl ? ` Visit ${upgradeUrl} to raise it.` : '') }, reply),
+    );
+  }
+
   const productId = crypto.randomUUID();
   const variantId = crypto.randomUUID();
   const priceInt = Math.round(parseFloat(price || '0') * 100);
@@ -127,12 +142,16 @@ async function createProduct(
   const qty = parseInt(inventory_quantity || '0', 10);
 
   const tax_band_id = req.body.tax_band_id?.trim() || null;
+  const requires_slot = req.body.requires_slot === '1' ? 1 : 0;
+  const available_from = req.body.available_from?.trim() || null;
+  const available_until = req.body.available_until?.trim() || null;
+  const allow_preorder = req.body.allow_preorder === '1' ? 1 : 0;
   execute(
-    `INSERT INTO products (id, title, slug, description, vendor, tags_text, published, seo_title, seo_description, free_shipping, is_digital, tax_band_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO products (id, title, slug, description, vendor, tags_text, published, seo_title, seo_description, free_shipping, is_digital, tax_band_id, available_from, available_until, allow_preorder, requires_slot)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [productId, title.trim(), slug.trim(), description || null, vendor || null, tags_text || '', published === '1' ? 1 : 0,
      seo_title || null, seo_description || null, free_shipping === '1' ? 1 : 0,
-     is_digital === '1' ? 1 : 0, tax_band_id],
+     is_digital === '1' ? 1 : 0, tax_band_id, available_from, available_until, allow_preorder, requires_slot],
   );
   execute(
     `INSERT INTO product_variants (id, product_id, title, price, compare_at_price, sku, inventory_quantity)
@@ -154,11 +173,15 @@ async function updateProduct(
 
   const { title, slug, description, vendor, tags_text, published, seo_title, seo_description, free_shipping, is_digital: is_digital_update } = req.body;
   const tax_band_id_update = req.body.tax_band_id?.trim() || null;
+  const requires_slot = req.body.requires_slot === '1' ? 1 : 0;
+  const available_from = req.body.available_from?.trim() || null;
+  const available_until = req.body.available_until?.trim() || null;
+  const allow_preorder = req.body.allow_preorder === '1' ? 1 : 0;
   execute(
-    `UPDATE products SET title=?, slug=?, description=?, vendor=?, tags_text=?, published=?, seo_title=?, seo_description=?, free_shipping=?, is_digital=?, tax_band_id=?, updated_at=datetime('now') WHERE id=?`,
+    `UPDATE products SET title=?, slug=?, description=?, vendor=?, tags_text=?, published=?, seo_title=?, seo_description=?, free_shipping=?, is_digital=?, tax_band_id=?, available_from=?, available_until=?, allow_preorder=?, requires_slot=?, updated_at=datetime('now') WHERE id=?`,
     [title, slug, description || null, vendor || null, tags_text || '', published === '1' ? 1 : 0,
      seo_title || null, seo_description || null, free_shipping === '1' ? 1 : 0,
-     is_digital_update === '1' ? 1 : 0, tax_band_id_update, id],
+     is_digital_update === '1' ? 1 : 0, tax_band_id_update, available_from, available_until, allow_preorder, requires_slot, id],
   );
 
   // Update variants if provided

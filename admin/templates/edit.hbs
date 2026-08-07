@@ -1,0 +1,28 @@
+<div class="page-header">
+  <div class="page-header__left">
+    <h1 class="page-title">Page templates</h1>
+  </div>
+  <div class="row" style="gap:0.25rem;">
+    <a href="/admin/templates/product" class="btn btn-sm {{#if (eq kind 'product')}}btn-primary{{else}}btn-secondary{{/if}}">Product page</a>
+    <a href="/admin/templates/collection" class="btn btn-sm {{#if (eq kind 'collection')}}btn-primary{{else}}btn-secondary{{/if}}">Collection page</a>
+  </div>
+</div>
+
+{{> pages-nav}}
+
+{{#if saved}}<div class="alert alert-success">Saved — live on every {{kindLabel}} page.</div>{{/if}}
+
+<p class="text-sm text-muted" style="margin-bottom:1rem;max-width:44rem;">
+  These sections appear on <strong>every {{kindLabel}}</strong> page, below the main content.
+  Great for shared content like shipping info, an FAQ, or a newsletter signup.
+</p>
+
+<form method="POST" action="/admin/templates/{{kind}}">
+  {{csrf_field}}
+  {{#> section-builder}}
+    <div class="card--no-overflow card-body editor-publish stack-sm">
+      <p class="text-sm font-medium" style="margin:0;">{{kindLabel}} template</p>
+      <button type="submit" class="btn btn-primary btn-sm btn-block">Save template</button>
+    </div>
+  {{/section-builder}}
+</form>

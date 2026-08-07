@@ -1,4 +1,4 @@
-<div class="section-text">
+<div class="section-text"{{#if (or bgColor textColor)}} style="{{#if bgColor}}--section-bg:{{bgColor}};{{/if}}{{#if textColor}}--section-text:{{textColor}};{{/if}}"{{/if}}>
   <div class="section-text__content">
     {{sanitized_html content}}
   </div>

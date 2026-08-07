@@ -193,7 +193,25 @@ export function registerHelpers(
 
   hbs.registerHelper('structured_data', () => new Handlebars.SafeString(''));
 
-  hbs.registerHelper('renderSection', function(section: Record<string, unknown>) {
+  // Turns a YouTube/Vimeo watch URL into an embeddable player URL. Returns ''
+  // for anything unrecognised, so the video section can guard on it.
+  hbs.registerHelper('video_embed', (url: unknown) => {
+    const s = typeof url === 'string' ? url.trim() : '';
+    if (!s) return '';
+    const yt = s.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+    if (yt) return `https://www.youtube.com/embed/${yt[1]}`;
+    const vimeo = s.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    if (vimeo) return `https://player.vimeo.com/video/${vimeo[1]}`;
+    return '';
+  });
+
+  // A keyless Google Maps embed URL for an address (works without an API key).
+  hbs.registerHelper('map_embed', (address: unknown) => {
+    const s = typeof address === 'string' ? address.trim() : '';
+    return s ? `https://www.google.com/maps?q=${encodeURIComponent(s)}&output=embed` : '';
+  });
+
+  hbs.registerHelper('renderSection', function(section: Record<string, unknown>, options: Handlebars.HelperOptions) {
     const type = String(section.type ?? '');
     if (!type) return '';
     const partialName = `sections/${type}`;
@@ -201,7 +219,9 @@ export function registerHelpers(
     const partial = partials[partialName];
     if (!partial) return '';
     const fn = typeof partial === 'string' ? hbs.compile(partial) : partial as HandlebarsTemplateDelegate;
-    return new hbs.SafeString(fn(section));
+    // Pass the data frame so a section partial can reach the page root via
+    // `@root` — e.g. `{{@root.csrfToken}}` for a newsletter form.
+    return new hbs.SafeString(fn(section, { data: options?.data }));
   });
 
   hbs.registerHelper('pagination', (pagination: {

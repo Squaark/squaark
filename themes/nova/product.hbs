@@ -110,6 +110,21 @@
           {{/if}}
         {{/if}}
 
+        <!-- Availability window ("product calendar") -->
+        {{#if product.availability.scheduled}}
+          {{#if (eq product.availability.status 'upcoming')}}
+            {{#if product.availability.preorder}}
+              <p class="product-availability product-availability--preorder">Pre-order now — ships from {{product.availability.fromLabel}}{{#if product.availability.untilLabel}} (window ends {{product.availability.untilLabel}}){{/if}}.</p>
+            {{else}}
+              <p class="product-availability product-availability--upcoming">Available from {{product.availability.fromLabel}}{{#if product.availability.untilLabel}} until {{product.availability.untilLabel}}{{/if}}.</p>
+            {{/if}}
+          {{else if (eq product.availability.status 'ended')}}
+            <p class="product-availability product-availability--ended">This item is no longer available{{#if product.availability.untilLabel}} (ended {{product.availability.untilLabel}}){{/if}}.</p>
+          {{else if product.availability.untilLabel}}
+            <p class="product-availability">Available until {{product.availability.untilLabel}}.</p>
+          {{/if}}
+        {{/if}}
+
         <!-- Add to cart form -->
         <form hx-post="/{{store.cartSlug}}/add"
               hx-target="#cart-count"
@@ -123,15 +138,15 @@
             <label class="sr-only">Quantity</label>
             <input type="number" name="quantity" value="1" min="1" class="qty-input">
             <button type="submit"
-                    {{#unless product.available}}disabled{{/unless}}
+                    {{#unless (and product.available product.availability.orderable)}}disabled{{/unless}}
                     class="btn btn-block"
-                    style="{{#if product.available}}background:var(--color-primary);color:#fff;{{else}}background:#f3f4f6;color:#9ca3af;cursor:not-allowed;{{/if}}">
+                    style="{{#if (and product.available product.availability.orderable)}}background:var(--color-primary);color:#fff;{{else}}background:#f3f4f6;color:#9ca3af;cursor:not-allowed;{{/if}}">
               <span id="add-spinner" class="htmx-indicator">
                 <svg style="width:1rem;height:1rem;animation:spin 1s linear infinite;" viewBox="0 0 24 24" fill="none">
                   <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="32" stroke-dashoffset="12"/>
                 </svg>
               </span>
-              {{#if product.available}}Add to {{store.cartLabel}}{{else}}Sold Out{{/if}}
+              {{#if (eq product.availability.status 'ended')}}No longer available{{else if product.available}}{{#if product.availability.preorder}}Pre-order{{else if (eq product.availability.status 'upcoming')}}Available {{product.availability.fromLabel}}{{else}}Add to {{store.cartLabel}}{{/if}}{{else}}Sold Out{{/if}}
             </button>
           </div>
         </form>
@@ -213,5 +228,9 @@
     </section>
 
   </div>
+
+{{#if contentSections.length}}
+{{#each contentSections}}{{renderSection this}}{{/each}}
+{{/if}}
 
 {{> footer}}

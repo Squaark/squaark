@@ -4,10 +4,13 @@
     <h1 class="page-title">{{#if collection}}{{collection.title}}{{else}}New collection{{/if}}</h1>
   </div>
   {{#if collection}}
-  <form method="POST" action="/admin/collections/{{collection.id}}/delete" onsubmit="return confirm('Delete this collection?')">
-    {{csrf_field}}
-    <button type="submit" class="btn-link btn-link--danger btn-link--sm">Delete</button>
-  </form>
+  <div class="row" style="gap:0.75rem;align-items:center;">
+    <a href="/admin/collections/{{collection.id}}/sections" class="btn btn-secondary btn-sm">Edit page sections</a>
+    <form method="POST" action="/admin/collections/{{collection.id}}/delete" onsubmit="return confirm('Delete this collection?')">
+      {{csrf_field}}
+      <button type="submit" class="btn-link btn-link--danger btn-link--sm">Delete</button>
+    </form>
+  </div>
   {{/if}}
 </div>
 
