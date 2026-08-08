@@ -1,8 +1,10 @@
 import path from 'path';
+import { createReadStream } from 'fs';
 import { ThemeEngine } from './engine';
 import { loadManifest, resolveConfig, resolveConfigNested, buildCssVars, type ThemeManifest } from './config';
+import { getMimeType } from './assets';
 import { findActiveTheme, type ThemeRow } from '../db/queries/themes';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 
 export class ThemeRegistry {
   private engine: ThemeEngine | null = null;
@@ -15,7 +17,25 @@ export class ThemeRegistry {
     const theme = findActiveTheme();
     if (!theme) throw new Error('No active theme found in database');
     await this.load(theme);
-    this.engine!.registerAssetRoutes(fastify);
+    this.registerAssetRoute(fastify);
+  }
+
+  /**
+   * Registers the `/theme/assets/*` route ONCE at boot. It serves from whichever
+   * theme is currently active (via `this.engine`), so switching themes only swaps
+   * the engine — it never adds a route, which Fastify forbids once listening.
+   * (Re-registering here on every theme switch was the cause of the 500 on enable
+   * and the new theme's CSS 404ing.)
+   */
+  private registerAssetRoute(fastify: FastifyInstance): void {
+    fastify.get('/theme/assets/*', (req: FastifyRequest, reply: FastifyReply) => {
+      const hashedName = (req.params as Record<string, string>)['*'];
+      const file = this.engine?.assetFile(hashedName);
+      if (!file) return reply.code(404).send('Asset not found');
+      reply.header('Content-Type', getMimeType(file.ext));
+      reply.header('Cache-Control', 'public, max-age=31536000, immutable');
+      return reply.send(createReadStream(file.filePath));
+    });
   }
 
   private async load(theme: ThemeRow): Promise<void> {
@@ -57,10 +77,10 @@ export class ThemeRegistry {
       this.engine?.invalidateAll();
       return;
     }
-    // Different theme — full reinit
+    // Different theme — swap the engine in place. The stable /theme/assets route
+    // (registered once at boot) now serves the new theme; no route changes needed.
     this.engine = null;
     await this.load(theme);
-    this.engine!.registerAssetRoutes(fastify);
   }
 
   get currentEngine(): ThemeEngine {
